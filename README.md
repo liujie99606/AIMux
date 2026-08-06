@@ -4,6 +4,17 @@ AIMux 是本地桌面端的 OpenAI 与 Anthropic API 账号池。它只保留账
 
 ## 启动
 
+### 一键启动
+
+项目根目录提供了平台启动脚本，首次运行会自动创建虚拟环境并安装依赖，后续直接启动：
+
+- **Windows**：双击 `win_start.bat`，或在终端执行 `.\win_start.bat`
+- **macOS**：终端执行 `chmod +x mac_start.sh && ./mac_start.sh`
+
+### 手动启动
+
+如需手动控制环境，可逐步执行：
+
 ```powershell
 py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
