@@ -61,10 +61,13 @@ async def test_failed_request_retries_by_current_priority(session, settings, mon
     assert account_dao.get(session, first.id).priority == 5
     assert account_dao.get(session, second.id).priority == 7
     records, total = usage_dao.list_records(session)
-    assert total == 1 and records[0].account_id == second.id and records[0].attempts == 5
-    assert records[0].success
-    assert records[0].total_tokens == 5
-    assert records[0].started_at.startswith("20")
+    assert total == 5
+    assert sum(record.success for record in records) == 1
+    ordered = sorted(records, key=lambda record: record.attempts)
+    assert [record.attempts for record in ordered] == [1, 2, 3, 4, 5]
+    successful = next(record for record in records if record.success)
+    assert successful.account_id == second.id and successful.total_tokens == 5
+    assert all(record.trace_id == successful.trace_id for record in records)
 
 
 @pytest.mark.asyncio
@@ -87,8 +90,9 @@ async def test_retry_stops_after_total_attempt_limit(session, settings, monkeypa
     assert response.status_code == 503
     assert calls == [first.id, first.id, first.id, first.id]
     records, total = usage_dao.list_records(session)
-    assert total == 1 and records[0].account_id == first.id and records[0].attempts == 4
-    assert not records[0].success
+    assert total == 4 and all(not record.success for record in records)
+    assert {record.attempts for record in records} == {1, 2, 3, 4}
+    assert all(record.account_id == first.id for record in records)
     assert account_dao.get(session, first.id).status == "active"
     assert account_dao.get(session, second.id).status == "active"
 
@@ -143,10 +147,12 @@ async def test_stream_retries_before_first_chunk_and_parses_split_sse_usage(sess
     assert calls == [first.id, first.id, first.id, first.id, second.id]
     session.expire_all()
     records, total = usage_dao.list_records(session)
-    assert total == 1 and records[0].success and records[0].account_id == second.id
-    assert records[0].attempts == 5 and records[0].first_token_ms is not None
-    assert (records[0].input_tokens, records[0].output_tokens, records[0].total_tokens) == (2, 3, 5)
-    assert records[0].started_at.startswith("20")
+    assert total == 5 and sum(record.success for record in records) == 1
+    successful = next(record for record in records if record.success)
+    assert successful.account_id == second.id and successful.attempts == 5
+    assert successful.first_token_ms is not None
+    assert (successful.input_tokens, successful.output_tokens, successful.total_tokens) == (2, 3, 5)
+    assert {record.attempts for record in records} == {1, 2, 3, 4, 5}
     assert account_dao.get(session, first.id).priority == 5
     assert account_dao.get(session, second.id).priority == 7
 

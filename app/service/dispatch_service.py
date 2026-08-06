@@ -85,7 +85,7 @@ def _write_usage(
     reasoning_effort: str | None = None,
     tokens: tuple[int | None, int | None, int | None] = (None, None, None),
 ) -> None:
-    """落库一次客户端请求，并同步累计命中账号的 token 统计。"""
+    """落库一次上游尝试，并同步累计命中账号的 token 统计。"""
     input_tokens, output_tokens, total_tokens = tokens
     usage_service.create_record(
         session,
@@ -131,8 +131,6 @@ async def forward_non_stream(
     model = body.get("model")
     reasoning_effort = extract_reasoning_effort(body)
     attempts = 0
-    started_monotonic = time.perf_counter()
-    started_at = utc_now()
     trace_id = str(uuid.uuid4())
     last_error: FailedAttempt | None = None
     last_account: Account | None = None
@@ -141,6 +139,8 @@ async def forward_non_stream(
         if account is None:
             break
         attempts += 1
+        attempt_started_monotonic = time.perf_counter()
+        attempt_started_at = utc_now()
         last_account = account
         account_dao.mark_used(session, account)
         try:
@@ -149,10 +149,24 @@ async def forward_non_stream(
         except Exception as exc:
             last_error = _exception_error(exc)
             account_service.record_request_failure(session, account, last_error.code, last_error.message)
+            _write_usage(
+                session, trace_id=trace_id, started_at=attempt_started_at,
+                started_monotonic=attempt_started_monotonic, account=account, model=model,
+                endpoint=endpoint, stream=False, client_ip=client_ip, attempts=attempts,
+                success=False, status_code=last_error.status_code, error=last_error,
+                reasoning_effort=reasoning_effort,
+            )
             continue
         if not 200 <= response.status_code < 300:
             last_error = _upstream_error(response)
             account_service.record_request_failure(session, account, last_error.code, last_error.message)
+            _write_usage(
+                session, trace_id=trace_id, started_at=attempt_started_at,
+                started_monotonic=attempt_started_monotonic, account=account, model=model,
+                endpoint=endpoint, stream=False, client_ip=client_ip, attempts=attempts,
+                success=False, status_code=last_error.status_code, error=last_error,
+                reasoning_effort=reasoning_effort,
+            )
             continue
         try:
             payload = response.json()
@@ -161,18 +175,21 @@ async def forward_non_stream(
         tokens = extract_usage(payload)
         account_service.record_request_success(session, account)
         _write_usage(
-            session, trace_id=trace_id, started_at=started_at, started_monotonic=started_monotonic, account=account, model=model, endpoint=endpoint,
+            session, trace_id=trace_id, started_at=attempt_started_at,
+            started_monotonic=attempt_started_monotonic, account=account, model=model, endpoint=endpoint,
             stream=False, client_ip=client_ip, attempts=attempts, success=True,
             status_code=response.status_code, tokens=tokens, reasoning_effort=reasoning_effort,
         )
         content_type = response.headers.get("content-type", "application/json")
         return Response(content=response.content, status_code=response.status_code, media_type=content_type)
     final = last_error or FailedAttempt(503, "no_available_account", "没有可用账号")
-    _write_usage(
-        session, trace_id=trace_id, started_at=started_at, started_monotonic=started_monotonic, account=last_account, model=model, endpoint=endpoint,
-        stream=False, client_ip=client_ip, attempts=attempts, success=False,
-        status_code=final.status_code, error=final, reasoning_effort=reasoning_effort,
-    )
+    if last_account is None:
+        _write_usage(
+            session, trace_id=trace_id, started_at=utc_now(), started_monotonic=time.perf_counter(),
+            account=None, model=model, endpoint=endpoint, stream=False, client_ip=client_ip,
+            attempts=attempts, success=False, status_code=final.status_code, error=final,
+            reasoning_effort=reasoning_effort,
+        )
     return _error(account_type, final.status_code or 502, final.code, final.message)
 
 
@@ -190,19 +207,22 @@ async def forward_stream(
     model = body.get("model")
     reasoning_effort = extract_reasoning_effort(body)
     attempts = 0
-    started_monotonic = time.perf_counter()
-    started_at = utc_now()
+    request_started_monotonic = time.perf_counter()
     trace_id = str(uuid.uuid4())
     last_error: FailedAttempt | None = None
     last_account: Account | None = None
     selected: Account | None = None
     prepared: forwarders.PreparedStream | None = None
     first_chunk: bytes | None = None
+    selected_started_monotonic: float | None = None
+    selected_started_at: str | None = None
     while attempts < settings.request_retry_attempts:
         account = pick(session, model, account_type)
         if account is None:
             break
         attempts += 1
+        attempt_started_monotonic = time.perf_counter()
+        attempt_started_at = utc_now()
         last_account = account
         account_dao.mark_used(session, account)
         try:
@@ -211,12 +231,26 @@ async def forward_stream(
         except Exception as exc:
             last_error = _exception_error(exc)
             account_service.record_request_failure(session, account, last_error.code, last_error.message)
+            _write_usage(
+                session, trace_id=trace_id, started_at=attempt_started_at,
+                started_monotonic=attempt_started_monotonic, account=account, model=model,
+                endpoint=endpoint, stream=True, client_ip=client_ip, attempts=attempts,
+                success=False, status_code=last_error.status_code, error=last_error,
+                reasoning_effort=reasoning_effort,
+            )
             continue
         if not 200 <= candidate.response.status_code < 300:
             await candidate.response.aread()
             last_error = _upstream_error(candidate.response)
             await candidate.close()
             account_service.record_request_failure(session, account, last_error.code, last_error.message)
+            _write_usage(
+                session, trace_id=trace_id, started_at=attempt_started_at,
+                started_monotonic=attempt_started_monotonic, account=account, model=model,
+                endpoint=endpoint, stream=True, client_ip=client_ip, attempts=attempts,
+                success=False, status_code=last_error.status_code, error=last_error,
+                reasoning_effort=reasoning_effort,
+            )
             continue
         try:
             initial_chunk = await asyncio.wait_for(
@@ -226,16 +260,26 @@ async def forward_stream(
             last_error = _exception_error(exc)
             await candidate.close()
             account_service.record_request_failure(session, account, last_error.code, last_error.message)
+            _write_usage(
+                session, trace_id=trace_id, started_at=attempt_started_at,
+                started_monotonic=attempt_started_monotonic, account=account, model=model,
+                endpoint=endpoint, stream=True, client_ip=client_ip, attempts=attempts,
+                success=False, status_code=last_error.status_code, error=last_error,
+                reasoning_effort=reasoning_effort,
+            )
             continue
         selected, prepared, first_chunk = account, candidate, initial_chunk
+        selected_started_monotonic, selected_started_at = attempt_started_monotonic, attempt_started_at
         break
     if not selected or not prepared:
         final = last_error or FailedAttempt(503, "no_available_account", "没有可用账号")
-        _write_usage(
-            session, trace_id=trace_id, started_at=started_at, started_monotonic=started_monotonic, account=last_account, model=model, endpoint=endpoint,
-            stream=True, client_ip=client_ip, attempts=attempts, success=False,
-            status_code=final.status_code, error=final, reasoning_effort=reasoning_effort,
-        )
+        if last_account is None:
+            _write_usage(
+                session, trace_id=trace_id, started_at=utc_now(), started_monotonic=time.perf_counter(),
+                account=None, model=model, endpoint=endpoint, stream=True, client_ip=client_ip,
+                attempts=attempts, success=False, status_code=final.status_code, error=final,
+                reasoning_effort=reasoning_effort,
+            )
         return _error(account_type, final.status_code or 502, final.code, final.message)
 
     async def relay() -> AsyncIterator[bytes]:
@@ -245,12 +289,12 @@ async def forward_stream(
         try:
             if first_chunk is not None:
                 if first_chunk:
-                    first_token_ms = round((time.perf_counter() - started_monotonic) * 1000)
+                    first_token_ms = round((time.perf_counter() - request_started_monotonic) * 1000)
                     parser.feed(first_chunk)
                 yield first_chunk
             async for chunk in prepared.chunks():
                 if chunk and first_token_ms is None:
-                    first_token_ms = round((time.perf_counter() - started_monotonic) * 1000)
+                    first_token_ms = round((time.perf_counter() - request_started_monotonic) * 1000)
                 parser.feed(chunk)
                 yield chunk
         except Exception as exc:
@@ -271,7 +315,8 @@ async def forward_stream(
                             record_session, record_account, stream_error.code, stream_error.message
                         )
                 _write_usage(
-                    record_session, trace_id=trace_id, started_at=started_at, started_monotonic=started_monotonic, account=record_account, model=model,
+                    record_session, trace_id=trace_id, started_at=selected_started_at or utc_now(),
+                    started_monotonic=selected_started_monotonic or time.perf_counter(), account=record_account, model=model,
                     endpoint=endpoint, stream=True, client_ip=client_ip, attempts=attempts,
                     success=stream_error is None, status_code=prepared.response.status_code,
                     error=stream_error, first_token_ms=first_token_ms, tokens=parser.usage,

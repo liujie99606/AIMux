@@ -125,6 +125,7 @@ app/
 - 不模拟 multipart 文件上传；`OpenAI-Beta`、`Idempotency-Key`、`anthropic-beta` 等头按类型受限透传。
 - 上游认证头始终由本地账号配置注入，不透传客户端凭证。
 - 每次客户端请求最多尝试 `request_retry_attempts` 次（默认 10）；每次失败都按最新优先级重新选账号，不排除已失败账号。
+- 每次上游尝试都单独写入 `UsageRecord`，同一客户端请求共享 `trace_id`，并用 `attempts` 记录该尝试序号；失败重试不能只保留最终结果。
 - 测试账号：`max_tokens=1` + `"ping"`，endpoint 按类型选 `/v1/messages` 或 `/v1/chat/completions`。
 
 ## 测试规范（tests/）
