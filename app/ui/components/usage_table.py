@@ -18,7 +18,7 @@ class UsageTable(DataTable):
     detail_requested = Signal(str)
 
     COLUMNS = [
-        Column("时间", lambda r: format_time(r.get("started_at")), width=180),
+        Column("时间", lambda r: format_time(r.get("started_at")), width=150),
         Column("账号", lambda r: r.get("account_name") or "-"),
         Column("类型", lambda r: r.get("account_type") or "-"),
         Column("模型", lambda r: r.get("model") or "-"),
