@@ -70,13 +70,15 @@ def test_usage_formatting_and_failed_result_color():
     application = QApplication.instance() or QApplication([])
     table = UsageTable()
     table.set_records([
-        {"id": "failed", "success": False, "duration_ms": 1234, "first_token_ms": None},
-        {"id": "success", "success": True, "duration_ms": 1234, "first_token_ms": None},
+        {"id": "failed", "success": False, "duration_ms": 1234, "first_token_ms": None, "attempts": 3},
+        {"id": "success", "success": True, "duration_ms": 1234, "first_token_ms": None, "attempts": 1},
     ])
     result_column = 5
     assert table.item(0, result_column).text() == "失败"
     assert table.item(0, result_column).foreground().color().name().upper() == "#D95C5C"
     assert table.item(0, 7).text() == "1.2 s"
+    assert table.horizontalHeaderItem(9).text() == "重试次数"
+    assert table.item(0, 9).text() == "3"
 
     summary = SummaryCards()
     summary.set_summary({"average_duration_ms": 1234})
