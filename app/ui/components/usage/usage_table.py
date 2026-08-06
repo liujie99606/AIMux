@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QHBoxLayout, QPushButton, QWidget
 
 from app.ui.components.common.data_table import Column, DataTable
 from app.ui.formatting import format_time
@@ -27,7 +28,7 @@ class UsageTable(DataTable):
         Column("耗时", lambda r: f"{r.get('duration_ms') or 0} ms"),
         Column("首Token", _first_token),
         Column("推理强度", lambda r: r.get("reasoning_effort") or "-"),
-        # Column("Token", lambda r: str(r.get("total_tokens") or 0)),
+        Column("操作", lambda r: r["_actions"], widget=True, stretch=True),
     ]
 
     def __init__(self, parent=None) -> None:
@@ -35,8 +36,20 @@ class UsageTable(DataTable):
         self.row_activated.connect(self._open_detail)
 
     def set_records(self, records: list[dict]) -> None:
-        """刷新使用记录列表。"""
-        self._render(records)
+        """刷新使用记录列表，操作按钮在预处理中连接信号。"""
+        self._render([self._prepare(record) for record in records])
+
+    def _prepare(self, record: dict) -> dict:
+        """为单行生成详情按钮并连接信号。"""
+        actions = QWidget()
+        layout = QHBoxLayout(actions)
+        layout.setContentsMargins(0, 0, 0, 0)
+        detail = QPushButton("详情")
+        detail.clicked.connect(lambda _, rid=record["id"]: self.detail_requested.emit(rid))
+        layout.addWidget(detail)
+        prepared = dict(record)
+        prepared["_actions"] = actions
+        return prepared
 
     def _open_detail(self, row: int) -> None:
         data = self.row_data(row)

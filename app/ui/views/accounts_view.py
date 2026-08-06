@@ -50,6 +50,7 @@ class AccountsView(QWidget):
         self.table.super_requested.connect(self.make_super)
         self.table.priority_changed.connect(self.change_priority)
         self.table.adjust_priority_requested.connect(self.adjust_priority)
+        self.table.name_changed.connect(self.rename)
         self.refresh()
 
     def _error(self, exc: Exception) -> None:
@@ -183,6 +184,16 @@ class AccountsView(QWidget):
                 self.accounts[account_id]["priority"] = priority
             except Exception as exc:
                 self._error(exc)
+
+    def rename(self, account_id: str, name: str) -> None:
+        """直接在列表中快速修改账号名称，失败时刷新以恢复原值。"""
+        if account_id in self.accounts:
+            try:
+                self.client.put(f"/api/accounts/{account_id}", json={"name": name})
+                self.accounts[account_id]["name"] = name
+            except Exception as exc:
+                self._error(exc)
+                self.refresh()
 
     def adjust_priority(self, account_id: str, delta: int) -> None:
         """按增量快捷调整优先级，后端自动限制在 0-9 范围内。"""

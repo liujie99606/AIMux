@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QWidget
+from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QLineEdit, QPushButton, QWidget
 
 from app.ui.components.common.data_table import Column, DataTable
 from app.ui.components.common.priority_editor import PriorityEditor
@@ -20,10 +20,11 @@ class AccountTable(DataTable):
     super_requested = Signal(str)
     priority_changed = Signal(str, int)
     adjust_priority_requested = Signal(str, int)
+    name_changed = Signal(str, str)
 
     COLUMNS = [
         Column("选择", lambda r: r["_checkbox"], widget=True, width=50),
-        Column("名称", lambda r: r["name"], width=170),
+        Column("名称", lambda r: r["_name_editor"], widget=True, width=170),
         Column("类型", lambda r: r["type"]),
         Column("状态", lambda r: StatusBadge(r["status"]), widget=True, width=120),
         Column("优先级", lambda r: r["_priority"], widget=True, width=90),
@@ -60,6 +61,13 @@ class AccountTable(DataTable):
         holder_layout.addWidget(check)
         holder_layout.setAlignment(check, Qt.AlignmentFlag.AlignCenter)
 
+        name_editor = QLineEdit(account["name"])
+        name_editor.setFrame(False)
+        name_editor.setProperty("original", account["name"])
+        name_editor.editingFinished.connect(
+            lambda editor=name_editor, aid=account["id"]: self._emit_name(aid, editor)
+        )
+
         priority = PriorityEditor(account["priority"])
         priority.valueChanged.connect(
             lambda value, account_id=account["id"]: self.priority_changed.emit(account_id, value)
@@ -89,6 +97,13 @@ class AccountTable(DataTable):
 
         prepared = dict(account)
         prepared["_checkbox"] = holder
+        prepared["_name_editor"] = name_editor
         prepared["_priority"] = priority
         prepared["_actions"] = actions
         return prepared
+
+    def _emit_name(self, account_id: str, editor: QLineEdit) -> None:
+        """名称编辑完成且非空、有变化时通知外部保存。"""
+        name = editor.text().strip()
+        if name and name != editor.property("original"):
+            self.name_changed.emit(account_id, name)
