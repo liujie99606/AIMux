@@ -45,8 +45,11 @@ CREATE INDEX IF NOT EXISTS idx_models_type_name ON models (type, name);
 -- 默认模型仅在不存在时补充，应用启动也会执行同样的幂等初始化。
 INSERT OR IGNORE INTO models (id, name, type, created_at, updated_at) VALUES
   ('default-openai-gpt-5-5', 'gpt-5.5', 'openai', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-  ('default-openai-gpt-5-5-mini', 'gpt-5.5-mini', 'openai', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-  ('default-openai-gpt-5-5-nano', 'gpt-5.5-nano', 'openai', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+  ('default-openai-gpt-5-5-pro', 'gpt-5.5-pro', 'openai', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+  ('default-openai-gpt-5-6', 'gpt-5.6', 'openai', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+  ('default-openai-gpt-5-6-sol', 'gpt-5.6-sol', 'openai', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+  ('default-openai-gpt-5-6-terra', 'gpt-5.6-terra', 'openai', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+  ('default-openai-gpt-5-6-luna', 'gpt-5.6-luna', 'openai', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   ('default-anthropic-claude-opus-4-8', 'claude-opus-4-8', 'anthropic', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   ('default-anthropic-claude-sonnet-4-8', 'claude-sonnet-4-8', 'anthropic', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
   ('default-anthropic-claude-haiku-4-8', 'claude-haiku-4-8', 'anthropic', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'), strftime('%Y-%m-%dT%H:%M:%SZ', 'now'));

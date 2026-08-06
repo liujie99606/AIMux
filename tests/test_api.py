@@ -59,7 +59,7 @@ def test_compatibility_routes_select_protocol_and_models(settings, monkeypatch):
     assert [item["account_type"] for item in calls] == ["openai", "openai", "anthropic"]
     openai_ids = {item["id"] for item in client.get("/v1/models").json()["data"]}
     anthropic_ids = {item["id"] for item in client.get("/v1/anthropic/models").json()["data"]}
-    assert openai_ids == {"gpt-5.5", "gpt-5.5-mini", "gpt-5.5-nano"}
+    assert openai_ids == {"gpt-5.5", "gpt-5.5-pro", "gpt-5.6", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"}
     assert anthropic_ids == {"claude-opus-4-8", "claude-sonnet-4-8", "claude-haiku-4-8"}
 
 
