@@ -14,6 +14,7 @@ class Column:
     - TextColumn：getter 返回字符串，自动创建 QTableWidgetItem。
     - WidgetColumn：getter 返回 QWidget，自动 setCellWidget。
     两种列共享同一个 Column，按 widget 字段区分渲染方式。
+    可选 color 回调返回 QColor，用于按行高亮文本列（如慢请求警示色）。
     """
 
     title: str
@@ -21,6 +22,7 @@ class Column:
     widget: bool = False
     width: int | None = None
     stretch: bool = False
+    color: Callable[[dict], Any] | None = None
 
 
 class DataTable(QTableWidget):
@@ -69,7 +71,12 @@ class DataTable(QTableWidget):
                     if value is not None:
                         self.setCellWidget(row, col_index, value)
                 else:
-                    self.setItem(row, col_index, QTableWidgetItem(str(value)))
+                    cell = QTableWidgetItem(str(value))
+                    if column.color is not None:
+                        color = column.color(item)
+                        if color is not None:
+                            cell.setForeground(color)
+                    self.setItem(row, col_index, cell)
 
     @property
     def rows(self) -> list[dict]:
