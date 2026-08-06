@@ -50,6 +50,12 @@ def test_desktop_components_are_constructible(monkeypatch):
     assert filters.parameters()["model"] == "gpt-test"
     assert filters.parameters()["limit"] == 20
     assert filters.parameters(offset=20)["offset"] == 20
+    filters.account.setText("account-a")
+    filters.type.setCurrentText("openai")
+    filters.success.setCurrentText("失败")
+    filters.started_after.setText("2026-08-01T00:00:00Z")
+    filters.reset_button.click()
+    assert filters.parameters() == {"offset": 0, "limit": 20}
     pagination = UsagePagination()
     pagination.set_total(41)
     assert pagination.total_pages == 3

@@ -10,7 +10,11 @@ class SettingsView(QWidget):
         super().__init__(parent); self.client = client; root = QVBoxLayout(self); root.setContentsMargins(20, 18, 20, 18); root.setSpacing(14); form = QFormLayout(); form.setSpacing(10); root.addLayout(form)
         self.host = QLineEdit(); self.port = QSpinBox(); self.port.setRange(1, 65535); self.db_path = QLineEdit(); self.timeout = QSpinBox(); self.timeout.setRange(1, 3600); self.first_timeout = QSpinBox(); self.first_timeout.setRange(1, 3600); self.retries = QSpinBox(); self.retries.setRange(1, 20); self.token = QLineEdit(); self.token.setEchoMode(QLineEdit.EchoMode.Password); self.launch_at_login = QCheckBox("开机后自动启动 AIMux")
         for label, field in [("监听地址", self.host), ("端口", self.port), ("数据库路径", self.db_path), ("上游超时（秒）", self.timeout), ("首字超时（秒）", self.first_timeout), ("总尝试次数", self.retries), ("本地令牌", self.token), ("开机自启", self.launch_at_login)]: form.addRow(label, field)
-        save = QPushButton("保存设置"); root.addWidget(save); root.addStretch(); save.clicked.connect(self.save); self.load()
+        save = QPushButton("保存设置"); root.addWidget(save); root.addStretch(); save.clicked.connect(self.save); self.refresh()
+
+    def refresh(self) -> None:
+        """重新读取最新设置。"""
+        self.load()
 
     def load(self) -> None:
         try:

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QWidget
 
 
 class UsageFilter(QWidget):
+    """使用记录筛选条件和查询控制。"""
+
+    reset_requested = Signal()
+
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         layout = QHBoxLayout(self)
@@ -14,8 +19,20 @@ class UsageFilter(QWidget):
         self.started_after = QLineEdit(); self.started_after.setPlaceholderText("开始时间 ISO")
         self.started_before = QLineEdit(); self.started_before.setPlaceholderText("结束时间 ISO")
         self.refresh_button = QPushButton("查询")
-        for control in [QLabel("筛选"), self.account, self.model, self.type, self.success, self.started_after, self.started_before, self.refresh_button]:
+        self.reset_button = QPushButton("重置")
+        self.reset_button.clicked.connect(self._reset)
+        for control in [QLabel("筛选"), self.account, self.model, self.type, self.success, self.started_after, self.started_before, self.refresh_button, self.reset_button]:
             layout.addWidget(control)
+
+    def _reset(self) -> None:
+        """清空所有筛选控件并通知视图重新查询。"""
+        self.account.clear()
+        self.model.clear()
+        self.type.setCurrentIndex(0)
+        self.success.setCurrentIndex(0)
+        self.started_after.clear()
+        self.started_before.clear()
+        self.reset_requested.emit()
 
     def parameters(self, *, offset: int = 0, limit: int = 20) -> dict[str, str | bool | int]:
         """组装筛选条件和当前页的分页参数。"""

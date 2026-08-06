@@ -36,6 +36,7 @@ class UsageView(QWidget):
         self.pagination = UsagePagination(_PAGE_SIZE)
         root.addWidget(self.pagination)
         self.filter.refresh_button.clicked.connect(self._refresh_from_first_page)
+        self.filter.reset_requested.connect(self._refresh_from_first_page)
         self.pagination.page_requested.connect(self.refresh)
         self.table.detail_requested.connect(self.show_detail)
         self.refresh()

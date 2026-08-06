@@ -112,8 +112,16 @@ class MainWindow(QMainWindow):
         self._add_navigation_item("模型维护", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView))
         self._add_navigation_item("使用记录", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
         self._add_navigation_item("设置", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
-        self.navigation.currentRowChanged.connect(self.content.setCurrentIndex)
+        self.navigation.currentRowChanged.connect(self._on_navigation_changed)
         self.navigation.setCurrentRow(0)
+
+    def _on_navigation_changed(self, index: int) -> None:
+        """切换页面并读取当前视图的最新数据。"""
+        self.content.setCurrentIndex(index)
+        view = self.content.widget(index)
+        refresh = getattr(view, "refresh", None)
+        if callable(refresh):
+            refresh()
 
     def _reload_views(self) -> None:
         """销毁旧视图并按最新源码重建，保留当前页签位置。
@@ -123,7 +131,7 @@ class MainWindow(QMainWindow):
         """
         current = self.navigation.currentRow()
         # 断开旧导航信号，避免重建过程中触发 setCurrentIndex。
-        self.navigation.currentRowChanged.disconnect(self.content.setCurrentIndex)
+        self.navigation.currentRowChanged.disconnect(self._on_navigation_changed)
         self.navigation.clear()
         for index in range(self.content.count()):
             widget = self.content.widget(index)
