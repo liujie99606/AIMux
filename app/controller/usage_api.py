@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/usage", tags=["usage"])
 @router.get("/records")
 def records(
     offset: int = 0,
-    limit: int = 50,
+    limit: int = 20,
     account_id: str | None = None,
     model: str | None = None,
     type: str | None = None,
@@ -23,7 +23,7 @@ def records(
     session: Session = Depends(get_session),
 ):
     items, total = usage_dao.list_records(
-        session, offset=offset, limit=min(limit, 200), account_id=account_id, model=model,
+        session, offset=max(offset, 0), limit=min(limit, 200), account_id=account_id, model=model,
         account_type=type, success=success, started_after=started_after, started_before=started_before,
     )
     return {

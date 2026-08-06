@@ -17,8 +17,9 @@ class UsageFilter(QWidget):
         for control in [QLabel("筛选"), self.account, self.model, self.type, self.success, self.started_after, self.started_before, self.refresh_button]:
             layout.addWidget(control)
 
-    def parameters(self) -> dict:
-        params: dict[str, str | bool | int] = {"limit": 200}
+    def parameters(self, *, offset: int = 0, limit: int = 20) -> dict[str, str | bool | int]:
+        """组装筛选条件和当前页的分页参数。"""
+        params: dict[str, str | bool | int] = {"offset": max(offset, 0), "limit": limit}
         if self.account.text().strip(): params["account_id"] = self.account.text().strip()
         if self.model.text().strip(): params["model"] = self.model.text().strip()
         if self.type.currentText() != "全部类型": params["type"] = self.type.currentText()

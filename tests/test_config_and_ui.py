@@ -19,6 +19,7 @@ def test_desktop_components_are_constructible(monkeypatch):
     from app.ui.components.common.priority_editor import PriorityEditor
     from app.ui.components.accounts.status_badge import StatusBadge
     from app.ui.components.usage.usage_filter import UsageFilter
+    from app.ui.components.usage.usage_pagination import UsagePagination
 
     application = QApplication.instance() or QApplication([])
     priority = PriorityEditor(5)
@@ -28,4 +29,12 @@ def test_desktop_components_are_constructible(monkeypatch):
     assert priority.value() == 5
     assert badge.text() == "启用"
     assert filters.parameters()["model"] == "gpt-test"
-    priority.deleteLater(); badge.deleteLater(); filters.deleteLater()
+    assert filters.parameters()["limit"] == 20
+    assert filters.parameters(offset=20)["offset"] == 20
+    pagination = UsagePagination()
+    pagination.set_total(41)
+    assert pagination.total_pages == 3
+    assert pagination.next_button.isEnabled()
+    pagination.set_total(0)
+    assert not pagination.next_button.isEnabled()
+    priority.deleteLater(); badge.deleteLater(); filters.deleteLater(); pagination.deleteLater()

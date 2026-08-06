@@ -6,7 +6,10 @@ from app.ui.client import ApiClient
 from app.ui.components.usage.summary_card import SummaryCards
 from app.ui.components.usage.usage_detail_dialog import UsageDetailDialog
 from app.ui.components.usage.usage_filter import UsageFilter
+from app.ui.components.usage.usage_pagination import UsagePagination
 from app.ui.components.usage.usage_table import UsageTable
+
+_PAGE_SIZE = 20
 
 
 def _page_summary(items: list[dict]) -> dict:
@@ -30,14 +33,29 @@ class UsageView(QWidget):
         self.filter = UsageFilter(); root.addWidget(self.filter)
         self.summary = SummaryCards(); root.addWidget(self.summary)
         self.table = UsageTable(); root.addWidget(self.table)
-        self.filter.refresh_button.clicked.connect(self.refresh); self.table.detail_requested.connect(self.show_detail); self.refresh()
+        self.pagination = UsagePagination(_PAGE_SIZE)
+        root.addWidget(self.pagination)
+        self.filter.refresh_button.clicked.connect(self._refresh_from_first_page)
+        self.pagination.page_requested.connect(self.refresh)
+        self.table.detail_requested.connect(self.show_detail)
+        self.refresh()
 
-    def refresh(self) -> None:
+    def _refresh_from_first_page(self) -> None:
+        """筛选条件变化后从第一页重新查询。"""
+        self.refresh(0)
+
+    def refresh(self, page: int | None = None) -> None:
+        """按当前页查询使用记录。"""
         try:
-            data = self.client.get("/api/usage/records", params=self.filter.parameters())
+            current_page = self.pagination.page if page is None else max(page, 0)
+            data = self.client.get(
+                "/api/usage/records",
+                params=self.filter.parameters(offset=current_page * _PAGE_SIZE, limit=_PAGE_SIZE),
+            )
             items = data["items"]
             self.table.set_records(items)
             self.summary.set_summary(_page_summary(items))
+            self.pagination.set_total(data.get("total", 0), current_page)
         except Exception as exc: QMessageBox.warning(self, "查询失败", str(exc))
 
     def show_detail(self, record_id: str) -> None:

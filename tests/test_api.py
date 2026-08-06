@@ -79,6 +79,32 @@ def test_usage_record_filters_summary_and_detail(settings):
     assert client.get(f"/api/usage/records/{payload['items'][0]['id']}").json()["trace_id"] == "a"
 
 
+def test_usage_records_default_page_size_and_offset(settings):
+    """使用记录列表默认每页返回 20 条，并支持按 offset 查询后续页。"""
+    client = TestClient(create_app(settings))
+    with Session(get_engine()) as session:
+        session.add_all([
+            UsageRecord(
+                trace_id=f"trace-{index}",
+                started_at=f"2026-08-01T00:{index:02d}:00Z",
+                account_id="account-a",
+                account_name="账号 A",
+                account_type="openai",
+                model="gpt-test",
+                endpoint="/v1/chat/completions",
+                success=True,
+            )
+            for index in range(25)
+        ])
+        session.commit()
+
+    first_page = client.get("/api/usage/records").json()
+    second_page = client.get("/api/usage/records", params={"offset": 20, "limit": 20}).json()
+    assert first_page["total"] == 25
+    assert len(first_page["items"]) == 20
+    assert len(second_page["items"]) == 5
+
+
 def test_reasoning_effort_recorded_from_request_body(settings, monkeypatch):
     """推理强度应原样记录下游请求体中的值，缺失时为空。"""
     import httpx
