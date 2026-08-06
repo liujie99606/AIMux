@@ -4,6 +4,7 @@ from PySide6.QtWidgets import QAbstractItemView, QHBoxLayout, QMessageBox, QPush
 
 from app.ui.client import ApiClient
 from app.ui.components.model_form import ModelForm
+from app.ui.formatting import format_time
 
 
 class ModelsView(QWidget):
@@ -43,7 +44,7 @@ class ModelsView(QWidget):
             for row, model in enumerate(items):
                 self.table.setItem(row, 0, QTableWidgetItem(model["name"]))
                 self.table.setItem(row, 1, QTableWidgetItem(model["type"]))
-                self.table.setItem(row, 2, QTableWidgetItem(model["updated_at"]))
+                self.table.setItem(row, 2, QTableWidgetItem(format_time(model.get("updated_at"))))
                 actions = QWidget()
                 layout = QHBoxLayout(actions)
                 layout.setContentsMargins(0, 0, 0, 0)

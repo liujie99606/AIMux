@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QAbstractItemView, QCheckBox, QHBoxLayout, QPushBu
 
 from app.ui.components.priority_editor import PriorityEditor
 from app.ui.components.status_badge import StatusBadge
+from app.ui.formatting import format_time
 
 
 class AccountTable(QTableWidget):
@@ -38,7 +39,7 @@ class AccountTable(QTableWidget):
             priority = PriorityEditor(account["priority"])
             priority.valueChanged.connect(lambda value, account_id=account["id"]: self.priority_changed.emit(account_id, value))
             self.setCellWidget(row, 4, priority)
-            self.setItem(row, 5, QTableWidgetItem(account.get("last_used_at") or "-"))
+            self.setItem(row, 5, QTableWidgetItem(format_time(account.get("last_used_at"))))
             actions = QWidget(); buttons = QHBoxLayout(actions); buttons.setContentsMargins(0, 0, 0, 0)
             for label, signal in [("测试", self.test_requested), ("编辑", self.edit_requested), ("复制", self.copy_requested), ("切换", self.toggle_requested), ("置顶", self.super_requested), ("删除", self.delete_requested)]:
                 button = QPushButton(label); button.clicked.connect(lambda _, aid=account["id"], event=signal: event.emit(aid)); buttons.addWidget(button)

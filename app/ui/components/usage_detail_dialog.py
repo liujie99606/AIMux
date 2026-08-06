@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.ui.formatting import format_time
+
 
 def _text(value) -> str:
     """把任意字段值规整为展示文本，空值统一显示为“-”。"""
@@ -36,8 +38,8 @@ class UsageDetailDialog(QDialog):
         # 基本信息与时间
         form.addRow("记录 ID", QLabel(_text(get("id"))))
         form.addRow("Trace ID", QLabel(_text(get("trace_id"))))
-        form.addRow("开始时间", QLabel(_text(get("started_at"))))
-        form.addRow("结束时间", QLabel(_text(get("ended_at"))))
+        form.addRow("开始时间", QLabel(format_time(get("started_at"))))
+        form.addRow("结束时间", QLabel(format_time(get("ended_at"))))
         form.addRow("总耗时", QLabel(self._ms(get("duration_ms"))))
         form.addRow("首 Token 用时", QLabel(self._ms(get("first_token_ms"))))
         form.addRow("尝试次数", QLabel(_text(get("attempts"))))

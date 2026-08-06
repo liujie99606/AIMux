@@ -1,27 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
-
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QTableWidget, QTableWidgetItem
 
-# 使用记录统一按本地时区展示时间。
-_LOCAL_TZ = timezone(timedelta(hours=8))
-
-
-def _format_time(value: str | None) -> str:
-    """把 UTC ISO 字符串格式化为本地时间 YYYY-MM-DD HH:MM:SS。"""
-    if not value:
-        return "-"
-    try:
-        # 兼容带 Z 与带 +00:00 的两种写法。
-        text = value.replace("Z", "+00:00")
-        parsed = datetime.fromisoformat(text)
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed.astimezone(_LOCAL_TZ).strftime("%Y-%m-%d %H:%M:%S")
-    except (ValueError, TypeError):
-        return value
+from app.ui.formatting import format_time
 
 
 class UsageTable(QTableWidget):
@@ -44,7 +26,7 @@ class UsageTable(QTableWidget):
         for row, item in enumerate(records):
             first_token = item.get("first_token_ms")
             values = [
-                _format_time(item.get("started_at")),
+                format_time(item.get("started_at")),
                 item.get("account_name") or "-",
                 item.get("account_type") or "-",
                 item.get("model") or "-",
