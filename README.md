@@ -19,14 +19,14 @@ AIMux 解决的核心问题是**多账号路由**：把多个上游 Key（官方
 
 ### 一键启动
 
-项目根目录提供了平台启动脚本，首次运行会自动创建虚拟环境并安装依赖，后续直接启动：
+项目在 `scripts/` 目录下提供了平台启动脚本，首次运行会自动创建虚拟环境并安装依赖，后续直接启动：
 
 | 脚本 | 平台 | 用法 |
 |------|------|------|
-| `win_start.bat` | Windows | 双击运行，或终端执行 `.\win_start.bat` |
-| `mac_start.sh` | macOS | 终端执行 `chmod +x mac_start.sh && ./mac_start.sh` |
+| `scripts/win_start.bat` | Windows | 双击运行，或终端执行 `.\scripts\win_start.bat` |
+| `scripts/mac_start.sh` | macOS | 终端执行 `chmod +x scripts/mac_start.sh && ./scripts/mac_start.sh` |
 
-两个脚本行为一致：检测到 `.venv` 不存在时自动创建虚拟环境并 `pip install -e ".[dev]"`，已存在则直接启动应用。
+两个脚本行为一致：自动切到项目根目录，检测到 `.venv` 不存在时创建虚拟环境并 `pip install -e ".[dev]"`，已存在则直接启动应用。
 
 ### 手动启动
 
@@ -70,11 +70,11 @@ Anthropic 兼容接口：`/v1/messages`、`/v1/messages/count_tokens`、`/v1/mes
 
 ### 一键打包
 
-项目根目录提供了平台打包脚本，首次运行会自动创建虚拟环境、安装依赖（含 PyInstaller）并调用 `scripts/build.py` 打包为桌面应用：
+项目在 `scripts/` 目录下提供了平台打包脚本，首次运行会自动创建虚拟环境、安装依赖（含 PyInstaller）并调用 `build.py` 打包为桌面应用：
 
 | 脚本 | 平台 | 用法 | 产物 |
 |------|------|------|------|
-| `win_build.bat` | Windows | 双击运行，或终端执行 `.\win_build.bat` | `dist\AIMux\AIMux.exe` |
-| `mac_build.sh` | macOS | 终端执行 `chmod +x mac_build.sh && ./mac_build.sh` | `dist/AIMux/AIMux.app` |
+| `scripts/win_build.bat` | Windows | 双击运行，或终端执行 `.\scripts\win_build.bat` | `dist\AIMux\AIMux.exe` |
+| `scripts/mac_build.sh` | macOS | 终端执行 `chmod +x scripts/mac_build.sh && ./scripts/mac_build.sh` | `dist/AIMux/AIMux.app` |
 
 打包使用 PyInstaller 的 `--onedir` 模式，会自动生成 `assets/icons/aimux.png`、`aimux.ico`、`aimux.icns` 并根据当前平台选择图标；内置资源（图标等）已通过 `sys._MEIPASS` 适配打包运行环境。用户数据（数据库、配置、加密密钥）仍存放在系统用户目录，与打包产物解耦。单独更新图标可运行 ` .\.venv\Scripts\python.exe scripts\generate_icon.py`。

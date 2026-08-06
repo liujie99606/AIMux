@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # AIMux macOS 启动脚本：自动创建虚拟环境、安装依赖并启动桌面端。
+# 脚本位于 scripts/ 下，需切到项目根目录运行。
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."
 
 if [ ! -x ".venv/bin/python" ]; then
     echo "[AIMux] 未检测到虚拟环境，正在创建 .venv ..."

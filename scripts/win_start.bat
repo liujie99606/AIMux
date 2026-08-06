@@ -3,8 +3,9 @@ setlocal
 chcp 65001 >nul 2>&1
 
 REM AIMux Windows 启动脚本：自动创建虚拟环境、安装依赖并启动桌面端。
+REM 脚本位于 scripts/ 下，需切到项目根目录运行。
 
-cd /d "%~dp0"
+cd /d "%~dp0\.."
 
 if not exist ".venv\Scripts\python.exe" (
     echo [AIMux] 未检测到虚拟环境，正在创建 .venv ...
