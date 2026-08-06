@@ -58,3 +58,16 @@ def test_set_default_clears_other_defaults_of_same_type(settings):
         if item["is_default"] == 1
     ]
     assert len(anthropic_defaults) == 1
+
+
+def test_default_model_sorted_first_in_list(settings):
+    """设为默认的模型应排在该类型列表最前面，方便测试时预选。"""
+    client = TestClient(create_app(settings))
+    openai_models = client.get("/api/models", params={"type": "openai"}).json()["items"]
+    # 初始默认 gpt-5.5 应排在第一位
+    assert openai_models[0]["name"] == "gpt-5.5" and openai_models[0]["is_default"] == 1
+    # 把默认切到 gpt-5.6 后，gpt-5.6 应排到第一位
+    target = next(item for item in openai_models if item["name"] == "gpt-5.6")
+    client.post(f"/api/models/{target['id']}/set-default")
+    refreshed = client.get("/api/models", params={"type": "openai"}).json()["items"]
+    assert refreshed[0]["name"] == "gpt-5.6" and refreshed[0]["is_default"] == 1

@@ -25,11 +25,17 @@ def get_by_type_and_name(session: Session, model_type: str, name: str) -> Catalo
 
 
 def list_models(session: Session, model_type: str | None = None) -> list[CatalogModel]:
-    """返回可用于页面选择和协议目录的模型，按类型、名称稳定排序。"""
+    """返回可用于页面选择和协议目录的模型。
+
+    排序优先级：协议类型 → 是否测试默认（默认在前）→ 名称 → ID。
+    """
     statement = select(CatalogModel)
     if model_type:
         statement = statement.where(CatalogModel.type == model_type)
-    return sorted(session.exec(statement).all(), key=lambda item: (item.type, item.name.lower(), item.id))
+    return sorted(
+        session.exec(statement).all(),
+        key=lambda item: (item.type, -item.is_default, item.name.lower(), item.id),
+    )
 
 
 def clear_default_by_type(session: Session, model_type: str) -> None:
