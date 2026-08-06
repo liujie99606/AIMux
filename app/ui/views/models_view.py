@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QHBoxLayout, QMessageBox, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
 from app.ui.client import ApiClient
 from app.ui.components.models.model_form import ModelForm
@@ -19,8 +19,12 @@ class ModelsView(QWidget):
         root.setSpacing(14)
         tools = QHBoxLayout()
         tools.setSpacing(8)
+        self.type_filter = QComboBox()
+        self.type_filter.addItems(["全部类型", "openai", "anthropic"])
         add = QPushButton("新增模型")
         refresh = QPushButton("刷新")
+        tools.addWidget(QLabel("类型"))
+        tools.addWidget(self.type_filter)
         tools.addStretch()
         tools.addWidget(add)
         tools.addWidget(refresh)
@@ -29,6 +33,7 @@ class ModelsView(QWidget):
         root.addWidget(self.table)
         add.clicked.connect(self.add)
         refresh.clicked.connect(self.refresh)
+        self.type_filter.currentIndexChanged.connect(self.refresh)
         self.table.edit_requested.connect(self.edit)
         self.table.delete_requested.connect(self.delete)
         self.table.default_requested.connect(self.make_default)
@@ -41,7 +46,11 @@ class ModelsView(QWidget):
     def refresh(self) -> None:
         """重新读取模型目录并绘制表格。"""
         try:
-            items = self.client.get("/api/models")["items"]
+            params: dict[str, str] = {}
+            model_type = self.type_filter.currentText()
+            if model_type != "全部类型":
+                params["type"] = model_type
+            items = self.client.get("/api/models", params=params)["items"]
             self.models = {item["id"]: item for item in items}
             self.table.set_models(items)
         except Exception as exc:

@@ -37,6 +37,7 @@ def test_desktop_components_are_constructible(monkeypatch):
     from PySide6.QtWidgets import QApplication
     from app.ui.components.common.priority_editor import PriorityEditor
     from app.ui.components.accounts.status_badge import StatusBadge
+    from app.ui.views.models_view import ModelsView
     from app.ui.components.usage.usage_filter import UsageFilter
     from app.ui.components.usage.usage_pagination import UsagePagination
 
@@ -56,10 +57,24 @@ def test_desktop_components_are_constructible(monkeypatch):
     filters.started_after.setText("2026-08-01T00:00:00Z")
     filters.reset_button.click()
     assert filters.parameters() == {"offset": 0, "limit": 20}
+    class FakeClient:
+        calls: list[tuple[str, dict[str, dict[str, str]]]]
+
+        def __init__(self):
+            self.calls = []
+
+        def get(self, path: str, **kwargs: dict[str, str]) -> dict[str, list[dict]]:
+            self.calls.append((path, kwargs))
+            return {"items": []}
+
+    fake_client = FakeClient()
+    models_view = ModelsView(fake_client)
+    models_view.type_filter.setCurrentText("anthropic")
+    assert fake_client.calls[-1] == ("/api/models", {"params": {"type": "anthropic"}})
     pagination = UsagePagination()
     pagination.set_total(41)
     assert pagination.total_pages == 3
     assert pagination.next_button.isEnabled()
     pagination.set_total(0)
     assert not pagination.next_button.isEnabled()
-    priority.deleteLater(); badge.deleteLater(); filters.deleteLater(); pagination.deleteLater()
+    priority.deleteLater(); badge.deleteLater(); filters.deleteLater(); pagination.deleteLater(); models_view.deleteLater()
