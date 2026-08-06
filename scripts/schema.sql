@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS usage_records (
   account_name TEXT,
   account_type TEXT,
   model TEXT,
+  reasoning_effort TEXT,
   endpoint TEXT,
   stream INTEGER NOT NULL DEFAULT 0,
   success INTEGER NOT NULL DEFAULT 0,

@@ -18,7 +18,7 @@ from app.models import Account, UsageRecord, utc_now
 from app.service import account_service, usage_service
 from app.utils import forwarders
 from app.utils.sse import SseUsageParser
-from app.utils.tokens import extract_usage
+from app.utils.tokens import extract_reasoning_effort, extract_usage
 
 
 @dataclass
@@ -83,6 +83,7 @@ def _write_usage(
     status_code: int | None,
     error: FailedAttempt | None = None,
     first_token_ms: int | None = None,
+    reasoning_effort: str | None = None,
     tokens: tuple[int | None, int | None, int | None] = (None, None, None),
 ) -> None:
     """落库一次客户端请求，并同步累计命中账号的 token 统计。"""
@@ -99,6 +100,7 @@ def _write_usage(
             account_name=account.name if account else None,
             account_type=account.type if account else None,
             model=model,
+            reasoning_effort=reasoning_effort,
             endpoint=endpoint,
             stream=stream,
             success=success,
@@ -128,6 +130,7 @@ async def forward_non_stream(
 ) -> Response:
     """转发非流式请求；某个账号失败后排除它并继续现查下一个账号。"""
     model = body.get("model")
+    reasoning_effort = extract_reasoning_effort(body)
     excluded: set[str] = set()
     attempts = 0
     started_monotonic = time.perf_counter()
@@ -162,7 +165,7 @@ async def forward_non_stream(
         _write_usage(
             session, trace_id=trace_id, started_at=started_at, started_monotonic=started_monotonic, account=account, model=model, endpoint=endpoint,
             stream=False, client_ip=client_ip, attempts=attempts, success=True,
-            status_code=response.status_code, tokens=tokens,
+            status_code=response.status_code, tokens=tokens, reasoning_effort=reasoning_effort,
         )
         content_type = response.headers.get("content-type", "application/json")
         return Response(content=response.content, status_code=response.status_code, media_type=content_type)
@@ -170,7 +173,7 @@ async def forward_non_stream(
     _write_usage(
         session, trace_id=trace_id, started_at=started_at, started_monotonic=started_monotonic, account=last_account, model=model, endpoint=endpoint,
         stream=False, client_ip=client_ip, attempts=attempts, success=False,
-        status_code=final.status_code, error=final,
+        status_code=final.status_code, error=final, reasoning_effort=reasoning_effort,
     )
     return _error(account_type, final.status_code or 502, final.code, final.message)
 
@@ -187,6 +190,7 @@ async def forward_stream(
 ) -> Response:
     """转发 SSE 流；首块前失败可切号，首块输出后仅记录结果不重放。"""
     model = body.get("model")
+    reasoning_effort = extract_reasoning_effort(body)
     excluded: set[str] = set()
     attempts = 0
     started_monotonic = time.perf_counter()
@@ -234,7 +238,7 @@ async def forward_stream(
         _write_usage(
             session, trace_id=trace_id, started_at=started_at, started_monotonic=started_monotonic, account=last_account, model=model, endpoint=endpoint,
             stream=True, client_ip=client_ip, attempts=attempts, success=False,
-            status_code=final.status_code, error=final,
+            status_code=final.status_code, error=final, reasoning_effort=reasoning_effort,
         )
         return _error(account_type, final.status_code or 502, final.code, final.message)
 
@@ -268,6 +272,7 @@ async def forward_stream(
                     endpoint=endpoint, stream=True, client_ip=client_ip, attempts=attempts,
                     success=stream_error is None, status_code=prepared.response.status_code,
                     error=stream_error, first_token_ms=first_token_ms, tokens=parser.usage,
+                    reasoning_effort=reasoning_effort,
                 )
 
     media_type = prepared.response.headers.get("content-type", "text/event-stream")

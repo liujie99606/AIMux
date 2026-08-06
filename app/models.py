@@ -78,6 +78,7 @@ class UsageRecord(SQLModel, table=True):
     account_name: Optional[str] = None
     account_type: Optional[str] = None
     model: Optional[str] = Field(default=None, index=True)
+    reasoning_effort: Optional[str] = None
     endpoint: Optional[str] = None
     stream: bool = False
     success: bool = False

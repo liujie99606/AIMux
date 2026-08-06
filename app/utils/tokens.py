@@ -15,6 +15,20 @@ def extract_usage(payload: dict[str, Any] | None) -> tuple[int | None, int | Non
     return input_tokens, output_tokens, total_tokens
 
 
+def extract_reasoning_effort(body: dict[str, Any] | None) -> str | None:
+    """从下游请求体中提取推理强度，原样记录客户端传入的值。"""
+    if not isinstance(body, dict):
+        return None
+    effort = body.get("reasoning_effort")
+    if effort is None:
+        reasoning = body.get("reasoning")
+        if isinstance(reasoning, dict):
+            effort = reasoning.get("effort")
+    if effort is None:
+        return None
+    return str(effort)
+
+
 def extract_usage_from_sse_line(line: bytes) -> tuple[int | None, int | None, int | None]:
     if not line.startswith(b"data:"):
         return None, None, None

@@ -77,3 +77,26 @@ def test_usage_record_filters_summary_and_detail(settings):
     assert payload["total"] == 1
     assert payload["summary"] == {"request_count": 1, "success_rate": 1, "average_duration_ms": 120, "total_tokens": 12}
     assert client.get(f"/api/usage/records/{payload['items'][0]['id']}").json()["trace_id"] == "a"
+
+
+def test_reasoning_effort_recorded_from_request_body(settings, monkeypatch):
+    """推理强度应原样记录下游请求体中的值，缺失时为空。"""
+    import httpx
+
+    client = TestClient(create_app(settings))
+    client.post("/api/accounts", json={
+        "name": "openai", "base_url": "https://api.example/v1", "api_key": "key", "supported_models": ["gpt-test"],
+    })
+
+    async def fake_post(account, endpoint, body, settings, **kwargs):
+        return httpx.Response(200, json={"usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3}})
+
+    monkeypatch.setattr("app.service.dispatch_service.forwarders.post", fake_post)
+    client.post("/v1/chat/completions", json={"model": "gpt-test", "reasoning_effort": "high"})
+    client.post("/v1/responses", json={"model": "gpt-test", "reasoning": {"effort": "low"}})
+    client.post("/v1/completions", json={"model": "gpt-test"})
+    items = client.get("/api/usage/records", params={"limit": 200}).json()["items"]
+    efforts = {item["endpoint"]: item["reasoning_effort"] for item in items}
+    assert efforts["/v1/chat/completions"] == "high"
+    assert efforts["/v1/responses"] == "low"
+    assert efforts["/v1/completions"] is None

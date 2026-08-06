@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import json
-
 from PySide6.QtWidgets import QMessageBox, QVBoxLayout, QWidget
 
 from app.ui.client import ApiClient
 from app.ui.components.summary_card import SummaryCards
+from app.ui.components.usage_detail_dialog import UsageDetailDialog
 from app.ui.components.usage_filter import UsageFilter
 from app.ui.components.usage_table import UsageTable
 
@@ -22,5 +21,8 @@ class UsageView(QWidget):
         except Exception as exc: QMessageBox.warning(self, "查询失败", str(exc))
 
     def show_detail(self, record_id: str) -> None:
-        try: QMessageBox.information(self, "使用记录详情", json.dumps(self.client.get(f"/api/usage/records/{record_id}"), ensure_ascii=False, indent=2))
+        """拉取使用记录详情并打开结构化弹窗展示全部字段。"""
+        try:
+            record = self.client.get(f"/api/usage/records/{record_id}")
+            UsageDetailDialog(record, self).exec()
         except Exception as exc: QMessageBox.warning(self, "读取失败", str(exc))
