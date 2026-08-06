@@ -6,6 +6,13 @@ from datetime import datetime, timedelta, timezone
 LOCAL_TZ = timezone(timedelta(hours=8))
 
 
+def format_duration_ms(value: int | float | None) -> str:
+    """把毫秒时长格式化为最多 1 位小数的秒数。"""
+    if value is None:
+        return "-"
+    return f"{value / 1000:.1f} s"
+
+
 def format_time(value: str | None) -> str:
     """把 UTC ISO 字符串格式化为本地时间 YYYY-MM-DD HH:MM:SS。
 

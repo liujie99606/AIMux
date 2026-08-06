@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
+from app.ui.formatting import format_duration_ms
+
 
 class _StatCard(QFrame):
     """单个统计指标卡片：标题在上、数值在下。"""
@@ -43,7 +45,7 @@ class SummaryCards(QWidget):
         values = [
             summary.get("request_count", 0),
             f"{summary.get('success_rate', 0):.1%}",
-            f"{summary.get('average_duration_ms', 0)} ms",
+            format_duration_ms(summary.get("average_duration_ms", 0)),
             summary.get("total_tokens", 0),
         ]
         for card, value in zip(self._cards, values):

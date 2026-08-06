@@ -8,6 +8,9 @@ from PySide6.QtWidgets import QApplication
 
 from app.ui.components.accounts.account_form import AccountForm
 from app.ui.components.accounts.account_table import AccountTable
+from app.ui.components.usage.summary_card import SummaryCards
+from app.ui.components.usage.usage_table import UsageTable
+from app.ui.formatting import format_duration_ms
 
 
 def test_account_table_builds_checkbox_cell_without_alignment_type_error():
@@ -57,3 +60,25 @@ def test_account_form_does_not_carry_selected_models_to_another_type():
     assert form.selected_models() == []
     assert [form.models.item(index).text() for index in range(form.models.count())] == ["claude-sonnet-4-8"]
     application.processEvents()
+
+
+def test_usage_formatting_and_failed_result_color():
+    """使用记录时长统一显示秒数，失败结果使用深色红字。"""
+    assert format_duration_ms(1234) == "1.2 s"
+    assert format_duration_ms(None) == "-"
+
+    application = QApplication.instance() or QApplication([])
+    table = UsageTable()
+    table.set_records([
+        {"id": "failed", "success": False, "duration_ms": 1234, "first_token_ms": None},
+        {"id": "success", "success": True, "duration_ms": 1234, "first_token_ms": None},
+    ])
+    result_column = 5
+    assert table.item(0, result_column).text() == "失败"
+    assert table.item(0, result_column).foreground().color().name().upper() == "#D95C5C"
+    assert table.item(0, 7).text() == "1.2 s"
+
+    summary = SummaryCards()
+    summary.set_summary({"average_duration_ms": 1234})
+    assert summary._cards[2].value_label.text() == "1.2 s"
+    table.deleteLater(); summary.deleteLater(); application.processEvents()
