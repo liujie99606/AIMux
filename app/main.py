@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import Settings, load_settings
-from app.controller import account_api, anthropic_api, openai_api, settings_api, usage_api
+from app.controller import account_api, anthropic_api, model_api, openai_api, settings_api, usage_api
 from app.controller.dependencies import verify_local_token
 from app.db import configure_database
 
@@ -23,6 +23,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(openai_api.router)
     app.include_router(anthropic_api.router)
     app.include_router(account_api.router, dependencies=[Depends(verify_local_token)])
+    app.include_router(model_api.router, dependencies=[Depends(verify_local_token)])
     app.include_router(usage_api.router, dependencies=[Depends(verify_local_token)])
     app.include_router(settings_api.router, dependencies=[Depends(verify_local_token)])
 

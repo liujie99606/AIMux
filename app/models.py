@@ -4,7 +4,7 @@ import time
 import uuid
 from typing import Optional
 
-from sqlalchemy import CheckConstraint, Index
+from sqlalchemy import CheckConstraint, Index, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -39,6 +39,22 @@ class Account(SQLModel, table=True):
     last_used_at: Optional[str] = None
     total_requests: int = 0
     total_tokens: int = 0
+    created_at: str = Field(default_factory=utc_now)
+    updated_at: str = Field(default_factory=utc_now)
+
+
+class CatalogModel(SQLModel, table=True):
+    """可在桌面端维护的模型目录，按上游协议类型隔离。"""
+    __tablename__ = "models"
+    __table_args__ = (
+        CheckConstraint("type IN ('openai', 'anthropic')", name="ck_models_type"),
+        UniqueConstraint("type", "name", name="uq_models_type_name"),
+        Index("idx_models_type_name", "type", "name"),
+    )
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    name: str = Field(index=True)
+    type: str = Field(default="openai", index=True)
     created_at: str = Field(default_factory=utc_now)
     updated_at: str = Field(default_factory=utc_now)
 

@@ -63,6 +63,39 @@ class AccountView(BaseModel):
     updated_at: str
 
 
+class ModelCreate(BaseModel):
+    """模型维护页创建模型时提交的字段。"""
+    name: str = Field(min_length=1, max_length=160)
+    type: AccountType
+
+    @field_validator("name")
+    @classmethod
+    def strip_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("模型名称不能为空")
+        return value
+
+
+class ModelUpdate(BaseModel):
+    """模型维护页可修改模型名称和协议类型。"""
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    type: AccountType | None = None
+
+    @field_validator("name")
+    @classmethod
+    def strip_name(cls, value: str | None) -> str | None:
+        return value.strip() if value else value
+
+
+class ModelView(BaseModel):
+    id: str
+    name: str
+    type: AccountType
+    created_at: str
+    updated_at: str
+
+
 class BatchTestRequest(BaseModel):
     ids: list[str] = Field(min_length=1)
     model: str | None = None

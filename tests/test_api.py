@@ -57,8 +57,10 @@ def test_compatibility_routes_select_protocol_and_models(settings, monkeypatch):
     assert client.post("/v1/responses", json={"model": "gpt-test"}).status_code == 200
     assert client.post("/v1/messages", json={"model": "claude-test"}).status_code == 200
     assert [item["account_type"] for item in calls] == ["openai", "openai", "anthropic"]
-    ids = {item["id"] for item in client.get("/v1/models").json()["data"]}
-    assert ids == {"gpt-test", "claude-test"}
+    openai_ids = {item["id"] for item in client.get("/v1/models").json()["data"]}
+    anthropic_ids = {item["id"] for item in client.get("/v1/anthropic/models").json()["data"]}
+    assert openai_ids == {"gpt-5.5", "gpt-5.5-mini", "gpt-5.5-nano"}
+    assert anthropic_ids == {"claude-opus-4-8", "claude-sonnet-4-8", "claude-haiku-4-8"}
 
 
 def test_usage_record_filters_summary_and_detail(settings):

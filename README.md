@@ -11,7 +11,13 @@ py -3.13 -m venv .venv
 .\.venv\Scripts\python.exe -m app
 ```
 
-服务默认监听 `http://127.0.0.1:7788`。桌面端通过左侧菜单进入账号管理、使用记录和设置。两种协议不会相互转换，只会匹配同类型账号。
+服务默认监听 `http://127.0.0.1:7788`。桌面端通过左侧菜单进入账号管理、模型维护、使用记录和设置。两种协议不会相互转换，只会匹配同类型账号。
+
+## 模型目录
+
+数据库包含独立的 `models` 表（名称、类型、创建和更新时间）。每次启动会自动建表，并幂等补充默认模型：OpenAI 的 `gpt-5.5`、`gpt-5.5-mini`、`gpt-5.5-nano`，以及 Anthropic 的 `claude-opus-4-8`、`claude-sonnet-4-8`、`claude-haiku-4-8`。
+
+在“模型维护”页可新增、编辑、删除模型。新增或编辑账号时，支持模型会随 OpenAI/Anthropic 类型切换为相应可多选列表；连接测试也会要求从同类型模型目录选择测试模型。批量测试需要选择相同类型的账号。
 
 ## 兼容接口
 
@@ -25,7 +31,7 @@ Anthropic 兼容接口：`/v1/messages`、`/v1/messages/count_tokens`、`/v1/mes
 
 数据目录由 `platformdirs` 获取：Windows 位于 `%APPDATA%\aimux`，macOS 位于 `~/Library/Application Support/aimux`。数据库和配置都在这个目录中；上游密钥使用机器绑定的 Fernet 密钥加密保存。
 
-启动 API 时会自动创建 `accounts`、`usage_records` 及索引。需要手动初始化空 SQLite 数据库时，可执行 [scripts/schema.sql](scripts/schema.sql)。
+启动 API 时会自动创建 `accounts`、`models`、`usage_records` 及索引。需要手动初始化空 SQLite 数据库时，可执行 [scripts/schema.sql](scripts/schema.sql)。
 
 ## 测试与打包
 

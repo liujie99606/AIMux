@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 from app.config import Settings
 from app.ui.client import ApiClient
 from app.ui.views.accounts_view import AccountsView
+from app.ui.views.models_view import ModelsView
 from app.ui.views.settings_view import SettingsView
 from app.ui.views.usage_view import UsageView
 from app.utils.resources import resource_path
@@ -41,9 +42,11 @@ class MainWindow(QMainWindow):
         self.navigation.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.content = QStackedWidget()
         self.content.addWidget(AccountsView(client))
+        self.content.addWidget(ModelsView(client))
         self.content.addWidget(UsageView(client))
         self.content.addWidget(SettingsView(client))
         self._add_navigation_item("账号管理", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView))
+        self._add_navigation_item("模型维护", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView))
         self._add_navigation_item("使用记录", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
         self._add_navigation_item("设置", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
         self.navigation.currentRowChanged.connect(self.content.setCurrentIndex)

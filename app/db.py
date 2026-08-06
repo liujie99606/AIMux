@@ -5,6 +5,8 @@ from typing import Generator
 
 from sqlmodel import SQLModel, Session, create_engine
 
+from app.service.model_service import seed_defaults
+
 _engine = None
 
 
@@ -17,6 +19,9 @@ def configure_database(path: Path | str):
         f"sqlite:///{db_path.as_posix()}", connect_args={"check_same_thread": False}
     )
     SQLModel.metadata.create_all(_engine)
+    # 已有数据库升级时同样会创建新表，并仅补齐缺失的默认模型。
+    with Session(_engine) as session:
+        seed_defaults(session)
     return _engine
 
 
