@@ -39,6 +39,7 @@ class AccountsView(QWidget):
         self.type_filter.currentIndexChanged.connect(self.refresh)
         self.status_filter.currentIndexChanged.connect(self.refresh)
         self.table.edit_requested.connect(self.edit)
+        self.table.copy_requested.connect(self.copy)
         self.table.delete_requested.connect(self.delete)
         self.table.test_requested.connect(self.test)
         self.table.toggle_requested.connect(self.toggle)
@@ -96,6 +97,16 @@ class AccountsView(QWidget):
             form = AccountForm(self._models(), self.accounts[account_id], self)
             if form.exec():
                 self.client.put(f"/api/accounts/{account_id}", json=form.payload(False))
+                self.refresh()
+        except Exception as exc:
+            self._error(exc)
+
+    def copy(self, account_id: str) -> None:
+        """以现有账号数据填充新增账号表单，密钥需重新填写。"""
+        try:
+            form = AccountForm(self._models(), self.accounts[account_id], self, copy=True)
+            if form.exec():
+                self.client.post("/api/accounts", json=form.payload(True))
                 self.refresh()
         except Exception as exc:
             self._error(exc)

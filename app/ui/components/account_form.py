@@ -9,10 +9,11 @@ from PySide6.QtWidgets import QComboBox, QDialog, QDialogButtonBox, QFormLayout,
 class AccountForm(QDialog):
     """账号新增/编辑表单，模型选项由模型目录按协议类型过滤。"""
 
-    def __init__(self, model_catalog: list[dict], account: dict | None = None, parent=None) -> None:
+    def __init__(self, model_catalog: list[dict], account: dict | None = None, parent=None, copy: bool = False) -> None:
         super().__init__(parent)
-        self.setWindowTitle("编辑账号" if account else "新增账号")
-        self.setMinimumWidth(460)
+        # copy=True 时以现有账号数据预填表单，但作为新增账号处理（标题与提交均按新增）。
+        self.setWindowTitle("编辑账号" if account and not copy else "新增账号")
+        self.setMinimumWidth(920)
         self._selected_by_type: dict[str, set[str]] = defaultdict(set)
         if account:
             self._selected_by_type[account["type"]] = set(account.get("supported_models") or [])

@@ -10,6 +10,7 @@ from app.ui.components.status_badge import StatusBadge
 
 class AccountTable(QTableWidget):
     edit_requested = Signal(str)
+    copy_requested = Signal(str)
     delete_requested = Signal(str)
     test_requested = Signal(str)
     toggle_requested = Signal(str)
@@ -17,8 +18,8 @@ class AccountTable(QTableWidget):
     priority_changed = Signal(str, int)
 
     def __init__(self, parent=None) -> None:
-        super().__init__(0, 8, parent)
-        self.setHorizontalHeaderLabels(["选择", "名称", "类型", "状态", "优先级", "支持模型", "最近使用", "操作"])
+        super().__init__(0, 7, parent)
+        self.setHorizontalHeaderLabels(["选择", "名称", "类型", "状态", "优先级", "最近使用", "操作"])
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.horizontalHeader().setStretchLastSection(True)
@@ -37,12 +38,11 @@ class AccountTable(QTableWidget):
             priority = PriorityEditor(account["priority"])
             priority.valueChanged.connect(lambda value, account_id=account["id"]: self.priority_changed.emit(account_id, value))
             self.setCellWidget(row, 4, priority)
-            self.setItem(row, 5, QTableWidgetItem(", ".join(account.get("supported_models") or ["全部"])) )
-            self.setItem(row, 6, QTableWidgetItem(account.get("last_used_at") or "-"))
+            self.setItem(row, 5, QTableWidgetItem(account.get("last_used_at") or "-"))
             actions = QWidget(); buttons = QHBoxLayout(actions); buttons.setContentsMargins(0, 0, 0, 0)
-            for label, signal in [("测试", self.test_requested), ("编辑", self.edit_requested), ("切换", self.toggle_requested), ("置顶", self.super_requested), ("删除", self.delete_requested)]:
+            for label, signal in [("测试", self.test_requested), ("编辑", self.edit_requested), ("复制", self.copy_requested), ("切换", self.toggle_requested), ("置顶", self.super_requested), ("删除", self.delete_requested)]:
                 button = QPushButton(label); button.clicked.connect(lambda _, aid=account["id"], event=signal: event.emit(aid)); buttons.addWidget(button)
-            self.setCellWidget(row, 7, actions)
+            self.setCellWidget(row, 6, actions)
 
     def selected_ids(self) -> list[str]:
         result: list[str] = []

@@ -13,3 +13,4 @@ startup-error.log
 build/
 dist/
 *.spec
+.workbuddy/
