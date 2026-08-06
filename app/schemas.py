@@ -122,6 +122,6 @@ class SettingsPayload(BaseModel):
     db_path: str = ""
     upstream_timeout_seconds: int = Field(default=300, ge=1, le=3600)
     first_token_timeout_seconds: int = Field(default=60, ge=1, le=3600)
-    request_retry_attempts: int = Field(default=1, ge=0, le=20)
+    request_retry_attempts: int = Field(default=10, ge=1, le=20)
     local_token: str = ""
     launch_at_login: bool = False

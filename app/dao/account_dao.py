@@ -60,19 +60,20 @@ def pick_one(
     session: Session,
     model: str | None,
     account_type: str | None,
-    exclude_ids: set[str],
 ) -> Account | None:
-    """从实时数据库中选择一个未排除、可用且支持模型的账号。"""
+    """从实时数据库中选择优先级最高、可用且支持模型的账号。"""
     statement = select(Account).where(Account.status == "active")
     if account_type:
         statement = statement.where(Account.type == account_type)
-    candidates = [account for account in session.exec(statement).all() if account.id not in exclude_ids]
+    candidates = list(session.exec(statement).all())
     eligible = [
         account for account in candidates
         if model is None or not _models(account.supported_models) or model in _models(account.supported_models)
     ]
-    # Explicit model declarations win over wildcard accounts, then priority and stable id.
-    eligible.sort(key=lambda item: (-(model in _models(item.supported_models)), -item.priority, item.id))
+    # Explicit model declarations win over wildcard accounts, then priority and stable name/id.
+    eligible.sort(
+        key=lambda item: (-(model in _models(item.supported_models)), -item.priority, item.name.lower(), item.id)
+    )
     return eligible[0] if eligible else None
 
 

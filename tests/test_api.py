@@ -34,10 +34,12 @@ def test_settings_persists_launch_at_login_without_external_side_effects(setting
     monkeypatch.setattr("app.controller.settings_api.autostart.is_enabled", lambda: False)
     monkeypatch.setattr("app.controller.settings_api.autostart.set_enabled", calls.append)
     client = TestClient(create_app(settings))
-    response = client.put("/api/settings", json={"launch_at_login": True})
+    response = client.put("/api/settings", json={"launch_at_login": True, "request_retry_attempts": 8})
     assert response.status_code == 200
     assert calls == [True]
     assert response.json()["launch_at_login"] is True
+    assert response.json()["request_retry_attempts"] == 8
+    assert client.get("/api/settings").json()["request_retry_attempts"] == 8
 
 
 def test_compatibility_routes_select_protocol_and_models(settings, monkeypatch):

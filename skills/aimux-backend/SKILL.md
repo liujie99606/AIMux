@@ -124,6 +124,7 @@ app/
 - 兼容接口仅转发 JSON 请求体；不做 OpenAI ↔ Anthropic 协议转换。
 - 不模拟 multipart 文件上传；`OpenAI-Beta`、`Idempotency-Key`、`anthropic-beta` 等头按类型受限透传。
 - 上游认证头始终由本地账号配置注入，不透传客户端凭证。
+- 每次客户端请求最多尝试 `request_retry_attempts` 次（默认 10）；每次失败都按最新优先级重新选账号，不排除已失败账号。
 - 测试账号：`max_tokens=1` + `"ping"`，endpoint 按类型选 `/v1/messages` 或 `/v1/chat/completions`。
 
 ## 测试规范（tests/）

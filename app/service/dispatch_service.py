@@ -32,10 +32,9 @@ def pick(
     session: Session,
     model: str | None,
     account_type: str | None = None,
-    exclude_ids: set[str] | None = None,
 ) -> Account | None:
-    """每次从数据库现查一个符合协议、模型和排除条件的账号。"""
-    return account_dao.pick_one(session, model, account_type, exclude_ids or set())
+    """每次从数据库现查优先级最高的可用账号。"""
+    return account_dao.pick_one(session, model, account_type)
 
 
 def _error(account_type: str, status: int, code: str, message: str) -> JSONResponse:
@@ -128,22 +127,20 @@ async def forward_non_stream(
     settings: Settings,
     upstream_headers: dict[str, str] | None = None,
 ) -> Response:
-    """转发非流式请求；某个账号失败后排除它并继续现查下一个账号。"""
+    """转发非流式请求；失败后按最新优先级重新选择账号，至多尝试设定次数。"""
     model = body.get("model")
     reasoning_effort = extract_reasoning_effort(body)
-    excluded: set[str] = set()
     attempts = 0
     started_monotonic = time.perf_counter()
     started_at = utc_now()
     trace_id = str(uuid.uuid4())
     last_error: FailedAttempt | None = None
     last_account: Account | None = None
-    while True:
-        account = pick(session, model, account_type, excluded)
+    while attempts < settings.request_retry_attempts:
+        account = pick(session, model, account_type)
         if account is None:
             break
         attempts += 1
-        excluded.add(account.id)
         last_account = account
         account_dao.mark_used(session, account)
         try:
@@ -189,10 +186,9 @@ async def forward_stream(
     settings: Settings,
     upstream_headers: dict[str, str] | None = None,
 ) -> Response:
-    """转发 SSE 流；首块前失败可切号，首块输出后仅记录结果不重放。"""
+    """转发 SSE 流；首块前按最新优先级重试，首块输出后仅记录结果不重放。"""
     model = body.get("model")
     reasoning_effort = extract_reasoning_effort(body)
-    excluded: set[str] = set()
     attempts = 0
     started_monotonic = time.perf_counter()
     started_at = utc_now()
@@ -202,12 +198,11 @@ async def forward_stream(
     selected: Account | None = None
     prepared: forwarders.PreparedStream | None = None
     first_chunk: bytes | None = None
-    while True:
-        account = pick(session, model, account_type, excluded)
+    while attempts < settings.request_retry_attempts:
+        account = pick(session, model, account_type)
         if account is None:
             break
         attempts += 1
-        excluded.add(account.id)
         last_account = account
         account_dao.mark_used(session, account)
         try:

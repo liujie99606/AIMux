@@ -15,7 +15,7 @@ class Settings:
     db_path: str = ""
     upstream_timeout_seconds: int = 300
     first_token_timeout_seconds: int = 60
-    request_retry_attempts: int = 1
+    request_retry_attempts: int = 10
     local_token: str = ""
     launch_at_login: bool = False
 
@@ -56,6 +56,7 @@ def load_settings() -> Settings:
             setattr(settings, field, value.strip().lower() in {"1", "true", "yes", "on"})
         else:
             setattr(settings, field, converter(value))
+    settings.request_retry_attempts = max(1, min(20, settings.request_retry_attempts))
     return settings
 
 

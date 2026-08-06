@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from app.config import load_settings
 
 
@@ -11,6 +13,23 @@ def test_environment_overrides_config_and_uses_dynamic_data_dir(tmp_path, monkey
     assert settings.port == 8899
     assert settings.launch_at_login is True
     assert (tmp_path / "user-data" / "config.json").exists()
+
+
+def test_default_total_retry_attempts_is_ten(tmp_path, monkeypatch):
+    """新配置默认将单个请求限制为 10 次总尝试。"""
+    monkeypatch.setenv("AIMUX_DATA_DIR", str(tmp_path / "user-data"))
+    assert load_settings().request_retry_attempts == 10
+
+
+def test_total_retry_attempts_clamps_legacy_zero_value(tmp_path, monkeypatch):
+    """旧配置中的 0 应规范为至少尝试一次。"""
+    data_dir = tmp_path / "user-data"
+    data_dir.mkdir()
+    (data_dir / "config.json").write_text(
+        json.dumps({"request_retry_attempts": 0}), encoding="utf-8"
+    )
+    monkeypatch.setenv("AIMUX_DATA_DIR", str(data_dir))
+    assert load_settings().request_retry_attempts == 1
 
 
 def test_desktop_components_are_constructible(monkeypatch):

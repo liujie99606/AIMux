@@ -10,7 +10,7 @@ from app.db import configure_database
 @pytest.fixture
 def settings(tmp_path, monkeypatch):
     monkeypatch.setenv("AIMUX_DATA_DIR", str(tmp_path / "data"))
-    return Settings(db_path=str(tmp_path / "aimux.sqlite3"), request_retry_attempts=1)
+    return Settings(db_path=str(tmp_path / "aimux.sqlite3"))
 
 
 @pytest.fixture

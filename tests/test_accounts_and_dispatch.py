@@ -38,9 +38,11 @@ def test_test_priority_linkage_never_changes_manual_status(session):
 
 
 @pytest.mark.asyncio
-async def test_failed_request_lowers_priority_and_retries_another_account(session, settings, monkeypatch):
-    first = add(session, name="第一", priority=8, models=None)
-    second = add(session, name="第二", priority=5, models=None)
+async def test_failed_request_retries_by_current_priority(session, settings, monkeypatch):
+    """失败账号降级后，下一次尝试重新按实时优先级选择账号。"""
+    first = add(session, name="第一", priority=9, models=None)
+    second = add(session, name="第二", priority=6, models=None)
+    settings.request_retry_attempts = 5
     calls: list[str] = []
 
     async def fake_post(account, endpoint, body, passed_settings):
@@ -55,20 +57,22 @@ async def test_failed_request_lowers_priority_and_retries_another_account(sessio
         client_ip="127.0.0.1", settings=settings,
     )
     assert response.status_code == 200
-    assert calls == [first.id, second.id]
-    assert account_dao.get(session, first.id).priority == 7
-    assert account_dao.get(session, second.id).priority == 6
+    assert calls == [first.id, first.id, first.id, first.id, second.id]
+    assert account_dao.get(session, first.id).priority == 5
+    assert account_dao.get(session, second.id).priority == 7
     records, total = usage_dao.list_records(session)
-    assert total == 1 and records[0].account_id == second.id and records[0].attempts == 2
+    assert total == 1 and records[0].account_id == second.id and records[0].attempts == 5
+    assert records[0].success
     assert records[0].total_tokens == 5
     assert records[0].started_at.startswith("20")
 
 
 @pytest.mark.asyncio
-async def test_retry_exhausts_candidates_and_keeps_last_failed_account(session, settings, monkeypatch):
-    first = add(session, name="第一", priority=8, models=None)
-    second = add(session, name="第二", priority=5, models=None)
-    settings.request_retry_attempts = 0
+async def test_retry_stops_after_total_attempt_limit(session, settings, monkeypatch):
+    """总尝试次数达到上限时停止，即使仍有可用账号。"""
+    first = add(session, name="第一", priority=9, models=None)
+    second = add(session, name="第二", priority=6, models=None)
+    settings.request_retry_attempts = 4
     calls: list[str] = []
 
     async def fake_post(account, endpoint, body, passed_settings):
@@ -81,9 +85,9 @@ async def test_retry_exhausts_candidates_and_keeps_last_failed_account(session, 
         client_ip="127.0.0.1", settings=settings,
     )
     assert response.status_code == 503
-    assert calls == [first.id, second.id]
+    assert calls == [first.id, first.id, first.id, first.id]
     records, total = usage_dao.list_records(session)
-    assert total == 1 and records[0].account_id == second.id and records[0].attempts == 2
+    assert total == 1 and records[0].account_id == first.id and records[0].attempts == 4
     assert not records[0].success
     assert account_dao.get(session, first.id).status == "active"
     assert account_dao.get(session, second.id).status == "active"
@@ -91,8 +95,9 @@ async def test_retry_exhausts_candidates_and_keeps_last_failed_account(session, 
 
 @pytest.mark.asyncio
 async def test_stream_retries_before_first_chunk_and_parses_split_sse_usage(session, settings, monkeypatch):
-    first = add(session, name="第一", priority=8, models=None)
-    second = add(session, name="第二", priority=5, models=None)
+    first = add(session, name="第一", priority=9, models=None)
+    second = add(session, name="第二", priority=6, models=None)
+    settings.request_retry_attempts = 5
     calls: list[str] = []
 
     class FakeStream:
@@ -135,15 +140,15 @@ async def test_stream_retries_before_first_chunk_and_parses_split_sse_usage(sess
     )
     output = b"".join([chunk async for chunk in response.body_iterator])
     assert output.endswith(b"data: [DONE]\n\n")
-    assert calls == [first.id, second.id]
+    assert calls == [first.id, first.id, first.id, first.id, second.id]
     session.expire_all()
     records, total = usage_dao.list_records(session)
     assert total == 1 and records[0].success and records[0].account_id == second.id
-    assert records[0].attempts == 2 and records[0].first_token_ms is not None
+    assert records[0].attempts == 5 and records[0].first_token_ms is not None
     assert (records[0].input_tokens, records[0].output_tokens, records[0].total_tokens) == (2, 3, 5)
     assert records[0].started_at.startswith("20")
-    assert account_dao.get(session, first.id).priority == 7
-    assert account_dao.get(session, second.id).priority == 6
+    assert account_dao.get(session, first.id).priority == 5
+    assert account_dao.get(session, second.id).priority == 7
 
 
 def test_request_success_priority_is_capped_and_clears_error(session):
