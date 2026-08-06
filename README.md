@@ -21,8 +21,12 @@ AIMux 解决的核心问题是**多账号路由**：把多个上游 Key（官方
 
 项目根目录提供了平台启动脚本，首次运行会自动创建虚拟环境并安装依赖，后续直接启动：
 
-- **Windows**：双击 `win_start.bat`，或在终端执行 `.\win_start.bat`
-- **macOS**：终端执行 `chmod +x mac_start.sh && ./mac_start.sh`
+| 脚本 | 平台 | 用法 |
+|------|------|------|
+| `win_start.bat` | Windows | 双击运行，或终端执行 `.\win_start.bat` |
+| `mac_start.sh` | macOS | 终端执行 `chmod +x mac_start.sh && ./mac_start.sh` |
+
+两个脚本行为一致：检测到 `.venv` 不存在时自动创建虚拟环境并 `pip install -e ".[dev]"`，已存在则直接启动应用。
 
 ### 手动启动
 
