@@ -37,16 +37,22 @@ class PreparedStream:
         await self.client.aclose()
 
 
-def _headers(account: Account, body: dict[str, Any]) -> dict[str, str]:
+def _headers(
+    account: Account, body: dict[str, Any], extra_headers: dict[str, str] | None = None
+) -> dict[str, str]:
     """根据账号类型组装上游认证头，不做协议转换。"""
     key = decrypt_api_key(account.api_key_encrypted)
     if account.type == "anthropic":
-        return {
+        headers = {
             "x-api-key": key,
             "anthropic-version": str(body.get("anthropic_version") or "2023-06-01"),
             "content-type": "application/json",
         }
-    return {"Authorization": f"Bearer {key}", "content-type": "application/json"}
+    else:
+        headers = {"Authorization": f"Bearer {key}", "content-type": "application/json"}
+    if extra_headers:
+        headers.update(extra_headers)
+    return headers
 
 
 def upstream_url(account: Account, endpoint: str) -> str:
@@ -67,23 +73,34 @@ def _timeout(settings: Settings) -> httpx.Timeout:
 
 
 async def post(
-    account: Account, endpoint: str, body: dict[str, Any], settings: Settings
+    account: Account,
+    endpoint: str,
+    body: dict[str, Any],
+    settings: Settings,
+    *,
+    extra_headers: dict[str, str] | None = None,
 ) -> httpx.Response:
     """执行一次非流式上游 POST 请求。"""
     async with httpx.AsyncClient(timeout=_timeout(settings)) as client:
         return await client.post(
-            upstream_url(account, endpoint), json=body, headers=_headers(account, body)
+            upstream_url(account, endpoint), json=body, headers=_headers(account, body, extra_headers)
         )
 
 
 async def open_stream(
-    account: Account, endpoint: str, body: dict[str, Any], settings: Settings
+    account: Account,
+    endpoint: str,
+    body: dict[str, Any],
+    settings: Settings,
+    *,
+    extra_headers: dict[str, str] | None = None,
 ) -> PreparedStream:
     """打开流式上游响应，调用方负责读取和关闭。"""
     client = httpx.AsyncClient(timeout=_timeout(settings))
     try:
         request = client.build_request(
-            "POST", upstream_url(account, endpoint), json=body, headers=_headers(account, body)
+            "POST", upstream_url(account, endpoint), json=body,
+            headers=_headers(account, body, extra_headers),
         )
         response = await client.send(request, stream=True)
         return PreparedStream(client=client, response=response)

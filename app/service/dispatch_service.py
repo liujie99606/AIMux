@@ -124,6 +124,7 @@ async def forward_non_stream(
     account_type: str,
     client_ip: str | None,
     settings: Settings,
+    upstream_headers: dict[str, str] | None = None,
 ) -> Response:
     """转发非流式请求；某个账号失败后排除它并继续现查下一个账号。"""
     model = body.get("model")
@@ -143,7 +144,8 @@ async def forward_non_stream(
         last_account = account
         account_dao.mark_used(session, account)
         try:
-            response = await forwarders.post(account, endpoint, body, settings)
+            kwargs = {"extra_headers": upstream_headers} if upstream_headers else {}
+            response = await forwarders.post(account, endpoint, body, settings, **kwargs)
         except Exception as exc:
             last_error = _exception_error(exc)
             account_service.record_request_failure(session, account, last_error.code, last_error.message)
@@ -181,6 +183,7 @@ async def forward_stream(
     account_type: str,
     client_ip: str | None,
     settings: Settings,
+    upstream_headers: dict[str, str] | None = None,
 ) -> Response:
     """转发 SSE 流；首块前失败可切号，首块输出后仅记录结果不重放。"""
     model = body.get("model")
@@ -203,7 +206,8 @@ async def forward_stream(
         last_account = account
         account_dao.mark_used(session, account)
         try:
-            candidate = await forwarders.open_stream(account, endpoint, body, settings)
+            kwargs = {"extra_headers": upstream_headers} if upstream_headers else {}
+            candidate = await forwarders.open_stream(account, endpoint, body, settings, **kwargs)
         except Exception as exc:
             last_error = _exception_error(exc)
             account_service.record_request_failure(session, account, last_error.code, last_error.message)
