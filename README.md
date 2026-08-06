@@ -68,4 +68,13 @@ Anthropic 兼容接口：`/v1/messages`、`/v1/messages/count_tokens`、`/v1/mes
 .\.venv\Scripts\python.exe scripts\build.py
 ```
 
-打包脚本会自动生成 `assets/icons/aimux.png`、`aimux.ico`、`aimux.icns`，并根据当前平台选择 Windows 或 macOS 图标。单独更新图标可运行 ` .\.venv\Scripts\python.exe scripts\generate_icon.py`。
+### 一键打包
+
+项目根目录提供了平台打包脚本，首次运行会自动创建虚拟环境、安装依赖（含 PyInstaller）并调用 `scripts/build.py` 打包为桌面应用：
+
+| 脚本 | 平台 | 用法 | 产物 |
+|------|------|------|------|
+| `win_build.bat` | Windows | 双击运行，或终端执行 `.\win_build.bat` | `dist\AIMux\AIMux.exe` |
+| `mac_build.sh` | macOS | 终端执行 `chmod +x mac_build.sh && ./mac_build.sh` | `dist/AIMux/AIMux.app` |
+
+打包使用 PyInstaller 的 `--onedir` 模式，会自动生成 `assets/icons/aimux.png`、`aimux.ico`、`aimux.icns` 并根据当前平台选择图标；内置资源（图标等）已通过 `sys._MEIPASS` 适配打包运行环境。用户数据（数据库、配置、加密密钥）仍存放在系统用户目录，与打包产物解耦。单独更新图标可运行 ` .\.venv\Scripts\python.exe scripts\generate_icon.py`。
