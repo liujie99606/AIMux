@@ -92,6 +92,7 @@ class ModelView(BaseModel):
     id: str
     name: str
     type: AccountType
+    is_default: int
     created_at: str
     updated_at: str
 

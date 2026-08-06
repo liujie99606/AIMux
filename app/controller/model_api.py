@@ -40,4 +40,10 @@ def update(model_id: str, payload: ModelUpdate, session: Session = Depends(get_s
 @router.delete("/{model_id}", status_code=204)
 def remove(model_id: str, session: Session = Depends(get_session)):
     """删除不再需要的模型目录记录。"""
-    model_dao.delete(session, _model(session, model_id))
+    model_service.delete_model(session, _model(session, model_id))
+
+
+@router.post("/{model_id}/set-default", response_model=ModelView)
+def set_default(model_id: str, session: Session = Depends(get_session)):
+    """将指定模型设为其协议类型的测试默认，同类型其他模型清除默认。"""
+    return model_service.to_view(model_service.set_default(session, _model(session, model_id)))

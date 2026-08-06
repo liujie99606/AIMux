@@ -32,6 +32,15 @@ def list_models(session: Session, model_type: str | None = None) -> list[Catalog
     return sorted(session.exec(statement).all(), key=lambda item: (item.type, item.name.lower(), item.id))
 
 
+def clear_default_by_type(session: Session, model_type: str) -> None:
+    """清除指定协议类型下所有模型的默认标记。"""
+    statement = select(CatalogModel).where(CatalogModel.type == model_type, CatalogModel.is_default == 1)
+    for item in session.exec(statement).all():
+        item.is_default = 0
+        session.add(item)
+    session.commit()
+
+
 def save(session: Session, model: CatalogModel) -> CatalogModel:
     """保存模型修改并更新时间。"""
     model.updated_at = utc_now()

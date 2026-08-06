@@ -55,6 +55,7 @@ class CatalogModel(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     name: str = Field(index=True)
     type: str = Field(default="openai", index=True)
+    is_default: int = Field(default=0)
     created_at: str = Field(default_factory=utc_now)
     updated_at: str = Field(default_factory=utc_now)
 
