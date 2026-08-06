@@ -1,10 +1,48 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QAbstractItemView, QHBoxLayout, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
+from PySide6.QtCore import Signal
+from PySide6.QtWidgets import QHBoxLayout, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
 from app.ui.client import ApiClient
+from app.ui.components.data_table import Column, DataTable
 from app.ui.components.model_form import ModelForm
 from app.ui.formatting import format_time
+
+
+class ModelTable(DataTable):
+    """模型目录表格，编辑/删除通过信号交由视图处理。"""
+
+    edit_requested = Signal(str)
+    delete_requested = Signal(str)
+
+    COLUMNS = [
+        Column("名称", lambda r: r["name"]),
+        Column("类型", lambda r: r["type"]),
+        Column("更新时间", lambda r: format_time(r.get("updated_at"))),
+        Column("操作", lambda r: r["_actions"], widget=True, stretch=True),
+    ]
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent=parent)
+
+    def set_models(self, models: list[dict]) -> None:
+        """渲染模型列表，操作按钮在预处理中连接信号。"""
+        self._render([self._prepare(model) for model in models])
+
+    def _prepare(self, model: dict) -> dict:
+        """为单行生成操作按钮并连接编辑/删除信号。"""
+        actions = QWidget()
+        layout = QHBoxLayout(actions)
+        layout.setContentsMargins(0, 0, 0, 0)
+        edit = QPushButton("编辑")
+        remove = QPushButton("删除")
+        edit.clicked.connect(lambda _, model_id=model["id"]: self.edit_requested.emit(model_id))
+        remove.clicked.connect(lambda _, model_id=model["id"]: self.delete_requested.emit(model_id))
+        layout.addWidget(edit)
+        layout.addWidget(remove)
+        prepared = dict(model)
+        prepared["_actions"] = actions
+        return prepared
 
 
 class ModelsView(QWidget):
@@ -25,13 +63,12 @@ class ModelsView(QWidget):
         tools.addWidget(add)
         tools.addWidget(refresh)
         root.addLayout(tools)
-        self.table = QTableWidget(0, 4)
-        self.table.setHorizontalHeaderLabels(["名称", "类型", "更新时间", "操作"])
-        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table = ModelTable()
         root.addWidget(self.table)
         add.clicked.connect(self.add)
         refresh.clicked.connect(self.refresh)
+        self.table.edit_requested.connect(self.edit)
+        self.table.delete_requested.connect(self.delete)
         self.refresh()
 
     def _error(self, exc: Exception) -> None:
@@ -43,21 +80,7 @@ class ModelsView(QWidget):
         try:
             items = self.client.get("/api/models")["items"]
             self.models = {item["id"]: item for item in items}
-            self.table.setRowCount(len(items))
-            for row, model in enumerate(items):
-                self.table.setItem(row, 0, QTableWidgetItem(model["name"]))
-                self.table.setItem(row, 1, QTableWidgetItem(model["type"]))
-                self.table.setItem(row, 2, QTableWidgetItem(format_time(model.get("updated_at"))))
-                actions = QWidget()
-                layout = QHBoxLayout(actions)
-                layout.setContentsMargins(0, 0, 0, 0)
-                edit = QPushButton("编辑")
-                remove = QPushButton("删除")
-                edit.clicked.connect(lambda _, model_id=model["id"]: self.edit(model_id))
-                remove.clicked.connect(lambda _, model_id=model["id"]: self.delete(model_id))
-                layout.addWidget(edit)
-                layout.addWidget(remove)
-                self.table.setCellWidget(row, 3, actions)
+            self.table.set_models(items)
         except Exception as exc:
             self._error(exc)
 
