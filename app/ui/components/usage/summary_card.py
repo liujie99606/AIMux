@@ -30,7 +30,8 @@ class SummaryCards(QWidget):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self._titles = ["请求数", "成功率", "平均耗时", "Token"]
+        self._titles = ["请求数", "成功率", "平均耗时"]
+        # "Token",  # 暂时隐藏 Token 统计卡片，保留字段顺序以便后续恢复。
         self.layout = QHBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(12)
@@ -41,12 +42,12 @@ class SummaryCards(QWidget):
             self._cards.append(card)
 
     def set_summary(self, summary: dict) -> None:
-        """按卡片顺序填充请求数、成功率、平均耗时与 Token 合计。"""
+        """按卡片顺序填充请求数、成功率和平均耗时。"""
         values = [
             summary.get("request_count", 0),
             f"{summary.get('success_rate', 0):.1%}",
             format_duration_ms(summary.get("average_duration_ms", 0)),
-            summary.get("total_tokens", 0),
+            # summary.get("total_tokens", 0),  # 暂时隐藏 Token 统计值。
         ]
         for card, value in zip(self._cards, values):
             card.set_value(value)

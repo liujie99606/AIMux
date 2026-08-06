@@ -82,5 +82,7 @@ def test_usage_formatting_and_failed_result_color():
 
     summary = SummaryCards()
     summary.set_summary({"average_duration_ms": 1234})
+    assert len(summary._cards) == 3
+    assert [card.title_label.text() for card in summary._cards] == ["请求数", "成功率", "平均耗时"]
     assert summary._cards[2].value_label.text() == "1.2 s"
     table.deleteLater(); summary.deleteLater(); application.processEvents()

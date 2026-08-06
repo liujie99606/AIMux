@@ -105,12 +105,12 @@ class MainWindow(QMainWindow):
     def _build_content(self) -> None:
         """构建四个视图、导航项并接入内容栈。"""
         self.content.addWidget(AccountsView(self.client))
-        self.content.addWidget(ModelsView(self.client))
         self.content.addWidget(UsageView(self.client))
+        self.content.addWidget(ModelsView(self.client))
         self.content.addWidget(SettingsView(self.client))
         self._add_navigation_item("账号管理", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView))
-        self._add_navigation_item("模型维护", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView))
         self._add_navigation_item("使用记录", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
+        self._add_navigation_item("模型维护", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView))
         self._add_navigation_item("设置", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
         self.navigation.currentRowChanged.connect(self._on_navigation_changed)
         self.navigation.setCurrentRow(0)
