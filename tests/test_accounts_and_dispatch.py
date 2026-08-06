@@ -57,6 +57,7 @@ async def test_failed_request_lowers_priority_and_retries_another_account(sessio
     assert response.status_code == 200
     assert calls == [first.id, second.id]
     assert account_dao.get(session, first.id).priority == 7
+    assert account_dao.get(session, second.id).priority == 6
     records, total = usage_dao.list_records(session)
     assert total == 1 and records[0].account_id == second.id and records[0].attempts == 2
     assert records[0].total_tokens == 5
@@ -141,3 +142,16 @@ async def test_stream_retries_before_first_chunk_and_parses_split_sse_usage(sess
     assert records[0].attempts == 2 and records[0].first_token_ms is not None
     assert (records[0].input_tokens, records[0].output_tokens, records[0].total_tokens) == (2, 3, 5)
     assert records[0].started_at.startswith("20")
+    assert account_dao.get(session, first.id).priority == 7
+    assert account_dao.get(session, second.id).priority == 6
+
+
+def test_request_success_priority_is_capped_and_clears_error(session):
+    """真实请求成功优先级只加 1，且不会超过 9。"""
+    account = add(session, name="成功账号", priority=9, models=None)
+    account_service.record_request_failure(session, account, "busy", "暂时不可用")
+    assert account.priority == 8
+    account_service.record_request_success(session, account)
+    assert account.priority == 9
+    assert account.last_error_code is None
+    assert account.last_error_message is None

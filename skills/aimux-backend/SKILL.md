@@ -87,7 +87,7 @@ app/
 
 - `to_view(model)`：model → dict 转换，显式列出对外字段，JSON 字符串反序列化为列表，绝不输出密钥。
 - 加密只在 service 层调用 `app.utils.crypto.encrypt_api_key` / `decrypt_api_key`。
-- 测试结果记录：成功调 `record_test_success`（优先级 +3、清错误、记模型），失败调 `record_test_failure`（优先级 -1、存错误）；真实请求失败用 `record_request_failure`（绝不自动停用账号）。
+- 测试结果记录：成功调 `record_test_success`（优先级 +3、清错误、记模型），失败调 `record_test_failure`（优先级 -1、存错误）；真实请求成功调 `record_request_success`（优先级 +1、清错误），失败调 `record_request_failure`（优先级 -1、存错误，绝不自动停用账号）。
 - 优先级算法集中在 `../../app/service/priority.py`，范围保持 0–9。
 
 ## DAO 规范（app/dao/）

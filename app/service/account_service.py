@@ -117,3 +117,11 @@ def record_request_failure(
     account.last_error_code = error_code
     account.last_error_message = error_message
     return account_dao.save(session, account)
+
+
+def record_request_success(session: Session, account: Account) -> Account:
+    """记录真实请求成功：优先级加 1，并清除最近错误。"""
+    account.priority = priority.after_request_success(account.priority)
+    account.last_error_code = None
+    account.last_error_message = None
+    return account_dao.save(session, account)

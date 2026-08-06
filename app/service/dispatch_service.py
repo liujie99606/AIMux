@@ -162,6 +162,7 @@ async def forward_non_stream(
         except ValueError:
             payload = None
         tokens = extract_usage(payload)
+        account_service.record_request_success(session, account)
         _write_usage(
             session, trace_id=trace_id, started_at=started_at, started_monotonic=started_monotonic, account=account, model=model, endpoint=endpoint,
             stream=False, client_ip=client_ip, attempts=attempts, success=True,
@@ -267,6 +268,13 @@ async def forward_stream(
 
             with Session(get_engine()) as record_session:
                 record_account = account_dao.get(record_session, selected.id)
+                if record_account is not None:
+                    if stream_error is None:
+                        record_account = account_service.record_request_success(record_session, record_account)
+                    else:
+                        record_account = account_service.record_request_failure(
+                            record_session, record_account, stream_error.code, stream_error.message
+                        )
                 _write_usage(
                     record_session, trace_id=trace_id, started_at=started_at, started_monotonic=started_monotonic, account=record_account, model=model,
                     endpoint=endpoint, stream=True, client_ip=client_ip, attempts=attempts,
