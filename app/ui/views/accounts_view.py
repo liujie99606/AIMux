@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QMessageBox, QPush
 from app.ui.client import ApiClient
 from app.ui.components.account_form import AccountForm
 from app.ui.components.account_table import AccountTable
+from app.ui.components.account_test_dialog import AccountTestDialog
 from app.ui.components.batch_toolbar import BatchToolbar
 from app.ui.components.model_test_dialog import ModelTestDialog
 
@@ -121,14 +122,14 @@ class AccountsView(QWidget):
                 self._error(exc)
 
     def test(self, account_id: str) -> None:
-        """选择账号类型下的模型，再对单个账号执行连接测试。"""
+        """在集成弹窗中选择模型、显示测试请求与响应详情。"""
         try:
-            model = self._pick_test_model(self.accounts[account_id]["type"])
-            if model is None:
+            models = self._models(self.accounts[account_id]["type"])
+            if not models:
+                QMessageBox.information(self, "测试账号", "该类型尚未维护模型，请先在模型维护页新增")
                 return
-            result = self.client.post(f"/api/accounts/{account_id}/test", json={"model": model})
-            message = "测试通过" if result["success"] else f"测试失败: {result.get('error_message')}"
-            QMessageBox.information(self, "测试结果", message)
+            dialog = AccountTestDialog(self.client, self.accounts[account_id], models, self)
+            dialog.exec()
             self.refresh()
         except Exception as exc:
             self._error(exc)

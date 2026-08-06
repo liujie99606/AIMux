@@ -111,6 +111,7 @@ class TestResult(BaseModel):
     status_code: int | None = None
     error_code: str | None = None
     error_message: str | None = None
+    response_body: str | None = None
     model: str | None = None
 
 

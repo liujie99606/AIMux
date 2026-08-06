@@ -70,7 +70,7 @@ async def _test_one(session: Session, account_id: str, model: str | None, settin
         return TestResult(account_id=account.id, success=False, error_code="test_connection_error", error_message=str(exc), model=chosen_model).model_dump()
     if 200 <= response.status_code < 300:
         account_service.record_test_success(session, account, chosen_model)
-        return TestResult(account_id=account.id, success=True, status_code=response.status_code, model=chosen_model).model_dump()
+        return TestResult(account_id=account.id, success=True, status_code=response.status_code, response_body=response.content[:4096].decode("utf-8", errors="replace"), model=chosen_model).model_dump()
     content = response.content[:4096].decode("utf-8", errors="replace")
     account_service.record_test_failure(session, account, "test_failed", content)
     return TestResult(account_id=account.id, success=False, status_code=response.status_code, error_code="test_failed", error_message=content, model=chosen_model).model_dump()
