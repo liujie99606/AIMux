@@ -49,6 +49,7 @@ class AccountsView(QWidget):
         self.table.toggle_requested.connect(self.toggle)
         self.table.super_requested.connect(self.make_super)
         self.table.priority_changed.connect(self.change_priority)
+        self.table.adjust_priority_requested.connect(self.adjust_priority)
         self.refresh()
 
     def _error(self, exc: Exception) -> None:
@@ -182,3 +183,11 @@ class AccountsView(QWidget):
                 self.accounts[account_id]["priority"] = priority
             except Exception as exc:
                 self._error(exc)
+
+    def adjust_priority(self, account_id: str, delta: int) -> None:
+        """按增量快捷调整优先级，后端自动限制在 0-9 范围内。"""
+        try:
+            self.client.post(f"/api/accounts/{account_id}/adjust-priority", params={"delta": delta})
+            self.refresh()
+        except Exception as exc:
+            self._error(exc)

@@ -78,6 +78,12 @@ def set_super_priority(session: Session, account: Account) -> Account:
     return account_dao.save(session, account)
 
 
+def adjust_priority(session: Session, account: Account, delta: int) -> Account:
+    """按增量调整优先级，自动限制在 0-9 范围内。"""
+    account.priority = max(priority.PRIORITY_MIN, min(priority.PRIORITY_MAX, account.priority + delta))
+    return account_dao.save(session, account)
+
+
 def toggle_status(session: Session, account: Account) -> Account:
     """在 active 与 disabled 之间人工切换账号状态。"""
     account.status = "disabled" if account.status == "active" else "active"

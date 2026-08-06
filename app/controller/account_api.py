@@ -94,3 +94,9 @@ def make_super(account_id: str, session: Session = Depends(get_session)):
 @router.post("/{account_id}/toggle-status", response_model=AccountView)
 def toggle(account_id: str, session: Session = Depends(get_session)):
     return account_service.to_view(account_service.toggle_status(session, _account(session, account_id)))
+
+
+@router.post("/{account_id}/adjust-priority", response_model=AccountView)
+def adjust_priority(account_id: str, delta: int, session: Session = Depends(get_session)):
+    """按 delta 增减优先级，自动限制在 0-9 范围内。"""
+    return account_service.to_view(account_service.adjust_priority(session, _account(session, account_id), delta))

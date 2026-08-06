@@ -19,12 +19,13 @@ class AccountTable(DataTable):
     toggle_requested = Signal(str)
     super_requested = Signal(str)
     priority_changed = Signal(str, int)
+    adjust_priority_requested = Signal(str, int)
 
     COLUMNS = [
         Column("选择", lambda r: r["_checkbox"], widget=True, width=50),
-        Column("名称", lambda r: r["name"], width=150),
+        Column("名称", lambda r: r["name"], width=170),
         Column("类型", lambda r: r["type"]),
-        Column("状态", lambda r: StatusBadge(r["status"]), widget=True, width=80),
+        Column("状态", lambda r: StatusBadge(r["status"]), widget=True, width=120),
         Column("优先级", lambda r: r["_priority"], widget=True, width=90),
         Column("最近使用", lambda r: format_time(r.get("last_used_at")), width=150),
         Column("操作", lambda r: r["_actions"], widget=True, stretch=True),
@@ -71,12 +72,19 @@ class AccountTable(DataTable):
             ("测试", self.test_requested),
             ("编辑", self.edit_requested),
             ("复制", self.copy_requested),
-            ("切换", self.toggle_requested),
+            ("停用" if account["status"] == "active" else "启用", self.toggle_requested),
             ("置顶", self.super_requested),
             ("删除", self.delete_requested),
         ]:
             button = QPushButton(label)
             button.clicked.connect(lambda _, aid=account["id"], event=signal: event.emit(aid))
+            buttons.addWidget(button)
+        # 优先级快捷调整按钮，复用 adjust_priority_requested 信号。
+        for label, delta in [("优先级+4", 4), ("优先级-4", -4)]:
+            button = QPushButton(label)
+            button.clicked.connect(
+                lambda _, aid=account["id"], d=delta: self.adjust_priority_requested.emit(aid, d)
+            )
             buttons.addWidget(button)
 
         prepared = dict(account)
