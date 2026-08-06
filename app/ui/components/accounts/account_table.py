@@ -3,9 +3,9 @@ from __future__ import annotations
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QWidget
 
-from app.ui.components.data_table import Column, DataTable
-from app.ui.components.priority_editor import PriorityEditor
-from app.ui.components.status_badge import StatusBadge
+from app.ui.components.common.data_table import Column, DataTable
+from app.ui.components.common.priority_editor import PriorityEditor
+from app.ui.components.accounts.status_badge import StatusBadge
 from app.ui.formatting import format_time
 
 
@@ -21,12 +21,12 @@ class AccountTable(DataTable):
     priority_changed = Signal(str, int)
 
     COLUMNS = [
-        Column("选择", lambda r: r["_checkbox"], widget=True, width=48),
-        Column("名称", lambda r: r["name"]),
+        Column("选择", lambda r: r["_checkbox"], widget=True, width=50),
+        Column("名称", lambda r: r["name"], width=150),
         Column("类型", lambda r: r["type"]),
         Column("状态", lambda r: StatusBadge(r["status"]), widget=True, width=80),
         Column("优先级", lambda r: r["_priority"], widget=True, width=90),
-        Column("最近使用", lambda r: format_time(r.get("last_used_at"))),
+        Column("最近使用", lambda r: format_time(r.get("last_used_at")), width=150),
         Column("操作", lambda r: r["_actions"], widget=True, stretch=True),
     ]
 

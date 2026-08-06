@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Signal
 
-from app.ui.components.data_table import Column, DataTable
+from app.ui.components.common.data_table import Column, DataTable
 from app.ui.formatting import format_time
 
 

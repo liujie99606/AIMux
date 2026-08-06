@@ -3,11 +3,11 @@ from __future__ import annotations
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
 from app.ui.client import ApiClient
-from app.ui.components.account_form import AccountForm
-from app.ui.components.account_table import AccountTable
-from app.ui.components.account_test_dialog import AccountTestDialog
-from app.ui.components.batch_toolbar import BatchToolbar
-from app.ui.components.model_test_dialog import ModelTestDialog
+from app.ui.components.accounts.account_form import AccountForm
+from app.ui.components.accounts.account_table import AccountTable
+from app.ui.components.accounts.account_test_dialog import AccountTestDialog
+from app.ui.components.accounts.batch_toolbar import BatchToolbar
+from app.ui.components.accounts.model_test_dialog import ModelTestDialog
 
 
 class AccountsView(QWidget):

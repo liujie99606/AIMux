@@ -4,8 +4,8 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QHBoxLayout, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
 from app.ui.client import ApiClient
-from app.ui.components.data_table import Column, DataTable
-from app.ui.components.model_form import ModelForm
+from app.ui.components.common.data_table import Column, DataTable
+from app.ui.components.models.model_form import ModelForm
 from app.ui.formatting import format_time
 
 
@@ -18,7 +18,7 @@ class ModelTable(DataTable):
     COLUMNS = [
         Column("名称", lambda r: r["name"]),
         Column("类型", lambda r: r["type"]),
-        Column("更新时间", lambda r: format_time(r.get("updated_at"))),
+        Column("更新时间", lambda r: format_time(r.get("updated_at")), width=150),
         Column("操作", lambda r: r["_actions"], widget=True, stretch=True),
     ]
 

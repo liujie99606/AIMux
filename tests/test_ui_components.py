@@ -6,8 +6,8 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication
 
-from app.ui.components.account_form import AccountForm
-from app.ui.components.account_table import AccountTable
+from app.ui.components.accounts.account_form import AccountForm
+from app.ui.components.accounts.account_table import AccountTable
 
 
 def test_account_table_builds_checkbox_cell_without_alignment_type_error():

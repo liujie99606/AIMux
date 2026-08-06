@@ -16,9 +16,9 @@ def test_environment_overrides_config_and_uses_dynamic_data_dir(tmp_path, monkey
 def test_desktop_components_are_constructible(monkeypatch):
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     from PySide6.QtWidgets import QApplication
-    from app.ui.components.priority_editor import PriorityEditor
-    from app.ui.components.status_badge import StatusBadge
-    from app.ui.components.usage_filter import UsageFilter
+    from app.ui.components.common.priority_editor import PriorityEditor
+    from app.ui.components.accounts.status_badge import StatusBadge
+    from app.ui.components.usage.usage_filter import UsageFilter
 
     application = QApplication.instance() or QApplication([])
     priority = PriorityEditor(5)

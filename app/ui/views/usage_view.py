@@ -3,10 +3,10 @@ from __future__ import annotations
 from PySide6.QtWidgets import QMessageBox, QVBoxLayout, QWidget
 
 from app.ui.client import ApiClient
-from app.ui.components.summary_card import SummaryCards
-from app.ui.components.usage_detail_dialog import UsageDetailDialog
-from app.ui.components.usage_filter import UsageFilter
-from app.ui.components.usage_table import UsageTable
+from app.ui.components.usage.summary_card import SummaryCards
+from app.ui.components.usage.usage_detail_dialog import UsageDetailDialog
+from app.ui.components.usage.usage_filter import UsageFilter
+from app.ui.components.usage.usage_table import UsageTable
 
 
 class UsageView(QWidget):
