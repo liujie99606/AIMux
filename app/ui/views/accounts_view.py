@@ -18,7 +18,10 @@ class AccountsView(QWidget):
         self.client = client
         self.accounts: dict[str, dict] = {}
         root = QVBoxLayout(self)
+        root.setContentsMargins(20, 18, 20, 18)
+        root.setSpacing(14)
         tools = QHBoxLayout()
+        tools.setSpacing(8)
         self.type_filter = QComboBox()
         self.type_filter.addItems(["全部类型", "openai", "anthropic"])
         self.status_filter = QComboBox()

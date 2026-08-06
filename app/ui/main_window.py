@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QFrame,
     QHBoxLayout,
+    QLabel,
     QListWidget,
     QListWidgetItem,
     QMainWindow,
@@ -36,9 +37,9 @@ class MainWindow(QMainWindow):
         client = ApiClient(f"http://{settings.host}:{settings.port}", settings.local_token)
         self.navigation = QListWidget()
         self.navigation.setObjectName("navigation")
-        self.navigation.setFixedWidth(176)
-        self.navigation.setIconSize(QSize(20, 20))
-        self.navigation.setSpacing(4)
+        self.navigation.setFixedWidth(180)
+        self.navigation.setIconSize(QSize(18, 18))
+        self.navigation.setSpacing(2)
         self.navigation.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.content = QStackedWidget()
         self.content.addWidget(AccountsView(client))
@@ -55,8 +56,13 @@ class MainWindow(QMainWindow):
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
         sidebar_layout = QVBoxLayout(sidebar)
-        sidebar_layout.setContentsMargins(12, 16, 12, 16)
-        sidebar_layout.setSpacing(16)
+        sidebar_layout.setContentsMargins(10, 14, 10, 14)
+        sidebar_layout.setSpacing(14)
+        # 顶部应用标识区，展示应用名与版本。
+        brand = QLabel("AIMux")
+        brand.setObjectName("brand")
+        brand.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sidebar_layout.addWidget(brand)
         sidebar_layout.addWidget(self.navigation)
         sidebar_layout.addStretch()
         root = QWidget()
@@ -66,12 +72,21 @@ class MainWindow(QMainWindow):
         layout.addWidget(sidebar)
         layout.addWidget(self.content, 1)
         self.setCentralWidget(root)
+        # 侧栏背景与导航项样式，与深色主题协调。
         self.setStyleSheet(
-            "QFrame#sidebar { background: #f5f7fa; border-right: 1px solid #d9dde3; }"
-            "QListWidget#navigation { border: 0; background: transparent; }"
-            "QListWidget#navigation::item { padding: 10px 12px; border-radius: 6px; }"
-            "QListWidget#navigation::item:selected { background: #dceeff; color: #075985; }"
-            "QListWidget#navigation::item:hover { background: #e9edf2; }"
+            "QFrame#sidebar { background: #1e2128; border-right: 1px solid #2d3139; }"
+            "QLabel#brand { color: #e8eaed; font-size: 16px; font-weight: 600; padding: 6px 0; }"
+            "QListWidget#navigation { border: 0; background: transparent; outline: 0; }"
+            "QListWidget#navigation::item { padding: 9px 12px; border-radius: 6px; color: #c5c8ce; }"
+            "QListWidget#navigation::item:selected { background: #3b82f6; color: #ffffff; }"
+            "QListWidget#navigation::item:hover { background: #2d3139; }"
+            # 统计卡片样式。
+            "QFrame#statCard { background: #1e2128; border: 1px solid #2d3139; border-radius: 8px; }"
+            "QLabel#statTitle { color: #8b909a; font-size: 12px; }"
+            "QLabel#statValue { color: #e8eaed; font-size: 20px; font-weight: 600; }"
+            # 表格统一深色风格。
+            "QTableWidget { border: 1px solid #2d3139; border-radius: 6px; }"
+            "QHeaderView::section { background: #1e2128; border: 0; border-bottom: 1px solid #2d3139; padding: 6px 8px; }"
         )
         self._closing = False
         self.tray = QSystemTrayIcon(icon, self)

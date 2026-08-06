@@ -9,6 +9,7 @@ dependencies = [
   "httpx>=0.27",
   "platformdirs>=4.2",
   "pyside6>=6.8",
+  "pyqtdarktheme>=2.1.0",
   "sqlmodel>=0.0.22",
   "uvicorn>=0.30",
 ]

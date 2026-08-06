@@ -15,7 +15,10 @@ class ModelsView(QWidget):
         self.client = client
         self.models: dict[str, dict] = {}
         root = QVBoxLayout(self)
+        root.setContentsMargins(20, 18, 20, 18)
+        root.setSpacing(14)
         tools = QHBoxLayout()
+        tools.setSpacing(8)
         add = QPushButton("新增模型")
         refresh = QPushButton("刷新")
         tools.addStretch()

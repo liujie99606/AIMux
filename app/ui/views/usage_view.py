@@ -12,7 +12,10 @@ from app.ui.components.usage_table import UsageTable
 class UsageView(QWidget):
     def __init__(self, client: ApiClient, parent=None) -> None:
         super().__init__(parent); self.client = client
-        root = QVBoxLayout(self); self.filter = UsageFilter(); root.addWidget(self.filter); self.summary = SummaryCards(); root.addWidget(self.summary); self.table = UsageTable(); root.addWidget(self.table)
+        root = QVBoxLayout(self); root.setContentsMargins(20, 18, 20, 18); root.setSpacing(14)
+        self.filter = UsageFilter(); root.addWidget(self.filter)
+        self.summary = SummaryCards(); root.addWidget(self.summary)
+        self.table = UsageTable(); root.addWidget(self.table)
         self.filter.refresh_button.clicked.connect(self.refresh); self.table.detail_requested.connect(self.show_detail); self.refresh()
 
     def refresh(self) -> None:

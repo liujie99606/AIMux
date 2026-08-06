@@ -70,8 +70,11 @@ def main() -> None:
     if not servers or not servers[0].started:
         raise RuntimeError(f"AIMux 服务未能启动: {address}")
     from PySide6.QtWidgets import QApplication
+    import qdarktheme
     from app.ui.main_window import MainWindow
     application = QApplication([])
+    # 应用扁平深色主题，统一全局控件视觉风格。
+    qdarktheme.setup_theme("dark")
     application.setQuitOnLastWindowClosed(False)
     window = MainWindow(settings); window.show()
     application.exec()
