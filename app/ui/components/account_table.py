@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QAbstractItemView, QCheckBox, QHBoxLayout, QPushButton, QTableWidget, QTableWidgetItem, QWidget
 
 from app.ui.components.priority_editor import PriorityEditor
@@ -26,7 +27,9 @@ class AccountTable(QTableWidget):
         self.setRowCount(len(accounts))
         for row, account in enumerate(accounts):
             selected = QCheckBox(); selected.setProperty("account_id", account["id"]); selected.setAccessibleName(f"选择 {account['name']}")
-            holder = QWidget(); layout = QHBoxLayout(holder); layout.setContentsMargins(0, 0, 0, 0); layout.addWidget(selected); layout.setAlignment(selected, 4)
+            holder = QWidget(); layout = QHBoxLayout(holder); layout.setContentsMargins(0, 0, 0, 0); layout.addWidget(selected)
+            # PySide6 不接受旧版 Qt 的裸整数对齐值，必须使用枚举常量。
+            layout.setAlignment(selected, Qt.AlignmentFlag.AlignCenter)
             self.setCellWidget(row, 0, holder)
             self.setItem(row, 1, QTableWidgetItem(account["name"]))
             self.setItem(row, 2, QTableWidgetItem(account["type"]))
