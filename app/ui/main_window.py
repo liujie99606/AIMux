@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QAction, QCloseEvent, QIcon
+from PySide6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -34,7 +34,8 @@ class MainWindow(QMainWindow):
         self.resize(1180, 720)
         icon = QIcon(str(resource_path("assets", "icons", "aimux.png")))
         self.setWindowIcon(icon)
-        client = ApiClient(f"http://{settings.host}:{settings.port}", settings.local_token)
+        self.settings = settings
+        self.client = ApiClient(f"http://{settings.host}:{settings.port}", settings.local_token)
         self.navigation = QListWidget()
         self.navigation.setObjectName("navigation")
         self.navigation.setFixedWidth(180)
@@ -42,16 +43,7 @@ class MainWindow(QMainWindow):
         self.navigation.setSpacing(2)
         self.navigation.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.content = QStackedWidget()
-        self.content.addWidget(AccountsView(client))
-        self.content.addWidget(ModelsView(client))
-        self.content.addWidget(UsageView(client))
-        self.content.addWidget(SettingsView(client))
-        self._add_navigation_item("账号管理", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView))
-        self._add_navigation_item("模型维护", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView))
-        self._add_navigation_item("使用记录", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
-        self._add_navigation_item("设置", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
-        self.navigation.currentRowChanged.connect(self.content.setCurrentIndex)
-        self.navigation.setCurrentRow(0)
+        self._build_content()
 
         sidebar = QFrame()
         sidebar.setObjectName("sidebar")
@@ -96,6 +88,43 @@ class MainWindow(QMainWindow):
         menu.addAction(show); menu.addAction(quit_action); self.tray.setContextMenu(menu)
         self.tray.activated.connect(lambda _: self.showNormal())
         self.tray.show()
+        # Ctrl+R 热重载：销毁并重建所有视图，便于调试 UI 时免重启。
+        reload_action = QAction(self)
+        reload_action.setShortcut(QKeySequence(Qt.Modifier.CTRL | Qt.Key.Key_R))
+        reload_action.triggered.connect(self._reload_views)
+        self.addAction(reload_action)
+
+    def _build_content(self) -> None:
+        """构建四个视图、导航项并接入内容栈。"""
+        self.content.addWidget(AccountsView(self.client))
+        self.content.addWidget(ModelsView(self.client))
+        self.content.addWidget(UsageView(self.client))
+        self.content.addWidget(SettingsView(self.client))
+        self._add_navigation_item("账号管理", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView))
+        self._add_navigation_item("模型维护", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView))
+        self._add_navigation_item("使用记录", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
+        self._add_navigation_item("设置", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
+        self.navigation.currentRowChanged.connect(self.content.setCurrentIndex)
+        self.navigation.setCurrentRow(0)
+
+    def _reload_views(self) -> None:
+        """销毁旧视图并按最新源码重建，保留当前页签位置。
+
+        调试 UI 时改完代码保存，按 Ctrl+R 即可立即看到改动，无需重启进程；
+        后端 API 服务不受影响，重建后各视图会自行刷新数据。
+        """
+        current = self.navigation.currentRow()
+        # 断开旧导航信号，避免重建过程中触发 setCurrentIndex。
+        self.navigation.currentRowChanged.disconnect(self.content.setCurrentIndex)
+        self.navigation.clear()
+        for index in range(self.content.count()):
+            widget = self.content.widget(index)
+            self.content.removeWidget(widget)
+            widget.deleteLater()
+        self._build_content()
+        # 重建后恢复到原来所在页签。
+        if 0 <= current < self.content.count():
+            self.navigation.setCurrentRow(current)
 
     def _add_navigation_item(self, title: str, icon: QIcon) -> None:
         """添加一个固定尺寸的左侧菜单项，并与内容栈索引保持一致。"""

@@ -18,7 +18,7 @@ class UsageTable(DataTable):
     detail_requested = Signal(str)
 
     COLUMNS = [
-        Column("时间", lambda r: format_time(r.get("started_at")), width=300),
+        Column("时间", lambda r: format_time(r.get("started_at")), width=180),
         Column("账号", lambda r: r.get("account_name") or "-"),
         Column("类型", lambda r: r.get("account_type") or "-"),
         Column("模型", lambda r: r.get("model") or "-"),
@@ -27,7 +27,7 @@ class UsageTable(DataTable):
         Column("耗时", lambda r: f"{r.get('duration_ms') or 0} ms"),
         Column("首Token", _first_token),
         Column("推理强度", lambda r: r.get("reasoning_effort") or "-"),
-        Column("Token", lambda r: str(r.get("total_tokens") or 0)),
+        # Column("Token", lambda r: str(r.get("total_tokens") or 0)),
     ]
 
     def __init__(self, parent=None) -> None:
