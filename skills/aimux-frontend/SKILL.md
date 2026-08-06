@@ -132,6 +132,13 @@ app/ui/
 - 断言聚焦行为（`rowCount`、`selected_ids`、表单模型过滤结果），不断言渲染像素。
 - 构造组件传入最小 dict 数据即可，无需真实 API。
 
+## Git 提交规范
+
+- 每次改动完成并测试通过后，**立即 git commit**，但**不推送**（不执行 `git push`）。
+- 提交信息用中文简述本次改动；多文件改动可按逻辑拆成多个提交。
+- 用 `/commit` 命令提交（自动处理安全协议与 pre-commit hooks），不要加 `--no-verify` 跳过钩子。
+- 仓库保持"本地领先远程"状态，由用户决定何时批量推送。
+
 ## 改动自检清单
 
 新增/修改前端代码时逐条核对：
@@ -146,3 +153,4 @@ app/ui/
 8. 弹窗是否用 `QDialog` + `QFormLayout` + `QDialogButtonBox`？模式是否用参数区分？
 9. 深色日志区是否只读、等宽、HTML 转义安全？
 10. 是否运行 `./.venv/Scripts/python.exe -m pytest tests/` 全绿？
+11. 是否已 `git commit`（仅提交，不推送）？

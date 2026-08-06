@@ -133,6 +133,13 @@ app/
 - 命名 `test_<被测行为>_<关键约束>()`，断言聚焦行为而非实现细节。
 - 运行：`./.venv/Scripts/python.exe -m pytest`。
 
+## Git 提交规范
+
+- 每次改动完成并测试通过后，**立即 git commit**，但**不推送**（不执行 `git push`）。
+- 提交信息用中文简述本次改动；多文件改动可按逻辑拆成多个提交。
+- 用 `/commit` 命令提交（自动处理安全协议与 pre-commit hooks），不要加 `--no-verify` 跳过钩子。
+- 仓库保持"本地领先远程"状态，由用户决定何时批量推送。
+
 ## 改动自检清单
 
 新增/修改后端代码时逐条核对：
@@ -146,3 +153,4 @@ app/
 7. Schema 是否 `*Create`/`*Update`/`*View` 三件套？更新是否用 `model_fields_set`？
 8. 路由是否按需挂 `verify_local_token` 依赖？
 9. 是否运行 `pytest` 全绿？
+10. 是否已 `git commit`（仅提交，不推送）？
