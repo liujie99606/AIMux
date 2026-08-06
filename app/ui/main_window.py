@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMainWindow,
     QMenu,
+    QMessageBox,
     QStackedWidget,
     QStyle,
     QSystemTrayIcon,
@@ -142,8 +143,27 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event: QCloseEvent) -> None:
         if self._closing:
             event.accept()
+            return
+        # 点右上角 X 时弹窗让用户选择：直接退出或最小化到托盘。
+        choice = QMessageBox(
+            QMessageBox.Icon.Question,
+            "关闭 AIMux",
+            "你想要直接退出 AIMux，还是最小化到托盘后台运行？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+            self,
+        )
+        choice.button(QMessageBox.StandardButton.Yes).setText("直接退出")
+        choice.button(QMessageBox.StandardButton.No).setText("最小化到托盘")
+        choice.button(QMessageBox.StandardButton.Cancel).setText("取消")
+        result = choice.exec()
+        if result == QMessageBox.StandardButton.Yes:
+            self.quit_application()
+            event.accept()
+        elif result == QMessageBox.StandardButton.No:
+            event.ignore()
+            self.hide()
         else:
-            event.ignore(); self.hide()
+            event.ignore()
 
     def quit_application(self) -> None:
         self._closing = True
