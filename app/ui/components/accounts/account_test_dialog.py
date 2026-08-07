@@ -2,18 +2,50 @@ from __future__ import annotations
 
 import json
 
+from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
     QHBoxLayout,
     QLabel,
+    QProgressBar,
     QPushButton,
     QTextEdit,
     QVBoxLayout,
 )
 
 from app.ui.client import ApiClient
+
+
+class AccountTestWorker(QThread):
+    """在后台逐个执行账号测试，避免网络请求阻塞 Qt 主线程。"""
+
+    result_received = Signal(str, str, dict)
+    request_failed = Signal(str, str, str)
+    progress_changed = Signal(int, int, str)
+
+    def __init__(self, client: ApiClient, accounts: list[dict], model: str) -> None:
+        super().__init__()
+        self.client = client
+        self.accounts = accounts
+        self.model = model
+
+    def run(self) -> None:
+        """逐个发起请求，单个账号异常时继续测试剩余账号。"""
+        total = len(self.accounts)
+        for index, account in enumerate(self.accounts, start=1):
+            account_id = account["id"]
+            account_name = account.get("name", account_id)
+            self.progress_changed.emit(index, total, account_name)
+            try:
+                result = self.client.post(
+                    f"/api/accounts/{account_id}/test",
+                    json={"model": self.model},
+                )
+                self.result_received.emit(account_id, account_name, result)
+            except Exception as exc:
+                self.request_failed.emit(account_id, account_name, str(exc))
 
 
 class AccountTestDialog(QDialog):
@@ -24,6 +56,7 @@ class AccountTestDialog(QDialog):
         self.client = client
         self.accounts = account if isinstance(account, list) else [account]
         self.account = self.accounts[0]
+        self._worker: AccountTestWorker | None = None
         title = "批量测试账号" if len(self.accounts) > 1 else f"测试账号 · {self.account.get('name', '')}"
         self.setWindowTitle(title)
         self.setMinimumSize(900, 700)
@@ -45,6 +78,12 @@ class AccountTestDialog(QDialog):
         selector.addWidget(self.test_btn)
         layout.addLayout(selector)
 
+        self.progress = QProgressBar()
+        self.progress.setRange(0, len(self.accounts))
+        self.progress.setValue(0)
+        self.progress.setFormat("等待测试")
+        layout.addWidget(self.progress)
+
         self.log = QTextEdit()
         self.log.setReadOnly(True)
         # 深色背景等宽字体，便于阅读请求/响应文本。
@@ -56,6 +95,7 @@ class AccountTestDialog(QDialog):
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(self.reject)
+        self.close_button = buttons.button(QDialogButtonBox.StandardButton.Close)
         layout.addWidget(buttons)
 
         self._endpoint = (
@@ -84,39 +124,62 @@ class AccountTestDialog(QDialog):
         body = self._request_body(model_name)
         self.log.clear()
         self.test_btn.setEnabled(False)
-        try:
-            if len(self.accounts) > 1:
-                self._append_html(f'<span style="color:#9cdcfe">开始批量测试:</span> {len(self.accounts)} 个账号')
-            else:
-                self._append_html(f'<span style="color:#9cdcfe">开始测试账号:</span> {self.account.get("name", "")}')
-            self._append_html(f'<span style="color:#9cdcfe">账号类型:</span> {self.account.get("type", "")}')
-            self._append_html(f'<span style="color:#9cdcfe">端点:</span> POST {self._endpoint}')
-            self._append_html('<span style="color:#9cdcfe">请求体:</span>')
-            self._append_block(json.dumps(body, ensure_ascii=False, indent=2))
-            self._append_html('<span style="color:#569cd6">正在发送请求...</span>')
-            if len(self.accounts) > 1:
-                result = self.client.post(
-                    "/api/accounts/batch-test",
-                    json={"ids": [item["id"] for item in self.accounts], "model": model_name},
-                )
-                accounts_by_id = {item["id"]: item for item in self.accounts}
-                for item in result.get("items", []):
-                    account = accounts_by_id.get(item.get("account_id"), {})
-                    self._append_html(
-                        f'<span style="color:#9cdcfe">账号:</span> '
-                        f'{account.get("name", item.get("account_id", ""))}'
-                    )
-                    self._render_result(item)
-            else:
-                result = self.client.post(
-                    f"/api/accounts/{self.account['id']}/test",
-                    json={"model": model_name},
-                )
-                self._render_result(result)
-        except Exception as exc:
-            self._append_html(f'<span style="color:#f48771">✗ 请求出错: {exc}</span>')
-        finally:
-            self.test_btn.setEnabled(True)
+        self.model.setEnabled(False)
+        self.close_button.setEnabled(False)
+        self.progress.setValue(0)
+        self.progress.setFormat("准备测试")
+        if len(self.accounts) > 1:
+            self._append_html(f'<span style="color:#9cdcfe">开始批量测试:</span> {len(self.accounts)} 个账号')
+        else:
+            self._append_html(f'<span style="color:#9cdcfe">开始测试账号:</span> {self.account.get("name", "")}')
+        self._append_html(f'<span style="color:#9cdcfe">账号类型:</span> {self.account.get("type", "")}')
+        self._append_html(f'<span style="color:#9cdcfe">端点:</span> POST {self._endpoint}')
+        self._append_html('<span style="color:#9cdcfe">请求体:</span>')
+        self._append_block(json.dumps(body, ensure_ascii=False, indent=2))
+        self._append_html('<span style="color:#569cd6">正在发送请求...</span>')
+
+        self._worker = AccountTestWorker(self.client, self.accounts, model_name)
+        self._worker.progress_changed.connect(self._on_progress)
+        self._worker.result_received.connect(self._on_result)
+        self._worker.request_failed.connect(self._on_request_failed)
+        self._worker.finished.connect(self._on_finished)
+        self._worker.start()
+
+    def _on_progress(self, index: int, total: int, account_name: str) -> None:
+        """展示当前正在测试的账号和批量进度。"""
+        self.progress.setValue(index - 1)
+        self.progress.setFormat(f"正在测试 {index}/{total}: {account_name}")
+        if len(self.accounts) > 1:
+            self._append_html(
+                f'<span style="color:#9cdcfe">账号 {index}/{total}:</span> {account_name}'
+            )
+
+    def _on_result(self, account_id: str, account_name: str, result: dict) -> None:
+        """在主线程渲染单个账号返回结果。"""
+        if len(self.accounts) > 1:
+            self._append_html(f'<span style="color:#9cdcfe">账号:</span> {account_name}')
+        self._render_result(result)
+
+    def _on_request_failed(self, account_id: str, account_name: str, error: str) -> None:
+        """记录单个请求异常，不中断剩余账号测试。"""
+        self._append_html(
+            f'<span style="color:#f48771">✗ {account_name} 请求出错:</span> {error}'
+        )
+
+    def _on_finished(self) -> None:
+        """恢复弹窗操作并标记测试完成。"""
+        self.progress.setValue(len(self.accounts))
+        self.progress.setFormat("测试完成")
+        self.test_btn.setEnabled(True)
+        self.model.setEnabled(True)
+        self.close_button.setEnabled(True)
+        self._worker = None
+
+    def reject(self) -> None:
+        """测试进行中禁止关闭，避免后台线程回调已销毁的弹窗。"""
+        if self._worker is not None and self._worker.isRunning():
+            return
+        super().reject()
 
     def _render_result(self, result: dict) -> None:
         """根据测试结果渲染响应状态、响应内容与成功/失败提示。"""

@@ -4,6 +4,7 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from app.ui.components.accounts.account_form import AccountForm
@@ -58,7 +59,7 @@ def test_batch_toolbar_select_all_toggles_account_table():
 
 
 def test_account_test_dialog_supports_batch_accounts():
-    """批量测试应复用账号测试弹窗并调用批量测试接口。"""
+    """批量测试应逐个调用账号接口，并在首个失败后继续测试。"""
     application = QApplication.instance() or QApplication([])
 
     class FakeClient:
@@ -67,10 +68,14 @@ def test_account_test_dialog_supports_batch_accounts():
 
         def post(self, path: str, **kwargs: dict) -> dict:
             self.calls.append((path, kwargs))
-            return {"items": [
-                {"account_id": "account-1", "success": True, "status_code": 200},
-                {"account_id": "account-2", "success": False, "status_code": 401, "error_code": "test_failed"},
-            ]}
+            if path.endswith("account-1/test"):
+                return {
+                    "account_id": "account-1",
+                    "success": False,
+                    "status_code": 401,
+                    "error_code": "test_failed",
+                }
+            return {"account_id": "account-2", "success": True, "status_code": 200}
 
     client = FakeClient()
     dialog = AccountTestDialog(
@@ -82,10 +87,18 @@ def test_account_test_dialog_supports_batch_accounts():
         [{"name": "gpt-test", "type": "openai"}],
     )
     dialog._run_test()
-    assert client.calls == [(
-        "/api/accounts/batch-test",
-        {"json": {"ids": ["account-1", "account-2"], "model": "gpt-test"}},
-    )]
+    worker = dialog._worker
+    assert worker is not None
+    for _ in range(20):
+        application.processEvents()
+        if worker.isRunning():
+            QTest.qWait(10)
+    worker.wait()
+    application.processEvents()
+    assert client.calls == [
+        ("/api/accounts/account-1/test", {"json": {"model": "gpt-test"}}),
+        ("/api/accounts/account-2/test", {"json": {"model": "gpt-test"}}),
+    ]
     assert "账号一" in dialog.log.toPlainText() and "账号二" in dialog.log.toPlainText()
     dialog.deleteLater(); application.processEvents()
 
