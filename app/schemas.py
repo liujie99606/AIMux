@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Literal
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -118,5 +119,17 @@ class SettingsPayload(BaseModel):
     upstream_timeout_seconds: int = Field(default=300, ge=1, le=3600)
     first_token_timeout_seconds: int = Field(default=60, ge=1, le=3600)
     request_retry_attempts: int = Field(default=10, ge=1, le=20)
+    upstream_proxy_enabled: bool = False
+    upstream_proxy_url: str = "http://127.0.0.1:7890"
     local_token: str = ""
     launch_at_login: bool = False
+
+    @field_validator("upstream_proxy_url")
+    @classmethod
+    def validate_upstream_proxy_url(cls, value: str) -> str:
+        """校验 HTTP 上游代理地址，并统一移除末尾斜杠。"""
+        normalized = value.strip().rstrip("/")
+        parsed = urlparse(normalized)
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("上游代理地址必须是 HTTP 或 HTTPS 地址")
+        return normalized

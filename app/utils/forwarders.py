@@ -72,6 +72,18 @@ def _timeout(settings: Settings) -> httpx.Timeout:
     )
 
 
+def _proxy(settings: Settings) -> str | None:
+    """按开关返回显式上游代理地址，关闭时始终直连。"""
+    return settings.upstream_proxy_url if settings.upstream_proxy_enabled else None
+
+
+def _client(settings: Settings) -> httpx.AsyncClient:
+    """创建仅受 AIMux 上游代理设置控制的 HTTP 客户端。"""
+    return httpx.AsyncClient(
+        timeout=_timeout(settings), proxy=_proxy(settings), trust_env=False
+    )
+
+
 async def post(
     account: Account,
     endpoint: str,
@@ -81,7 +93,7 @@ async def post(
     extra_headers: dict[str, str] | None = None,
 ) -> httpx.Response:
     """执行一次非流式上游 POST 请求。"""
-    async with httpx.AsyncClient(timeout=_timeout(settings)) as client:
+    async with _client(settings) as client:
         return await client.post(
             upstream_url(account, endpoint), json=body, headers=_headers(account, body, extra_headers)
         )
@@ -96,7 +108,7 @@ async def open_stream(
     extra_headers: dict[str, str] | None = None,
 ) -> PreparedStream:
     """打开流式上游响应，调用方负责读取和关闭。"""
-    client = httpx.AsyncClient(timeout=_timeout(settings))
+    client = _client(settings)
     try:
         request = client.build_request(
             "POST", upstream_url(account, endpoint), json=body,

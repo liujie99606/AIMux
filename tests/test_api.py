@@ -34,11 +34,18 @@ def test_settings_persists_launch_at_login_without_external_side_effects(setting
     monkeypatch.setattr("app.controller.settings_api.autostart.is_enabled", lambda: False)
     monkeypatch.setattr("app.controller.settings_api.autostart.set_enabled", calls.append)
     client = TestClient(create_app(settings))
-    response = client.put("/api/settings", json={"launch_at_login": True, "request_retry_attempts": 8})
+    response = client.put("/api/settings", json={
+        "launch_at_login": True,
+        "request_retry_attempts": 8,
+        "upstream_proxy_enabled": True,
+        "upstream_proxy_url": "http://127.0.0.1:7890",
+    })
     assert response.status_code == 200
     assert calls == [True]
     assert response.json()["launch_at_login"] is True
     assert response.json()["request_retry_attempts"] == 8
+    assert response.json()["upstream_proxy_enabled"] is True
+    assert response.json()["upstream_proxy_url"] == "http://127.0.0.1:7890"
     assert client.get("/api/settings").json()["request_retry_attempts"] == 8
 
 

@@ -16,6 +16,8 @@ class Settings:
     upstream_timeout_seconds: int = 300
     first_token_timeout_seconds: int = 60
     request_retry_attempts: int = 10
+    upstream_proxy_enabled: bool = False
+    upstream_proxy_url: str = "http://127.0.0.1:7890"
     local_token: str = ""
     launch_at_login: bool = False
 
@@ -45,6 +47,8 @@ def load_settings() -> Settings:
         "AIMUX_UPSTREAM_TIMEOUT_SECONDS": ("upstream_timeout_seconds", int),
         "AIMUX_FIRST_TOKEN_TIMEOUT_SECONDS": ("first_token_timeout_seconds", int),
         "AIMUX_REQUEST_RETRY_ATTEMPTS": ("request_retry_attempts", int),
+        "AIMUX_UPSTREAM_PROXY_ENABLED": ("upstream_proxy_enabled", bool),
+        "AIMUX_UPSTREAM_PROXY_URL": ("upstream_proxy_url", str),
         "AIMUX_LOCAL_TOKEN": ("local_token", str),
         "AIMUX_LAUNCH_AT_LOGIN": ("launch_at_login", bool),
     }

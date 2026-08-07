@@ -9,9 +9,13 @@ def test_environment_overrides_config_and_uses_dynamic_data_dir(tmp_path, monkey
     monkeypatch.setenv("AIMUX_DATA_DIR", str(tmp_path / "user-data"))
     monkeypatch.setenv("AIMUX_PORT", "8899")
     monkeypatch.setenv("AIMUX_LAUNCH_AT_LOGIN", "true")
+    monkeypatch.setenv("AIMUX_UPSTREAM_PROXY_ENABLED", "true")
+    monkeypatch.setenv("AIMUX_UPSTREAM_PROXY_URL", "http://127.0.0.1:7891")
     settings = load_settings()
     assert settings.port == 8899
     assert settings.launch_at_login is True
+    assert settings.upstream_proxy_enabled is True
+    assert settings.upstream_proxy_url == "http://127.0.0.1:7891"
     assert (tmp_path / "user-data" / "config.json").exists()
 
 
@@ -19,6 +23,8 @@ def test_default_total_retry_attempts_is_ten(tmp_path, monkeypatch):
     """新配置默认将单个请求限制为 10 次总尝试。"""
     monkeypatch.setenv("AIMUX_DATA_DIR", str(tmp_path / "user-data"))
     assert load_settings().request_retry_attempts == 10
+    assert load_settings().upstream_proxy_enabled is False
+    assert load_settings().upstream_proxy_url == "http://127.0.0.1:7890"
 
 
 def test_total_retry_attempts_clamps_legacy_zero_value(tmp_path, monkeypatch):
@@ -78,3 +84,53 @@ def test_desktop_components_are_constructible(monkeypatch):
     pagination.set_total(0)
     assert not pagination.next_button.isEnabled()
     priority.deleteLater(); badge.deleteLater(); filters.deleteLater(); pagination.deleteLater(); models_view.deleteLater()
+
+
+def test_settings_view_saves_explicit_upstream_proxy(monkeypatch):
+    """设置页应加载并保存上游代理开关和地址。"""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication, QMessageBox
+
+    from app.ui.views.settings_view import SettingsView
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.token = ""
+            self.payload: dict | None = None
+
+        def get(self, path: str) -> dict:
+            assert path == "/api/settings"
+            return {
+                "host": "127.0.0.1",
+                "port": 7788,
+                "db_path": "",
+                "upstream_timeout_seconds": 300,
+                "first_token_timeout_seconds": 60,
+                "request_retry_attempts": 10,
+                "upstream_proxy_enabled": False,
+                "upstream_proxy_url": "http://127.0.0.1:7890",
+                "local_token": "",
+                "launch_at_login": False,
+            }
+
+        def put(self, path: str, *, json: dict) -> dict:
+            assert path == "/api/settings"
+            self.payload = json
+            return json
+
+    monkeypatch.setattr(QMessageBox, "information", lambda *args: None)
+    application = QApplication.instance() or QApplication([])
+    client = FakeClient()
+    view = SettingsView(client)
+
+    assert not view.proxy_enabled.isChecked()
+    assert not view.proxy_url.isEnabled()
+    view.proxy_enabled.setChecked(True)
+    assert view.proxy_url.isEnabled()
+    view.save()
+    assert client.payload is not None
+    assert client.payload["upstream_proxy_enabled"] is True
+    assert client.payload["upstream_proxy_url"] == "http://127.0.0.1:7890"
+
+    view.deleteLater()
+    application.processEvents()
