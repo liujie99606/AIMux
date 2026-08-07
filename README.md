@@ -26,7 +26,9 @@ AIMux 解决的核心问题是**多账号路由**：把多个上游 Key（官方
 | `scripts/win_start.bat` | Windows | 双击运行，或终端执行 `.\scripts\win_start.bat` |
 | `scripts/mac_start.sh` | macOS | 终端执行 `chmod +x scripts/mac_start.sh && ./scripts/mac_start.sh` |
 
-两个脚本行为一致：自动切到项目根目录，检测到 `.venv` 不存在时创建虚拟环境并 `pip install -e ".[dev]"`，已存在则直接启动应用。
+macOS 脚本会依次尝试 `python3.14`、`python3.13`、`python3.12` 和 `python3`，只使用 Python 3.12 或更新版本，避免误用系统自带旧版解释器。未找到兼容版本时，脚本会显示安装说明；已安装的解释器不在 PATH 中时，可用 `AIMUX_PYTHON=/完整路径/python3.13 ./scripts/mac_start.sh` 指定。Homebrew 用户可执行 `brew install python@3.13` 安装。
+
+两个脚本都会自动切到项目根目录并创建 `.venv`。启动脚本安装运行依赖；打包脚本额外安装 PyInstaller 等开发依赖，因此即使先运行过启动脚本，之后首次打包也能正常补齐依赖。
 
 ### 手动启动
 
