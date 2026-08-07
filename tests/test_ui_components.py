@@ -5,7 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QPushButton
 
 from app.ui.components.accounts.account_form import AccountForm
 from app.ui.components.accounts.account_table import AccountTable
@@ -34,6 +34,14 @@ def test_account_table_builds_checkbox_cell_without_alignment_type_error():
     assert table.rowCount() == 1
     assert table.selected_ids() == []
     assert table.horizontalHeaderItem(5).text() == "优先级快捷操作"
+    toggled: list[str] = []
+    table.toggle_requested.connect(toggled.append)
+    status = table.cellWidget(0, 3)
+    assert status.text() == "启用"
+    status.click()
+    assert toggled == ["account-1"]
+    actions = table.cellWidget(0, 7)
+    assert [button.text() for button in actions.findChildren(QPushButton)] == ["测试", "编辑", "复制", "删除"]
     table.set_all_selected(True)
     assert table.selected_ids() == ["account-1"]
     table.set_all_selected(False)

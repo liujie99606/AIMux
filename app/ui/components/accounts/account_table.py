@@ -26,7 +26,7 @@ class AccountTable(DataTable):
         Column("选择", lambda r: r["_checkbox"], widget=True, width=50),
         Column("名称", lambda r: r["_name_editor"], widget=True, width=170),
         Column("类型", lambda r: r["type"]),
-        Column("状态", lambda r: StatusBadge(r["status"]), widget=True, width=120),
+        Column("状态", lambda r: r["_status"], widget=True, width=120),
         Column("优先级", lambda r: r["_priority"], widget=True, width=90),
         Column("优先级快捷操作", lambda r: r["_priority_actions"], widget=True, width=170),
         Column("最近使用", lambda r: format_time(r.get("last_used_at")), width=150),
@@ -85,6 +85,9 @@ class AccountTable(DataTable):
             lambda value, account_id=account["id"]: self.priority_changed.emit(account_id, value)
         )
 
+        status = StatusBadge(account["status"])
+        status.clicked.connect(lambda _, aid=account["id"]: self.toggle_requested.emit(aid))
+
         actions = QWidget()
         buttons = QHBoxLayout(actions)
         buttons.setContentsMargins(0, 0, 0, 0)
@@ -92,7 +95,6 @@ class AccountTable(DataTable):
             ("测试", self.test_requested),
             ("编辑", self.edit_requested),
             ("复制", self.copy_requested),
-            ("停用" if account["status"] == "active" else "启用", self.toggle_requested),
             ("删除", self.delete_requested),
         ]:
             button = QPushButton(label)
@@ -112,6 +114,7 @@ class AccountTable(DataTable):
         prepared = dict(account)
         prepared["_checkbox"] = holder
         prepared["_name_editor"] = name_editor
+        prepared["_status"] = status
         prepared["_priority"] = priority
         prepared["_priority_actions"] = priority_actions
         prepared["_actions"] = actions
