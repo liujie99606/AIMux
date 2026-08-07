@@ -33,12 +33,12 @@ class MainWindow(QMainWindow):
     def __init__(self, settings: Settings) -> None:
         super().__init__()
         self.setWindowTitle("AIMux")
-        # 默认尺寸跟随主屏幕可用区域：宽度取 80%，高度取 88%，窗口居中。
+        # 默认尺寸跟随主屏幕可用区域：宽度取 80%，高度取 90%，窗口居中。
         screen = QApplication.primaryScreen()
         available = screen.availableGeometry() if screen else None
         if available is not None:
             width = int(available.width() * 0.8)
-            height = int(available.height() * 0.88)
+            height = int(available.height() * 0.9)
             self.resize(width, height)
             self.move(
                 available.x() + (available.width() - width) // 2,
