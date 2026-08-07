@@ -9,7 +9,7 @@ from app.config import Settings
 from app.controller.dependencies import app_settings
 from app.dao import account_dao
 from app.db import get_session
-from app.schemas import AccountCreate, AccountUpdate, AccountView, BatchTestRequest, TestRequest, TestResult
+from app.schemas import AccountCreate, AccountUpdate, AccountView, TestRequest, TestResult
 from app.service import account_service
 from app.utils import forwarders
 
@@ -79,11 +79,6 @@ async def _test_one(session: Session, account_id: str, model: str | None, settin
 @router.post("/{account_id}/test", response_model=TestResult)
 async def test(account_id: str, payload: TestRequest | None = None, session: Session = Depends(get_session), settings: Settings = Depends(app_settings)):
     return await _test_one(session, account_id, payload.model if payload else None, settings)
-
-
-@router.post("/batch-test")
-async def batch_test(payload: BatchTestRequest, session: Session = Depends(get_session), settings: Settings = Depends(app_settings)):
-    return {"items": [await _test_one(session, account_id, payload.model, settings) for account_id in payload.ids]}
 
 
 @router.post("/{account_id}/super-priority", response_model=AccountView)

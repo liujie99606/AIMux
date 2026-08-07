@@ -97,11 +97,6 @@ class ModelView(BaseModel):
     updated_at: str
 
 
-class BatchTestRequest(BaseModel):
-    ids: list[str] = Field(min_length=1)
-    model: str | None = None
-
-
 class TestRequest(BaseModel):
     model: str | None = None
 
