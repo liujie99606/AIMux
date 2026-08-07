@@ -52,7 +52,9 @@ def list_accounts(
     if status:
         statement = statement.where(Account.status == status)
     accounts = list(session.exec(statement).all())
-    accounts.sort(key=lambda item: (-item.priority, item.name.lower(), item.id))
+    accounts.sort(
+        key=lambda item: (item.status != "active", -item.priority, item.name.lower(), item.id)
+    )
     return accounts[offset : offset + limit], len(accounts)
 
 

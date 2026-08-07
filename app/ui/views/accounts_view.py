@@ -28,10 +28,11 @@ class AccountsView(QWidget):
         refresh = QPushButton("刷新")
         add = QPushButton("新增账号")
         self.batch_toolbar = BatchToolbar()
+        tools.addWidget(self.batch_toolbar)
         for widget in (QLabel("类型"), self.type_filter, QLabel("状态"), self.status_filter):
             tools.addWidget(widget)
         tools.addStretch()
-        for widget in (self.batch_toolbar, add, refresh):
+        for widget in (add, refresh):
             tools.addWidget(widget)
         root.addLayout(tools)
         self.table = AccountTable()

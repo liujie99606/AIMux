@@ -25,6 +25,19 @@ def test_pick_prefers_explicit_model_then_priority_and_keeps_key_secret(session)
     assert "api_key" not in view and "api_key_encrypted" not in view
 
 
+def test_account_list_orders_active_then_priority_then_name(session):
+    """账号列表先展示启用账号，再按优先级和名称排序。"""
+    add(session, name="启用低优先级", priority=1, models=None)
+    add(session, name="启用高优先级", priority=9, models=None)
+    disabled = add(session, name="停用高优先级", priority=9, models=None)
+    account_service.update_account(session, disabled, AccountUpdate(status="disabled"))
+
+    records, total = account_dao.list_accounts(session)
+
+    assert total == 3
+    assert [account.name for account in records] == ["启用高优先级", "启用低优先级", "停用高优先级"]
+
+
 def test_test_priority_linkage_never_changes_manual_status(session):
     account = add(session, name="手动停用", priority=5, models=None)
     account.status = "disabled"
