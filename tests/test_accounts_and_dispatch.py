@@ -170,6 +170,95 @@ async def test_stream_retries_before_first_chunk_and_parses_split_sse_usage(sess
     assert account_dao.get(session, second.id).priority == 7
 
 
+@pytest.mark.asyncio
+async def test_stream_records_usage_from_responses_completed_event(session, settings, monkeypatch):
+    """Responses API 的 response.completed 事件应写入嵌套的 usage。"""
+    account = add(session, name="Responses 账号", priority=9, models=None)
+
+    class FakeStream:
+        def __init__(self) -> None:
+            self.response = httpx.Response(200, headers={"content-type": "text/event-stream"})
+            self._chunks = iter([
+                b'event: response.created\n',
+                b'data: {"type":"response.created"}\n\n',
+                b'event: response.completed\n',
+                b'data: {"type":"response.completed","response":{"usage":{"input_tokens":4387,',
+                b'"output_tokens":5,"total_tokens":4392}}}\n\n',
+            ])
+
+        async def first_chunk(self):
+            return next(self._chunks)
+
+        async def chunks(self):
+            for chunk in self._chunks:
+                yield chunk
+
+        async def close(self):
+            return None
+
+    async def fake_open_stream(*args, **kwargs):
+        return FakeStream()
+
+    monkeypatch.setattr("app.service.dispatch_service.forwarders.open_stream", fake_open_stream)
+    response = await forward_stream(
+        session, body={"model": "gpt-test", "stream": True}, endpoint="/v1/responses",
+        account_type="openai", client_ip="127.0.0.1", settings=settings,
+    )
+    _ = b"".join([chunk async for chunk in response.body_iterator])
+    session.expire_all()
+    records, total = usage_dao.list_records(session)
+
+    assert total == 1
+    assert records[0].account_id == account.id
+    assert (records[0].input_tokens, records[0].output_tokens, records[0].total_tokens) == (4387, 5, 4392)
+
+
+@pytest.mark.asyncio
+async def test_stream_merges_anthropic_usage_events(session, settings, monkeypatch):
+    """Anthropic 分别返回输入与输出 token 时，应在同一记录中合并。"""
+    account = account_service.create_account(
+        session,
+        AccountCreate(
+            name="Anthropic 账号", type="anthropic", base_url="https://upstream.example",
+            api_key="secret", priority=9,
+        ),
+    )
+
+    class FakeStream:
+        def __init__(self) -> None:
+            self.response = httpx.Response(200, headers={"content-type": "text/event-stream"})
+            self._chunks = iter([
+                b'data: {"type":"message_start","message":{"usage":{"input_tokens":12}}}\n\n',
+                b'data: {"type":"message_delta","usage":{"output_tokens":8}}\n\n',
+            ])
+
+        async def first_chunk(self):
+            return next(self._chunks)
+
+        async def chunks(self):
+            for chunk in self._chunks:
+                yield chunk
+
+        async def close(self):
+            return None
+
+    async def fake_open_stream(*args, **kwargs):
+        return FakeStream()
+
+    monkeypatch.setattr("app.service.dispatch_service.forwarders.open_stream", fake_open_stream)
+    response = await forward_stream(
+        session, body={"model": "claude-test", "stream": True}, endpoint="/v1/messages",
+        account_type="anthropic", client_ip="127.0.0.1", settings=settings,
+    )
+    _ = b"".join([chunk async for chunk in response.body_iterator])
+    session.expire_all()
+    records, total = usage_dao.list_records(session)
+
+    assert total == 1
+    assert records[0].account_id == account.id
+    assert (records[0].input_tokens, records[0].output_tokens, records[0].total_tokens) == (12, 8, 20)
+
+
 def test_request_success_priority_is_capped_and_clears_error(session):
     """真实请求成功优先级只加 1，且不会超过 9。"""
     account = add(session, name="成功账号", priority=9, models=None)
