@@ -8,6 +8,8 @@ from PySide6.QtWidgets import QApplication
 
 from app.ui.components.accounts.account_form import AccountForm
 from app.ui.components.accounts.account_table import AccountTable
+from app.ui.components.accounts.account_test_dialog import AccountTestDialog
+from app.ui.components.accounts.batch_toolbar import BatchToolbar
 from app.ui.components.usage.summary_card import SummaryCards
 from app.ui.components.usage.usage_table import UsageTable
 from app.ui.formatting import format_duration_ms
@@ -30,7 +32,62 @@ def test_account_table_builds_checkbox_cell_without_alignment_type_error():
     ])
     assert table.rowCount() == 1
     assert table.selected_ids() == []
+    assert table.horizontalHeaderItem(5).text() == "优先级快捷操作"
+    table.set_all_selected(True)
+    assert table.selected_ids() == ["account-1"]
+    table.set_all_selected(False)
+    assert table.selected_ids() == []
     application.processEvents()
+
+
+def test_batch_toolbar_select_all_toggles_account_table():
+    """批量工具栏的全选复选框应支持全选和取消全选。"""
+    application = QApplication.instance() or QApplication([])
+    table = AccountTable()
+    toolbar = BatchToolbar()
+    toolbar.select_all_changed.connect(table.set_all_selected)
+    table.set_accounts([
+        {"id": "account-1", "name": "账号一", "type": "openai", "status": "active", "priority": 5},
+        {"id": "account-2", "name": "账号二", "type": "openai", "status": "active", "priority": 4},
+    ])
+    toolbar.select_all_checkbox.setChecked(True)
+    assert table.selected_ids() == ["account-1", "account-2"]
+    toolbar.select_all_checkbox.setChecked(False)
+    assert table.selected_ids() == []
+    table.deleteLater(); toolbar.deleteLater(); application.processEvents()
+
+
+def test_account_test_dialog_supports_batch_accounts():
+    """批量测试应复用账号测试弹窗并调用批量测试接口。"""
+    application = QApplication.instance() or QApplication([])
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.calls: list[tuple[str, dict]] = []
+
+        def post(self, path: str, **kwargs: dict) -> dict:
+            self.calls.append((path, kwargs))
+            return {"items": [
+                {"account_id": "account-1", "success": True, "status_code": 200},
+                {"account_id": "account-2", "success": False, "status_code": 401, "error_code": "test_failed"},
+            ]}
+
+    client = FakeClient()
+    dialog = AccountTestDialog(
+        client,
+        [
+            {"id": "account-1", "name": "账号一", "type": "openai"},
+            {"id": "account-2", "name": "账号二", "type": "openai"},
+        ],
+        [{"name": "gpt-test", "type": "openai"}],
+    )
+    dialog._run_test()
+    assert client.calls == [(
+        "/api/accounts/batch-test",
+        {"json": {"ids": ["account-1", "account-2"], "model": "gpt-test"}},
+    )]
+    assert "账号一" in dialog.log.toPlainText() and "账号二" in dialog.log.toPlainText()
+    dialog.deleteLater(); application.processEvents()
 
 
 def test_account_form_filters_checkable_models_when_type_changes():

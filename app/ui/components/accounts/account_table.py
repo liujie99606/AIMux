@@ -17,10 +17,10 @@ class AccountTable(DataTable):
     delete_requested = Signal(str)
     test_requested = Signal(str)
     toggle_requested = Signal(str)
-    super_requested = Signal(str)
     priority_changed = Signal(str, int)
     adjust_priority_requested = Signal(str, int)
     name_changed = Signal(str, str)
+    selection_changed = Signal()
 
     COLUMNS = [
         Column("选择", lambda r: r["_checkbox"], widget=True, width=50),
@@ -28,6 +28,7 @@ class AccountTable(DataTable):
         Column("类型", lambda r: r["type"]),
         Column("状态", lambda r: StatusBadge(r["status"]), widget=True, width=120),
         Column("优先级", lambda r: r["_priority"], widget=True, width=90),
+        Column("优先级快捷操作", lambda r: r["_priority_actions"], widget=True, width=170),
         Column("最近使用", lambda r: format_time(r.get("last_used_at")), width=150),
         Column("操作", lambda r: r["_actions"], widget=True, stretch=True),
     ]
@@ -39,6 +40,7 @@ class AccountTable(DataTable):
         """渲染账号列表，复选框、优先级与操作按钮在预处理中绑定信号。"""
         prepared = [self._prepare(account) for account in accounts]
         self._render(prepared)
+        self.selection_changed.emit()
 
     def selected_ids(self) -> list[str]:
         """收集已勾选行的账号 ID。"""
@@ -50,6 +52,15 @@ class AccountTable(DataTable):
                 result.append(check.property("account_id"))
         return result
 
+    def set_all_selected(self, checked: bool) -> None:
+        """切换当前列表中所有账号的勾选状态。"""
+        for row in range(self.rowCount()):
+            holder = self.cellWidget(row, 0)
+            check = holder.findChild(QCheckBox) if holder else None
+            if check is not None:
+                check.setChecked(checked)
+        self.selection_changed.emit()
+
     def _prepare(self, account: dict) -> dict:
         """为单行数据生成 widget 列所需的控件并连接信号。"""
         check = QCheckBox()
@@ -60,6 +71,7 @@ class AccountTable(DataTable):
         holder_layout.setContentsMargins(0, 0, 0, 0)
         holder_layout.addWidget(check)
         holder_layout.setAlignment(check, Qt.AlignmentFlag.AlignCenter)
+        check.toggled.connect(lambda: self.selection_changed.emit())
 
         name_editor = QLineEdit(account["name"])
         name_editor.setFrame(False)
@@ -81,24 +93,27 @@ class AccountTable(DataTable):
             ("编辑", self.edit_requested),
             ("复制", self.copy_requested),
             ("停用" if account["status"] == "active" else "启用", self.toggle_requested),
-            ("置顶", self.super_requested),
             ("删除", self.delete_requested),
         ]:
             button = QPushButton(label)
             button.clicked.connect(lambda _, aid=account["id"], event=signal: event.emit(aid))
             buttons.addWidget(button)
-        # 优先级快捷调整按钮，复用 adjust_priority_requested 信号。
+        # 优先级快捷调整按钮独立成列，避免混在常规操作中。
+        priority_actions = QWidget()
+        priority_buttons = QHBoxLayout(priority_actions)
+        priority_buttons.setContentsMargins(0, 0, 0, 0)
         for label, delta in [("优先级+4", 4), ("优先级-4", -4)]:
             button = QPushButton(label)
             button.clicked.connect(
                 lambda _, aid=account["id"], d=delta: self.adjust_priority_requested.emit(aid, d)
             )
-            buttons.addWidget(button)
+            priority_buttons.addWidget(button)
 
         prepared = dict(account)
         prepared["_checkbox"] = holder
         prepared["_name_editor"] = name_editor
         prepared["_priority"] = priority
+        prepared["_priority_actions"] = priority_actions
         prepared["_actions"] = actions
         return prepared
 

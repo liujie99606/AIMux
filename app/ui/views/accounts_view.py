@@ -7,7 +7,6 @@ from app.ui.components.accounts.account_form import AccountForm
 from app.ui.components.accounts.account_table import AccountTable
 from app.ui.components.accounts.account_test_dialog import AccountTestDialog
 from app.ui.components.accounts.batch_toolbar import BatchToolbar
-from app.ui.components.accounts.model_test_dialog import ModelTestDialog
 
 
 class AccountsView(QWidget):
@@ -40,6 +39,8 @@ class AccountsView(QWidget):
         refresh.clicked.connect(self.refresh)
         add.clicked.connect(self.add)
         self.batch_toolbar.test_requested.connect(self.batch_test)
+        self.batch_toolbar.select_all_changed.connect(self.table.set_all_selected)
+        self.table.selection_changed.connect(self._sync_select_all)
         self.type_filter.currentIndexChanged.connect(self.refresh)
         self.status_filter.currentIndexChanged.connect(self.refresh)
         self.table.edit_requested.connect(self.edit)
@@ -47,11 +48,16 @@ class AccountsView(QWidget):
         self.table.delete_requested.connect(self.delete)
         self.table.test_requested.connect(self.test)
         self.table.toggle_requested.connect(self.toggle)
-        self.table.super_requested.connect(self.make_super)
         self.table.priority_changed.connect(self.change_priority)
         self.table.adjust_priority_requested.connect(self.adjust_priority)
         self.table.name_changed.connect(self.rename)
         self.refresh()
+
+    def _sync_select_all(self) -> None:
+        """根据当前列表勾选状态同步全选控件。"""
+        self.batch_toolbar.set_select_all_state(
+            self.table.rowCount() > 0 and len(self.table.selected_ids()) == self.table.rowCount()
+        )
 
     def _error(self, exc: Exception) -> None:
         """将 API 或表单异常转换为统一桌面错误提示。"""
@@ -61,15 +67,6 @@ class AccountsView(QWidget):
         """从模型目录读取指定类型的最新模型，避免界面使用陈旧缓存。"""
         params = {"type": account_type} if account_type else None
         return self.client.get("/api/models", params=params)["items"]
-
-    def _pick_test_model(self, account_type: str) -> str | None:
-        """弹出当前协议的模型列表；取消选择时不发送测试请求。"""
-        models = self._models(account_type)
-        if not models:
-            QMessageBox.information(self, "测试账号", "该类型尚未维护模型，请先在模型维护页新增")
-            return None
-        dialog = ModelTestDialog(models, self)
-        return dialog.selected_model() if dialog.exec() else None
 
     def refresh(self) -> None:
         """按筛选条件刷新账号表格。"""
@@ -150,12 +147,15 @@ class AccountsView(QWidget):
             QMessageBox.information(self, "批量测试", "请按 OpenAI 或 Anthropic 分开选择账号")
             return
         try:
-            model = self._pick_test_model(account_types.pop())
-            if model is None:
+            account_type = account_types.pop()
+            models = self._models(account_type)
+            if not models:
+                QMessageBox.information(self, "批量测试", "该类型尚未维护模型，请先在模型维护页新增")
                 return
-            result = self.client.post("/api/accounts/batch-test", json={"ids": ids, "model": model})
-            succeeded = sum(item["success"] for item in result["items"])
-            QMessageBox.information(self, "批量测试", f"完成: {succeeded}/{len(ids)} 通过")
+            dialog = AccountTestDialog(
+                self.client, [self.accounts[account_id] for account_id in ids], models, self
+            )
+            dialog.exec()
             self.refresh()
         except Exception as exc:
             self._error(exc)
@@ -164,14 +164,6 @@ class AccountsView(QWidget):
         """切换账号启用状态。"""
         try:
             self.client.post(f"/api/accounts/{account_id}/toggle-status")
-            self.refresh()
-        except Exception as exc:
-            self._error(exc)
-
-    def make_super(self, account_id: str) -> None:
-        """将账号置顶到最高人工优先级。"""
-        try:
-            self.client.post(f"/api/accounts/{account_id}/super-priority")
             self.refresh()
         except Exception as exc:
             self._error(exc)

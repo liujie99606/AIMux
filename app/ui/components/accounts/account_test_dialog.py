@@ -19,11 +19,13 @@ from app.ui.client import ApiClient
 class AccountTestDialog(QDialog):
     """账号连接测试弹窗：选择模型并展示请求与响应详情。"""
 
-    def __init__(self, client: ApiClient, account: dict, models: list[dict], parent=None) -> None:
+    def __init__(self, client: ApiClient, account: dict | list[dict], models: list[dict], parent=None) -> None:
         super().__init__(parent)
         self.client = client
-        self.account = account
-        self.setWindowTitle(f"测试账号 · {account.get('name', '')}")
+        self.accounts = account if isinstance(account, list) else [account]
+        self.account = self.accounts[0]
+        title = "批量测试账号" if len(self.accounts) > 1 else f"测试账号 · {self.account.get('name', '')}"
+        self.setWindowTitle(title)
         self.setMinimumSize(900, 700)
 
         layout = QVBoxLayout(self)
@@ -56,7 +58,9 @@ class AccountTestDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
-        self._endpoint = "/v1/messages" if account["type"] == "anthropic" else "/v1/chat/completions"
+        self._endpoint = (
+            "/v1/messages" if self.account["type"] == "anthropic" else "/v1/chat/completions"
+        )
 
     def _detect_request_type(self) -> str:
         """根据账号类型显示对应的请求形态名称。"""
@@ -81,17 +85,34 @@ class AccountTestDialog(QDialog):
         self.log.clear()
         self.test_btn.setEnabled(False)
         try:
-            self._append_html(f'<span style="color:#9cdcfe">开始测试账号:</span> {self.account.get("name", "")}')
+            if len(self.accounts) > 1:
+                self._append_html(f'<span style="color:#9cdcfe">开始批量测试:</span> {len(self.accounts)} 个账号')
+            else:
+                self._append_html(f'<span style="color:#9cdcfe">开始测试账号:</span> {self.account.get("name", "")}')
             self._append_html(f'<span style="color:#9cdcfe">账号类型:</span> {self.account.get("type", "")}')
             self._append_html(f'<span style="color:#9cdcfe">端点:</span> POST {self._endpoint}')
             self._append_html('<span style="color:#9cdcfe">请求体:</span>')
             self._append_block(json.dumps(body, ensure_ascii=False, indent=2))
             self._append_html('<span style="color:#569cd6">正在发送请求...</span>')
-            result = self.client.post(
-                f"/api/accounts/{self.account['id']}/test",
-                json={"model": model_name},
-            )
-            self._render_result(result)
+            if len(self.accounts) > 1:
+                result = self.client.post(
+                    "/api/accounts/batch-test",
+                    json={"ids": [item["id"] for item in self.accounts], "model": model_name},
+                )
+                accounts_by_id = {item["id"]: item for item in self.accounts}
+                for item in result.get("items", []):
+                    account = accounts_by_id.get(item.get("account_id"), {})
+                    self._append_html(
+                        f'<span style="color:#9cdcfe">账号:</span> '
+                        f'{account.get("name", item.get("account_id", ""))}'
+                    )
+                    self._render_result(item)
+            else:
+                result = self.client.post(
+                    f"/api/accounts/{self.account['id']}/test",
+                    json={"model": model_name},
+                )
+                self._render_result(result)
         except Exception as exc:
             self._append_html(f'<span style="color:#f48771">✗ 请求出错: {exc}</span>')
         finally:
