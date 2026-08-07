@@ -4,6 +4,7 @@ import json
 import re
 
 from app.config import load_settings
+from app.ui.client import local_api_base_url
 
 
 def test_environment_overrides_config_and_uses_dynamic_data_dir(tmp_path, monkeypatch):
@@ -37,6 +38,13 @@ def test_total_retry_attempts_clamps_legacy_zero_value(tmp_path, monkeypatch):
     )
     monkeypatch.setenv("AIMUX_DATA_DIR", str(data_dir))
     assert load_settings().request_retry_attempts == 1
+
+
+def test_desktop_local_api_url_replaces_wildcard_listen_address():
+    """桌面端不应将服务监听通配地址作为本机请求目标。"""
+    assert local_api_base_url("0.0.0.0", 7788) == "http://127.0.0.1:7788"
+    assert local_api_base_url("::", 7788) == "http://[::1]:7788"
+    assert local_api_base_url("127.0.0.1", 7788) == "http://127.0.0.1:7788"
 
 
 def test_desktop_components_are_constructible(monkeypatch):

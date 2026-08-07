@@ -5,6 +5,15 @@ from typing import Any
 import httpx
 
 
+def local_api_base_url(host: str, port: int) -> str:
+    """生成桌面端访问本机 API 的地址，避免将通配监听地址当作目标地址。"""
+    if host == "0.0.0.0":
+        host = "127.0.0.1"
+    elif host == "::":
+        host = "[::1]"
+    return f"http://{host}:{port}"
+
+
 class ApiClient:
     def __init__(self, base_url: str, token: str = "") -> None:
         self.base_url = base_url.rstrip("/")

@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.config import Settings
-from app.ui.client import ApiClient
+from app.ui.client import ApiClient, local_api_base_url
 from app.ui.components.common.current_time_label import CurrentTimeLabel
 from app.ui.views.accounts_view import AccountsView
 from app.ui.views.models_view import ModelsView
@@ -49,7 +49,7 @@ class MainWindow(QMainWindow):
         icon = QIcon(str(resource_path("assets", "icons", "aimux.png")))
         self.setWindowIcon(icon)
         self.settings = settings
-        self.client = ApiClient(f"http://{settings.host}:{settings.port}", settings.local_token)
+        self.client = ApiClient(local_api_base_url(settings.host, settings.port), settings.local_token)
         self.navigation = QListWidget()
         self.navigation.setObjectName("navigation")
         self.navigation.setFixedWidth(180)
