@@ -33,12 +33,17 @@ class MainWindow(QMainWindow):
     def __init__(self, settings: Settings) -> None:
         super().__init__()
         self.setWindowTitle("AIMux")
-        # 默认尺寸跟随主屏幕可用区域：宽度铺满，高度取 88% 并居中。
+        # 默认尺寸跟随主屏幕可用区域：宽度取 80%，高度取 88%，窗口居中。
         screen = QApplication.primaryScreen()
         available = screen.availableGeometry() if screen else None
         if available is not None:
-            self.resize(available.width(), int(available.height() * 0.88))
-            self.move(available.x(), available.y() + (available.height() - self.height()) // 2)
+            width = int(available.width() * 0.8)
+            height = int(available.height() * 0.88)
+            self.resize(width, height)
+            self.move(
+                available.x() + (available.width() - width) // 2,
+                available.y() + (available.height() - height) // 2,
+            )
         else:
             self.resize(1180, 720)
         icon = QIcon(str(resource_path("assets", "icons", "aimux.png")))
