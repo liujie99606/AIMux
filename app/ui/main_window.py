@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from app.config import Settings
 from app.ui.client import ApiClient
+from app.ui.components.common.current_time_label import CurrentTimeLabel
 from app.ui.views.accounts_view import AccountsView
 from app.ui.views.models_view import ModelsView
 from app.ui.views.settings_view import SettingsView
@@ -63,6 +64,7 @@ class MainWindow(QMainWindow):
         brand.setObjectName("brand")
         brand.setAlignment(Qt.AlignmentFlag.AlignCenter)
         sidebar_layout.addWidget(brand)
+        sidebar_layout.addWidget(CurrentTimeLabel(sidebar))
         sidebar_layout.addWidget(self.navigation)
         sidebar_layout.addStretch()
         root = QWidget()
@@ -76,6 +78,7 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(
             "QFrame#sidebar { background: #1e2128; border-right: 1px solid #2d3139; }"
             "QLabel#brand { color: #e8eaed; font-size: 16px; font-weight: 600; padding: 6px 0; }"
+            "QLabel#sidebarClock { color: #8b909a; font-size: 13px; padding: 2px 0 4px; }"
             "QListWidget#navigation { border: 0; background: transparent; outline: 0; }"
             "QListWidget#navigation::item { padding: 9px 12px; border-radius: 6px; color: #c5c8ce; }"
             "QListWidget#navigation::item:selected { background: #3b82f6; color: #ffffff; }"

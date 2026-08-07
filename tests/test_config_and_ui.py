@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 from app.config import load_settings
 
@@ -42,6 +43,7 @@ def test_desktop_components_are_constructible(monkeypatch):
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     from PySide6.QtWidgets import QApplication
     from app.ui.components.common.priority_editor import PriorityEditor
+    from app.ui.components.common.current_time_label import CurrentTimeLabel
     from app.ui.components.accounts.status_badge import StatusBadge
     from app.ui.views.models_view import ModelsView
     from app.ui.components.usage.usage_filter import UsageFilter
@@ -78,12 +80,15 @@ def test_desktop_components_are_constructible(monkeypatch):
     models_view.type_filter.setCurrentText("anthropic")
     assert fake_client.calls[-1] == ("/api/models", {"params": {"type": "anthropic"}})
     pagination = UsagePagination()
+    clock = CurrentTimeLabel()
     pagination.set_total(41)
     assert pagination.total_pages == 3
     assert pagination.next_button.isEnabled()
     pagination.set_total(0)
     assert not pagination.next_button.isEnabled()
-    priority.deleteLater(); badge.deleteLater(); filters.deleteLater(); pagination.deleteLater(); models_view.deleteLater()
+    assert re.fullmatch(r"\d{2}:\d{2}:\d{2}", clock.text())
+    assert clock.timer.isActive()
+    priority.deleteLater(); badge.deleteLater(); filters.deleteLater(); pagination.deleteLater(); clock.deleteLater(); models_view.deleteLater()
 
 
 def test_settings_view_saves_explicit_upstream_proxy(monkeypatch):
