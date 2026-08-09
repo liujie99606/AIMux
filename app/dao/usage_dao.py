@@ -100,9 +100,14 @@ def summarize_tokens(session: Session, *, started_after: str, started_before: st
         UsageRecord.started_at < started_before,
     )
     input_tokens, output_tokens, cached_tokens, total_tokens = session.exec(statement).one()
+    input_count = input_tokens or 0
+    output_count = output_tokens or 0
+    cached_count = cached_tokens or 0
+    total_count = total_tokens or 0
     return {
-        "input_tokens": input_tokens or 0,
-        "output_tokens": output_tokens or 0,
-        "cached_tokens": cached_tokens or 0,
-        "total_tokens": total_tokens or 0,
+        "input_tokens": input_count,
+        "output_tokens": output_count,
+        "cached_tokens": cached_count,
+        "total_tokens": total_count,
+        "cache_rate": cached_count / input_count if input_count else None,
     }

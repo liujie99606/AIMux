@@ -137,9 +137,11 @@ def test_usage_statistics_returns_today_and_yesterday_token_totals(settings):
     payload = client.get("/api/usage/statistics").json()
     assert payload["yesterday"] == {
         "input_tokens": 1000, "output_tokens": 200, "cached_tokens": 800, "total_tokens": 1200,
+        "cache_rate": 0.8,
     }
     assert payload["today"] == {
         "input_tokens": 2500, "output_tokens": 300, "cached_tokens": 2000, "total_tokens": 2800,
+        "cache_rate": 0.8,
     }
 
 

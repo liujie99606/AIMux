@@ -26,6 +26,13 @@ def format_token_count(value: int | float | None) -> str:
     return str(int(value))
 
 
+def format_percentage(value: float | None) -> str:
+    """把比例格式化为最多一位小数的百分比。"""
+    if value is None:
+        return "-"
+    return f"{value:.1%}"
+
+
 def format_time(value: str | None) -> str:
     """把 UTC ISO 字符串格式化为本地时间 YYYY-MM-DD HH:MM:SS。
 
