@@ -26,6 +26,11 @@ def _local_day_range(days_before: int) -> tuple[str, str]:
     )
 
 
+def _cleanup_cutoff() -> str:
+    """返回使用记录保留三天的 UTC 清理阈值。"""
+    return (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 @router.get("/statistics")
 def statistics(session: Session = Depends(get_session)):
     """返回本地今日和昨日的 Token 汇总。"""
@@ -39,6 +44,13 @@ def statistics(session: Session = Depends(get_session)):
             session, started_after=today_start, started_before=today_end
         ),
     }
+
+
+@router.delete("/records/expired")
+def cleanup_expired_records(session: Session = Depends(get_session)):
+    """删除超过三天的使用记录，并返回实际删除数量。"""
+    cutoff = _cleanup_cutoff()
+    return {"deleted": usage_dao.delete_before(session, cutoff), "started_before": cutoff}
 
 
 @router.get("/records")

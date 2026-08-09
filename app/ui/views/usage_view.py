@@ -37,6 +37,7 @@ class UsageView(QWidget):
         root.addWidget(self.pagination)
         self.filter.refresh_button.clicked.connect(self._refresh_from_first_page)
         self.filter.reset_requested.connect(self._refresh_from_first_page)
+        self.filter.cleanup_requested.connect(self.cleanup_expired_records)
         self.pagination.page_requested.connect(self.refresh)
         self.table.detail_requested.connect(self.show_detail)
         self.refresh()
@@ -65,3 +66,19 @@ class UsageView(QWidget):
             record = self.client.get(f"/api/usage/records/{record_id}")
             UsageDetailDialog(record, self).exec()
         except Exception as exc: QMessageBox.warning(self, "读取失败", str(exc))
+
+    def cleanup_expired_records(self) -> None:
+        """经用户确认后删除严格早于三天前的使用记录。"""
+        result = QMessageBox.question(
+            self,
+            "清除历史数据",
+            "将永久删除超过 3 天的使用记录，且无法恢复。确定继续吗？",
+        )
+        if result != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            response = self.client.delete("/api/usage/records/expired")
+            QMessageBox.information(self, "清除完成", f"已清除 {response.get('deleted', 0)} 条使用记录。")
+            self._refresh_from_first_page()
+        except Exception as exc:
+            QMessageBox.warning(self, "清除失败", str(exc))

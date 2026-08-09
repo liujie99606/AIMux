@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import func
+from sqlalchemy import delete, func
 from sqlmodel import Session, select
 
 from app.models import UsageRecord
@@ -17,6 +17,13 @@ def create(session: Session, record: UsageRecord) -> UsageRecord:
 def get(session: Session, record_id: str) -> UsageRecord | None:
     """按主键读取使用记录详情。"""
     return session.get(UsageRecord, record_id)
+
+
+def delete_before(session: Session, started_before: str) -> int:
+    """删除开始时间早于指定 UTC 时间的使用记录。"""
+    result = session.exec(delete(UsageRecord).where(UsageRecord.started_at < started_before))
+    session.commit()
+    return result.rowcount or 0
 
 
 def list_records(

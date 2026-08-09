@@ -76,6 +76,10 @@ def test_desktop_components_are_constructible(monkeypatch):
     filters.started_after.setText("2026-08-01T00:00:00Z")
     filters.reset_button.click()
     assert filters.parameters() == {"offset": 0, "limit": 20}
+    cleanup_requests: list[bool] = []
+    filters.cleanup_requested.connect(lambda: cleanup_requests.append(True))
+    filters.cleanup_button.click()
+    assert cleanup_requests == [True]
     class FakeClient:
         calls: list[tuple[str, dict[str, dict[str, str]]]]
 

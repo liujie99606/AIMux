@@ -8,6 +8,7 @@ class UsageFilter(QWidget):
     """使用记录筛选条件和查询控制。"""
 
     reset_requested = Signal()
+    cleanup_requested = Signal()
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -20,8 +21,10 @@ class UsageFilter(QWidget):
         self.started_before = QLineEdit(); self.started_before.setPlaceholderText("结束时间 ISO")
         self.refresh_button = QPushButton("查询")
         self.reset_button = QPushButton("重置")
+        self.cleanup_button = QPushButton("清除3天前数据")
         self.reset_button.clicked.connect(self._reset)
-        for control in [QLabel("筛选"), self.account, self.model, self.type, self.success, self.started_after, self.started_before, self.refresh_button, self.reset_button]:
+        self.cleanup_button.clicked.connect(self.cleanup_requested.emit)
+        for control in [QLabel("筛选"), self.account, self.model, self.type, self.success, self.started_after, self.started_before, self.refresh_button, self.reset_button, self.cleanup_button]:
             layout.addWidget(control)
 
     def _reset(self) -> None:

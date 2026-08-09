@@ -116,6 +116,26 @@ def test_usage_records_default_page_size_and_offset(settings):
     assert len(second_page["items"]) == 5
 
 
+def test_usage_record_cleanup_removes_only_records_older_than_three_days(settings, monkeypatch):
+    """手动清理只删除严格早于三天阈值的使用记录。"""
+    monkeypatch.setattr("app.controller.usage_api._cleanup_cutoff", lambda: "2026-08-06T12:00:00Z")
+    client = TestClient(create_app(settings))
+    with Session(get_engine()) as session:
+        session.add_all([
+            UsageRecord(trace_id="expired", started_at="2026-08-06T11:59:59Z"),
+            UsageRecord(trace_id="boundary", started_at="2026-08-06T12:00:00Z"),
+            UsageRecord(trace_id="recent", started_at="2026-08-07T00:00:00Z"),
+        ])
+        session.commit()
+
+    response = client.delete("/api/usage/records/expired")
+    assert response.status_code == 200
+    assert response.json() == {"deleted": 1, "started_before": "2026-08-06T12:00:00Z"}
+    payload = client.get("/api/usage/records", params={"limit": 20}).json()
+    assert payload["total"] == 2
+    assert {record["trace_id"] for record in payload["items"]} == {"boundary", "recent"}
+
+
 def test_usage_statistics_returns_today_and_yesterday_token_totals(settings):
     """数据统计应按本地日期汇总四类 Token。"""
     client = TestClient(create_app(settings))
