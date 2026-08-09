@@ -58,6 +58,7 @@ def test_desktop_components_are_constructible(monkeypatch):
     from app.ui.views.monitor_view import MonitorView
     from app.ui.components.usage.usage_filter import UsageFilter
     from app.ui.components.usage.usage_pagination import UsagePagination
+    from app.ui.views.statistics_view import StatisticsView
 
     application = QApplication.instance() or QApplication([])
     priority = PriorityEditor(5)
@@ -89,6 +90,8 @@ def test_desktop_components_are_constructible(monkeypatch):
     models_view = ModelsView(fake_client)
     models_view.type_filter.setCurrentText("anthropic")
     assert fake_client.calls[-1] == ("/api/models", {"params": {"type": "anthropic"}})
+    statistics_view = StatisticsView(fake_client)
+    assert fake_client.calls[-1] == ("/api/usage/statistics", {})
     pagination = UsagePagination()
     clock = CurrentTimeLabel()
     monitor_grid = MonitorStatusGrid()
@@ -105,7 +108,7 @@ def test_desktop_components_are_constructible(monkeypatch):
     assert clock.timer.isActive()
     assert monitor_grid.layout().count() == 30
     assert "busy" in monitor_grid.layout().itemAt(29).widget().toolTip()
-    priority.deleteLater(); badge.deleteLater(); filters.deleteLater(); pagination.deleteLater(); clock.deleteLater(); monitor_grid.deleteLater(); models_view.deleteLater()
+    priority.deleteLater(); badge.deleteLater(); filters.deleteLater(); pagination.deleteLater(); clock.deleteLater(); monitor_grid.deleteLater(); models_view.deleteLater(); statistics_view.deleteLater()
 
 
 def test_settings_view_saves_explicit_upstream_proxy(monkeypatch):

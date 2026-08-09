@@ -41,7 +41,7 @@ class UsageTable(DataTable):
         Column("耗时", lambda r: format_duration_ms(r.get("duration_ms")), color=lambda r: _slow_color(r, "duration_ms")),
         Column("推理强度", lambda r: r.get("reasoning_effort") or "-"),
         Column("重试次数", lambda r: r.get("attempts") or 0),
-        Column("缓存Token", lambda r: r.get("cached_tokens") if r.get("cached_tokens") is not None else "-"),
+        # Column("缓存Token", lambda r: r.get("cached_tokens") if r.get("cached_tokens") is not None else "-"),
         Column("操作", lambda r: r["_actions"], widget=True, stretch=True),
     ]
 

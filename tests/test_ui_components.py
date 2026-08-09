@@ -11,9 +11,10 @@ from app.ui.components.accounts.account_form import AccountForm
 from app.ui.components.accounts.account_table import AccountTable
 from app.ui.components.accounts.account_test_dialog import AccountTestDialog
 from app.ui.components.accounts.batch_toolbar import BatchToolbar
+from app.ui.components.statistics_cards import TokenStatisticsCards
 from app.ui.components.usage.summary_card import SummaryCards
 from app.ui.components.usage.usage_table import UsageTable
-from app.ui.formatting import format_duration_ms
+from app.ui.formatting import format_duration_ms, format_token_count
 
 
 def test_account_table_builds_checkbox_cell_without_alignment_type_error():
@@ -144,6 +145,9 @@ def test_usage_formatting_and_failed_result_color():
     """使用记录时长统一显示秒数，失败结果使用深色红字。"""
     assert format_duration_ms(1234) == "1.2 s"
     assert format_duration_ms(None) == "-"
+    assert format_token_count(999) == "999"
+    assert format_token_count(1_250) == "1.2K"
+    assert format_token_count(2_000_000) == "2M"
 
     application = QApplication.instance() or QApplication([])
     table = UsageTable()
@@ -157,6 +161,7 @@ def test_usage_formatting_and_failed_result_color():
     assert table.item(0, 7).text() == "1.2 s"
     assert table.horizontalHeaderItem(9).text() == "重试次数"
     assert table.item(0, 9).text() == "3"
+    assert "缓存Token" not in [table.horizontalHeaderItem(index).text() for index in range(table.columnCount())]
 
     summary = SummaryCards()
     summary.set_summary({"average_duration_ms": 1234})
@@ -164,3 +169,17 @@ def test_usage_formatting_and_failed_result_color():
     assert [card.title_label.text() for card in summary._cards] == ["请求数", "成功率", "平均耗时"]
     assert summary._cards[2].value_label.text() == "1.2 s"
     table.deleteLater(); summary.deleteLater(); application.processEvents()
+
+
+def test_token_statistics_cards_format_today_and_yesterday_values():
+    """数据统计卡片应显示两组紧凑格式的 Token 数。"""
+    application = QApplication.instance() or QApplication([])
+    cards = TokenStatisticsCards()
+    cards.set_statistics({
+        "today": {"total_tokens": 1_250, "input_tokens": 1_000_000, "output_tokens": 12, "cached_tokens": 800},
+        "yesterday": {"total_tokens": 2_000_000, "input_tokens": 500, "output_tokens": 250, "cached_tokens": 0},
+    })
+    assert cards._groups["today"]["total_tokens"].value_label.text() == "1.2K"
+    assert cards._groups["today"]["input_tokens"].value_label.text() == "1M"
+    assert cards._groups["yesterday"]["total_tokens"].value_label.text() == "2M"
+    cards.deleteLater(); application.processEvents()

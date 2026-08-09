@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
+from app.controller.usage_api import _local_day_range
 from app.db import get_engine
 from app.main import create_app
 from app.models import UsageRecord
@@ -113,6 +114,33 @@ def test_usage_records_default_page_size_and_offset(settings):
     assert first_page["total"] == 25
     assert len(first_page["items"]) == 20
     assert len(second_page["items"]) == 5
+
+
+def test_usage_statistics_returns_today_and_yesterday_token_totals(settings):
+    """数据统计应按本地日期汇总四类 Token。"""
+    client = TestClient(create_app(settings))
+    yesterday_start, _ = _local_day_range(1)
+    today_start, _ = _local_day_range(0)
+    with Session(get_engine()) as session:
+        session.add_all([
+            UsageRecord(
+                trace_id="yesterday", started_at=yesterday_start, input_tokens=1000,
+                output_tokens=200, cached_tokens=800, total_tokens=1200,
+            ),
+            UsageRecord(
+                trace_id="today", started_at=today_start, input_tokens=2500,
+                output_tokens=300, cached_tokens=2000, total_tokens=2800,
+            ),
+        ])
+        session.commit()
+
+    payload = client.get("/api/usage/statistics").json()
+    assert payload["yesterday"] == {
+        "input_tokens": 1000, "output_tokens": 200, "cached_tokens": 800, "total_tokens": 1200,
+    }
+    assert payload["today"] == {
+        "input_tokens": 2500, "output_tokens": 300, "cached_tokens": 2000, "total_tokens": 2800,
+    }
 
 
 def test_reasoning_effort_recorded_from_request_body(settings, monkeypatch):

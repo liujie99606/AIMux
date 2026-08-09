@@ -13,6 +13,19 @@ def format_duration_ms(value: int | float | None) -> str:
     return f"{value / 1000:.1f} s"
 
 
+def format_token_count(value: int | float | None) -> str:
+    """把 Token 数格式化为紧凑的 K、M、B 单位。"""
+    if value is None:
+        return "-"
+    if value < 1_000:
+        return str(int(value))
+    for divisor, suffix in ((1_000_000_000, "B"), (1_000_000, "M"), (1_000, "K")):
+        if value >= divisor:
+            formatted = f"{value / divisor:.1f}".rstrip("0").rstrip(".")
+            return f"{formatted}{suffix}"
+    return str(int(value))
+
+
 def format_time(value: str | None) -> str:
     """把 UTC ISO 字符串格式化为本地时间 YYYY-MM-DD HH:MM:SS。
 

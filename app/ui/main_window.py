@@ -26,6 +26,7 @@ from app.ui.views.accounts_view import AccountsView
 from app.ui.views.models_view import ModelsView
 from app.ui.views.monitor_view import MonitorView
 from app.ui.views.settings_view import SettingsView
+from app.ui.views.statistics_view import StatisticsView
 from app.ui.views.usage_view import UsageView
 from app.utils.resources import resource_path
 
@@ -85,6 +86,8 @@ class MainWindow(QMainWindow):
             "QFrame#sidebar { background: #1e2128; border-right: 1px solid #2d3139; }"
             "QLabel#brand { color: #e8eaed; font-size: 16px; font-weight: 600; padding: 6px 0; }"
             "QLabel#sidebarClock { color: #8b909a; font-size: 13px; padding: 2px 0 4px; }"
+            "QLabel#pageTitle { color: #e8eaed; font-size: 20px; font-weight: 600; }"
+            "QLabel#statisticsGroupTitle { color: #c5c8ce; font-size: 15px; font-weight: 600; }"
             "QListWidget#navigation { border: 0; background: transparent; outline: 0; }"
             "QListWidget#navigation::item { padding: 9px 12px; border-radius: 6px; color: #c5c8ce; }"
             "QListWidget#navigation::item:selected { background: #3b82f6; color: #ffffff; }"
@@ -112,14 +115,16 @@ class MainWindow(QMainWindow):
         self.addAction(reload_action)
 
     def _build_content(self) -> None:
-        """构建四个视图、导航项并接入内容栈。"""
+        """构建各功能视图、导航项并接入内容栈。"""
         self.content.addWidget(AccountsView(self.client))
         self.content.addWidget(UsageView(self.client))
+        self.content.addWidget(StatisticsView(self.client))
         self.content.addWidget(ModelsView(self.client))
         self.content.addWidget(MonitorView(self.client))
         self.content.addWidget(SettingsView(self.client))
         self._add_navigation_item("账号管理", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView))
         self._add_navigation_item("使用记录", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
+        self._add_navigation_item("数据统计", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView))
         self._add_navigation_item("模型维护", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView))
         self._add_navigation_item("监控", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView))
         self._add_navigation_item("设置", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))

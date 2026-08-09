@@ -86,3 +86,23 @@ def summarize(
         "average_duration_ms": round(average or 0),
         "total_tokens": tokens or 0,
     }
+
+
+def summarize_tokens(session: Session, *, started_after: str, started_before: str) -> dict:
+    """汇总指定时间范围内的输入、输出、缓存和总 Token。"""
+    statement = select(
+        func.sum(UsageRecord.input_tokens),
+        func.sum(UsageRecord.output_tokens),
+        func.sum(UsageRecord.cached_tokens),
+        func.sum(UsageRecord.total_tokens),
+    ).where(
+        UsageRecord.started_at >= started_after,
+        UsageRecord.started_at < started_before,
+    )
+    input_tokens, output_tokens, cached_tokens, total_tokens = session.exec(statement).one()
+    return {
+        "input_tokens": input_tokens or 0,
+        "output_tokens": output_tokens or 0,
+        "cached_tokens": cached_tokens or 0,
+        "total_tokens": total_tokens or 0,
+    }
