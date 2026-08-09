@@ -63,7 +63,8 @@ class UsageDetailDialog(QDialog):
 
         # Token 用量
         token_line = (
-            f"输入 {_text(get('input_tokens'))} / 输出 {_text(get('output_tokens'))} / 合计 {_text(get('total_tokens'))}"
+            f"输入 {_text(get('input_tokens'))} / 输出 {_text(get('output_tokens'))} / "
+            f"缓存 {_text(get('cached_tokens'))} / 合计 {_text(get('total_tokens'))}"
         )
         layout.addWidget(QLabel(f"Token 用量：{token_line}"))
 

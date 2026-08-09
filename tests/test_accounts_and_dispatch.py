@@ -164,7 +164,7 @@ async def test_stream_retries_before_first_chunk_and_parses_split_sse_usage(sess
     successful = next(record for record in records if record.success)
     assert successful.account_id == second.id and successful.attempts == 5
     assert successful.first_token_ms is not None
-    assert (successful.input_tokens, successful.output_tokens, successful.total_tokens) == (2, 3, 5)
+    assert (successful.input_tokens, successful.output_tokens, successful.total_tokens, successful.cached_tokens) == (2, 3, 5, None)
     assert {record.attempts for record in records} == {1, 2, 3, 4, 5}
     assert account_dao.get(session, first.id).priority == 5
     assert account_dao.get(session, second.id).priority == 7
@@ -210,7 +210,7 @@ async def test_stream_records_usage_from_responses_completed_event(session, sett
 
     assert total == 1
     assert records[0].account_id == account.id
-    assert (records[0].input_tokens, records[0].output_tokens, records[0].total_tokens) == (4387, 5, 4392)
+    assert (records[0].input_tokens, records[0].output_tokens, records[0].total_tokens, records[0].cached_tokens) == (4387, 5, 4392, None)
 
 
 @pytest.mark.asyncio
@@ -256,7 +256,33 @@ async def test_stream_merges_anthropic_usage_events(session, settings, monkeypat
 
     assert total == 1
     assert records[0].account_id == account.id
-    assert (records[0].input_tokens, records[0].output_tokens, records[0].total_tokens) == (12, 8, 20)
+    assert (records[0].input_tokens, records[0].output_tokens, records[0].total_tokens, records[0].cached_tokens) == (12, 8, 20, None)
+
+
+@pytest.mark.asyncio
+async def test_non_stream_records_cached_tokens(session, settings, monkeypatch):
+    """非流式响应中的 prompt_tokens_details.cached_tokens 应写入使用记录。"""
+    account = add(session, name="缓存账号", priority=9, models=None)
+
+    async def fake_post(account, endpoint, body, passed_settings):
+        return httpx.Response(200, json={
+            "usage": {
+                "prompt_tokens": 4683,
+                "completion_tokens": 5,
+                "total_tokens": 4688,
+                "prompt_tokens_details": {"cached_tokens": 3840},
+            }
+        })
+
+    monkeypatch.setattr("app.service.dispatch_service.forwarders.post", fake_post)
+    response = await forward_non_stream(
+        session, body={"model": "gpt-test"}, endpoint="/v1/chat/completions", account_type="openai",
+        client_ip="127.0.0.1", settings=settings,
+    )
+    assert response.status_code == 200
+    records, total = usage_dao.list_records(session)
+    assert total == 1
+    assert records[0].cached_tokens == 3840
 
 
 def test_request_success_priority_is_capped_and_clears_error(session):

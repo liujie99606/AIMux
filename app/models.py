@@ -89,6 +89,7 @@ class UsageRecord(SQLModel, table=True):
     input_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
+    cached_tokens: Optional[int] = None
     client_ip: Optional[str] = None
     attempts: int = 0
 

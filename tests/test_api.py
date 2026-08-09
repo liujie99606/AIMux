@@ -76,7 +76,7 @@ def test_usage_record_filters_summary_and_detail(settings):
     client = TestClient(create_app(settings))
     with Session(get_engine()) as session:
         session.add_all([
-            UsageRecord(trace_id="a", started_at="2026-08-01T01:00:00Z", account_id="account-a", account_name="账号 A", account_type="openai", model="gpt-test", endpoint="/v1/chat/completions", success=True, duration_ms=120, total_tokens=12, attempts=1),
+            UsageRecord(trace_id="a", started_at="2026-08-01T01:00:00Z", account_id="account-a", account_name="账号 A", account_type="openai", model="gpt-test", endpoint="/v1/chat/completions", success=True, duration_ms=120, total_tokens=12, cached_tokens=8, attempts=1),
             UsageRecord(trace_id="b", started_at="2026-08-02T01:00:00Z", account_id="account-b", account_name="账号 B", account_type="anthropic", model="claude-test", endpoint="/v1/messages", success=False, duration_ms=240, total_tokens=4, attempts=2),
         ])
         session.commit()
@@ -85,6 +85,7 @@ def test_usage_record_filters_summary_and_detail(settings):
     payload = response.json()
     assert payload["total"] == 1
     assert payload["summary"] == {"request_count": 1, "success_rate": 1, "average_duration_ms": 120, "total_tokens": 12}
+    assert payload["items"][0]["cached_tokens"] == 8
     assert client.get(f"/api/usage/records/{payload['items'][0]['id']}").json()["trace_id"] == "a"
 
 

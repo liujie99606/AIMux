@@ -83,10 +83,10 @@ def _write_usage(
     error: FailedAttempt | None = None,
     first_token_ms: int | None = None,
     reasoning_effort: str | None = None,
-    tokens: tuple[int | None, int | None, int | None] = (None, None, None),
+    tokens: tuple[int | None, int | None, int | None, int | None] = (None, None, None, None),
 ) -> None:
     """落库一次上游尝试，并同步累计命中账号的 token 统计。"""
-    input_tokens, output_tokens, total_tokens = tokens
+    input_tokens, output_tokens, total_tokens, cached_tokens = tokens
     usage_service.create_record(
         session,
         UsageRecord(
@@ -109,6 +109,7 @@ def _write_usage(
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             total_tokens=total_tokens,
+            cached_tokens=cached_tokens,
             client_ip=client_ip,
             attempts=attempts,
         ),

@@ -30,6 +30,7 @@ def _ensure_columns(engine) -> None:
     """幂等补齐已有表缺失的列，兼容旧库升级时自动加列。"""
     additions = [
         ("usage_records", "reasoning_effort", "TEXT"),
+        ("usage_records", "cached_tokens", "INTEGER"),
         ("models", "is_default", "INTEGER NOT NULL DEFAULT 0"),
     ]
     with engine.connect() as conn:
