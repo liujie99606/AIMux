@@ -133,7 +133,9 @@ app/
 - `pytest`；UI 测试首行 `os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")`。
 - 用 FastAPI `TestClient`；测试数据通过 API 真实写入临时库。
 - 命名 `test_<被测行为>_<关键约束>()`，断言聚焦行为而非实现细节。
-- 运行：`./.venv/Scripts/python.exe -m pytest`。
+- 默认只运行与本次改动影响范围匹配的测试，避免每次小改动都执行全量测试。例如：账号调度改动运行对应的账号/调度测试，API 或 Schema 改动运行对应的 API 测试，监控改动运行监控测试，纯工具改动运行该工具的直接测试及其调用方测试。
+- 当改动跨越多个业务模块、修改共享模型/Schema/数据库结构、影响应用生命周期/全局配置/调度核心逻辑、聚焦测试无法覆盖完整影响范围，或准备发布/打包时，再运行全量测试：`./.venv/Scripts/python.exe -m pytest`。
+- 无论采用哪种范围，都应在提交前记录实际执行的测试命令及结果；文档或注释改动且不涉及代码行为时可只执行 `git diff --check`。
 
 ## Git 提交规范
 
@@ -154,5 +156,5 @@ app/
 6. 新增表是否带 `__tablename__` 与命名一致的约束/索引？
 7. Schema 是否 `*Create`/`*Update`/`*View` 三件套？更新是否用 `model_fields_set`？
 8. 路由是否按需挂 `verify_local_token` 依赖？
-9. 是否运行 `pytest` 全绿？
+9. 是否运行了与本次改动影响范围匹配的测试；若属于跨模块、共享基础设施或发布前改动，是否补充运行全量测试？
 10. 是否已 `git commit`（仅提交，不推送）？

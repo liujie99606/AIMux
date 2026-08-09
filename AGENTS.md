@@ -12,7 +12,7 @@
 
 - 保持现有目录分层和命名风格，避免无关重构。
 - 每个 Python 文件首行使用 `from __future__ import annotations`，并补充完整类型注解。
-- 修改后运行相关测试；完整测试命令为：
+- 修改后运行与影响范围匹配的聚焦测试；跨模块、共享基础设施、生命周期/全局配置改动或发布前再运行完整测试。完整测试命令为：
 
   ```powershell
   .\.venv\Scripts\python.exe -m pytest
