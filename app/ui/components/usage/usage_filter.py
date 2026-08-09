@@ -10,21 +10,32 @@ class UsageFilter(QWidget):
     reset_requested = Signal()
     cleanup_requested = Signal()
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         layout = QHBoxLayout(self)
-        self.account = QLineEdit(); self.account.setPlaceholderText("账号 ID")
-        self.model = QLineEdit(); self.model.setPlaceholderText("模型")
-        self.type = QComboBox(); self.type.addItems(["全部类型", "openai", "anthropic"])
-        self.success = QComboBox(); self.success.addItems(["全部结果", "成功", "失败"])
-        self.started_after = QLineEdit(); self.started_after.setPlaceholderText("开始时间 ISO")
-        self.started_before = QLineEdit(); self.started_before.setPlaceholderText("结束时间 ISO")
+        self.account = QLineEdit()
+        self.account.setPlaceholderText("账号 ID")
+        self.model = QLineEdit()
+        self.model.setPlaceholderText("模型")
+        self.type = QComboBox()
+        self.type.addItems(["全部类型", "openai", "anthropic"])
+        self.success = QComboBox()
+        self.success.addItems(["全部结果", "成功", "失败"])
+        self.started_after = QLineEdit()
+        self.started_after.setPlaceholderText("开始时间 ISO")
+        self.started_before = QLineEdit()
+        self.started_before.setPlaceholderText("结束时间 ISO")
         self.refresh_button = QPushButton("查询")
         self.reset_button = QPushButton("重置")
         self.cleanup_button = QPushButton("清除3天前数据")
         self.reset_button.clicked.connect(self._reset)
         self.cleanup_button.clicked.connect(self.cleanup_requested.emit)
-        for control in [QLabel("筛选"), self.account, self.model, self.type, self.success, self.started_after, self.started_before, self.refresh_button, self.reset_button, self.cleanup_button]:
+        controls = [
+            QLabel("筛选"), self.account, self.model, self.type, self.success,
+            self.started_after, self.started_before, self.refresh_button, self.reset_button,
+            self.cleanup_button,
+        ]
+        for control in controls:
             layout.addWidget(control)
 
     def _reset(self) -> None:

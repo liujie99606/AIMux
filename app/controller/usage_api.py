@@ -1,56 +1,26 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
-from app.dao import usage_dao
 from app.db import get_session
 from app.service import usage_service
 
 router = APIRouter(prefix="/api/usage", tags=["usage"])
 
 
-def _local_day_range(days_before: int) -> tuple[str, str]:
-    """返回本地日期对应的 UTC 查询区间，结束时间为开区间。"""
-    local_now = datetime.now().astimezone()
-    local_timezone = local_now.tzinfo
-    assert local_timezone is not None
-    today = local_now.date()
-    start = datetime.combine(today - timedelta(days=days_before), datetime.min.time(), local_timezone)
-    end = start + timedelta(days=1)
-    return (
-        start.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        end.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-    )
-
-
-def _cleanup_cutoff() -> str:
-    """返回使用记录保留三天的 UTC 清理阈值。"""
-    return (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%dT%H:%M:%SZ")
-
-
 @router.get("/statistics")
-def statistics(session: Session = Depends(get_session)):
+def statistics(session: Session = Depends(get_session)) -> dict[str, usage_service.TokenStatistics]:
     """返回本地今日和昨日的 Token 汇总。"""
-    yesterday_start, yesterday_end = _local_day_range(1)
-    today_start, today_end = _local_day_range(0)
-    return {
-        "yesterday": usage_dao.summarize_tokens(
-            session, started_after=yesterday_start, started_before=yesterday_end
-        ),
-        "today": usage_dao.summarize_tokens(
-            session, started_after=today_start, started_before=today_end
-        ),
-    }
+    return usage_service.token_statistics(session)
 
 
 @router.delete("/records/expired")
-def cleanup_expired_records(session: Session = Depends(get_session)):
+def cleanup_expired_records(session: Session = Depends(get_session)) -> dict[str, int | str]:
     """删除超过三天的使用记录，并返回实际删除数量。"""
-    cutoff = _cleanup_cutoff()
-    return {"deleted": usage_dao.delete_before(session, cutoff), "started_before": cutoff}
+    return usage_service.cleanup_expired_records(session)
 
 
 @router.get("/records")
@@ -64,25 +34,25 @@ def records(
     started_after: str | None = None,
     started_before: str | None = None,
     session: Session = Depends(get_session),
-):
-    items, total = usage_dao.list_records(
-        session, offset=max(offset, 0), limit=min(limit, 200), account_id=account_id, model=model,
-        account_type=type, success=success, started_after=started_after, started_before=started_before,
+) -> dict[str, Any]:
+    """按筛选条件分页读取使用记录。"""
+    return usage_service.list_usage_records(
+        session,
+        offset=max(offset, 0),
+        limit=min(limit, 200),
+        account_id=account_id,
+        model=model,
+        account_type=type,
+        success=success,
+        started_after=started_after,
+        started_before=started_before,
     )
-    return {
-        "items": [usage_service.to_view(item) for item in items],
-        "total": total,
-        "summary": usage_dao.summarize(
-            session, account_id=account_id, model=model, account_type=type, success=success,
-            started_after=started_after, started_before=started_before,
-        ),
-    }
 
 
 @router.get("/records/{record_id}")
-def record_detail(record_id: str, session: Session = Depends(get_session)):
-    record = usage_dao.get(session, record_id)
+def record_detail(record_id: str, session: Session = Depends(get_session)) -> dict[str, Any]:
+    """返回单条使用记录详情。"""
+    record = usage_service.get_usage_record(session, record_id)
     if not record:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="使用记录不存在")
-    return usage_service.to_view(record)
+    return record

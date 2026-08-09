@@ -95,9 +95,9 @@ app/
 - 函数签名首位恒为 `session: Session`，返回模型对象或 `None`。
 - `create`/`save` 内部 `session.add` + `commit` + `refresh`；`save` 额外刷新 `updated_at`。
 - 查询用 `select(Model)` + `session.exec(statement).all()`；过滤条件动态拼 `where`。
-- 排序在 Python 层用 `list.sort(key=...)`（便于组合多键，如 `(-priority, name.lower(), id)`）。
+- 小型、需要复杂自定义键的集合可在 Python 层用 `list.sort(key=...)`；支持分页或可能大量返回的列表必须在数据库层完成 `ORDER BY`、`OFFSET` 和 `LIMIT`，总数单独 `COUNT(*)` 查询。
 - 统计累加（`total_requests`/`total_tokens`）用独立函数 `mark_used`/`add_tokens`，空值短路。
-- 硬删除用 `session.delete` + `commit`。
+- 单条硬删除用 `session.delete` + `commit`；大批量历史清理可使用带明确筛选条件的 SQL `DELETE` + `commit`，禁止先全量读入再逐条删除。
 
 ## 加密规范（app/utils/crypto.py）
 

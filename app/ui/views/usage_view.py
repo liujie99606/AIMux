@@ -27,12 +27,18 @@ def _page_summary(items: list[dict]) -> dict:
 
 
 class UsageView(QWidget):
-    def __init__(self, client: ApiClient, parent=None) -> None:
-        super().__init__(parent); self.client = client
-        root = QVBoxLayout(self); root.setContentsMargins(20, 18, 20, 18); root.setSpacing(14)
-        self.filter = UsageFilter(); root.addWidget(self.filter)
-        self.summary = SummaryCards(); root.addWidget(self.summary)
-        self.table = UsageTable(); root.addWidget(self.table)
+    def __init__(self, client: ApiClient, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.client = client
+        root = QVBoxLayout(self)
+        root.setContentsMargins(20, 18, 20, 18)
+        root.setSpacing(14)
+        self.filter = UsageFilter()
+        root.addWidget(self.filter)
+        self.summary = SummaryCards()
+        root.addWidget(self.summary)
+        self.table = UsageTable()
+        root.addWidget(self.table)
         self.pagination = UsagePagination(_PAGE_SIZE)
         root.addWidget(self.pagination)
         self.filter.refresh_button.clicked.connect(self._refresh_from_first_page)
@@ -58,14 +64,16 @@ class UsageView(QWidget):
             self.table.set_records(items)
             self.summary.set_summary(_page_summary(items))
             self.pagination.set_total(data.get("total", 0), current_page)
-        except Exception as exc: QMessageBox.warning(self, "查询失败", str(exc))
+        except Exception as exc:
+            QMessageBox.warning(self, "查询失败", str(exc))
 
     def show_detail(self, record_id: str) -> None:
         """拉取使用记录详情并打开结构化弹窗展示全部字段。"""
         try:
             record = self.client.get(f"/api/usage/records/{record_id}")
             UsageDetailDialog(record, self).exec()
-        except Exception as exc: QMessageBox.warning(self, "读取失败", str(exc))
+        except Exception as exc:
+            QMessageBox.warning(self, "读取失败", str(exc))
 
     def cleanup_expired_records(self) -> None:
         """经用户确认后删除严格早于三天前的使用记录。"""

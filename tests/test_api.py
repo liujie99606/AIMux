@@ -4,10 +4,10 @@ from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from app.controller.usage_api import _local_day_range
 from app.db import get_engine
 from app.main import create_app
 from app.models import UsageRecord
+from app.service.usage_service import _local_day_range
 
 
 def test_account_management_api_and_local_token(settings):
@@ -114,11 +114,13 @@ def test_usage_records_default_page_size_and_offset(settings):
     assert first_page["total"] == 25
     assert len(first_page["items"]) == 20
     assert len(second_page["items"]) == 5
+    assert first_page["items"][0]["trace_id"] == "trace-24"
+    assert second_page["items"][0]["trace_id"] == "trace-4"
 
 
 def test_usage_record_cleanup_removes_only_records_older_than_three_days(settings, monkeypatch):
     """手动清理只删除严格早于三天阈值的使用记录。"""
-    monkeypatch.setattr("app.controller.usage_api._cleanup_cutoff", lambda: "2026-08-06T12:00:00Z")
+    monkeypatch.setattr("app.service.usage_service._cleanup_cutoff", lambda: "2026-08-06T12:00:00Z")
     client = TestClient(create_app(settings))
     with Session(get_engine()) as session:
         session.add_all([

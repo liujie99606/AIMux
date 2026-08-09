@@ -38,23 +38,33 @@ def list_records(
     started_after: str | None = None,
     started_before: str | None = None,
 ) -> tuple[list[UsageRecord], int]:
-    """按给定维度筛选使用记录，并按时间倒序分页。"""
+    """按给定维度筛选使用记录，并由数据库完成排序和分页。"""
     statement = select(UsageRecord)
+    total_statement = select(func.count(UsageRecord.id))
     if account_id:
         statement = statement.where(UsageRecord.account_id == account_id)
+        total_statement = total_statement.where(UsageRecord.account_id == account_id)
     if model:
         statement = statement.where(UsageRecord.model == model)
+        total_statement = total_statement.where(UsageRecord.model == model)
     if account_type:
         statement = statement.where(UsageRecord.account_type == account_type)
+        total_statement = total_statement.where(UsageRecord.account_type == account_type)
     if success is not None:
         statement = statement.where(UsageRecord.success == success)
+        total_statement = total_statement.where(UsageRecord.success == success)
     if started_after:
         statement = statement.where(UsageRecord.started_at >= started_after)
+        total_statement = total_statement.where(UsageRecord.started_at >= started_after)
     if started_before:
         statement = statement.where(UsageRecord.started_at <= started_before)
-    records = list(session.exec(statement).all())
-    records.sort(key=lambda item: (item.started_at, item.id), reverse=True)
-    return records[offset : offset + limit], len(records)
+        total_statement = total_statement.where(UsageRecord.started_at <= started_before)
+    paged_statement = statement.order_by(
+        UsageRecord.started_at.desc(), UsageRecord.id.desc()
+    ).offset(offset).limit(limit)
+    records = list(session.exec(paged_statement).all())
+    total = session.exec(total_statement).one()
+    return records, int(total or 0)
 
 
 def summarize(
@@ -66,7 +76,7 @@ def summarize(
     success: bool | None = None,
     started_after: str | None = None,
     started_before: str | None = None,
-) -> dict:
+) -> dict[str, int | float]:
     """基于同一筛选条件实时计算请求数、成功率、耗时和 token 汇总。"""
     statement = select(
         func.count(UsageRecord.id),
@@ -95,7 +105,9 @@ def summarize(
     }
 
 
-def summarize_tokens(session: Session, *, started_after: str, started_before: str) -> dict:
+def summarize_tokens(
+    session: Session, *, started_after: str, started_before: str
+) -> dict[str, int | float | None]:
     """汇总指定时间范围内的输入、输出、缓存和总 Token。"""
     statement = select(
         func.sum(UsageRecord.input_tokens),
