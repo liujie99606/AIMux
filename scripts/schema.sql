@@ -89,4 +89,23 @@ CREATE INDEX IF NOT EXISTS idx_usage_model
   ON usage_records (model, started_at);
 CREATE INDEX IF NOT EXISTS idx_usage_trace_id ON usage_records (trace_id);
 
+CREATE TABLE IF NOT EXISTS monitor_records (
+  id TEXT PRIMARY KEY NOT NULL,
+  account_id TEXT NOT NULL,
+  account_name TEXT NOT NULL,
+  account_type TEXT NOT NULL,
+  model TEXT,
+  checked_at TEXT NOT NULL,
+  duration_ms INTEGER,
+  success INTEGER NOT NULL DEFAULT 0,
+  status_code INTEGER,
+  error_code TEXT,
+  error_message TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_monitor_account_checked
+  ON monitor_records (account_id, checked_at);
+CREATE INDEX IF NOT EXISTS idx_monitor_checked
+  ON monitor_records (checked_at, id);
+
 COMMIT;

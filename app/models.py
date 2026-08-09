@@ -91,3 +91,24 @@ class UsageRecord(SQLModel, table=True):
     total_tokens: Optional[int] = None
     client_ip: Optional[str] = None
     attempts: int = 0
+
+
+class MonitorRecord(SQLModel, table=True):
+    """一次账号后台监控检查的结果快照。"""
+    __tablename__ = "monitor_records"
+    __table_args__ = (
+        Index("idx_monitor_account_checked", "account_id", "checked_at"),
+        Index("idx_monitor_checked", "checked_at", "id"),
+    )
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    account_id: str = Field(index=True)
+    account_name: str
+    account_type: str
+    model: Optional[str] = None
+    checked_at: str = Field(default_factory=utc_now, index=True)
+    duration_ms: Optional[int] = None
+    success: bool = False
+    status_code: Optional[int] = None
+    error_code: Optional[str] = None
+    error_message: Optional[str] = None

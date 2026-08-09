@@ -53,7 +53,9 @@ def test_desktop_components_are_constructible(monkeypatch):
     from app.ui.components.common.priority_editor import PriorityEditor
     from app.ui.components.common.current_time_label import CurrentTimeLabel
     from app.ui.components.accounts.status_badge import StatusBadge
+    from app.ui.components.monitor_status_grid import MonitorStatusGrid
     from app.ui.views.models_view import ModelsView
+    from app.ui.views.monitor_view import MonitorView
     from app.ui.components.usage.usage_filter import UsageFilter
     from app.ui.components.usage.usage_pagination import UsagePagination
 
@@ -89,6 +91,11 @@ def test_desktop_components_are_constructible(monkeypatch):
     assert fake_client.calls[-1] == ("/api/models", {"params": {"type": "anthropic"}})
     pagination = UsagePagination()
     clock = CurrentTimeLabel()
+    monitor_grid = MonitorStatusGrid()
+    monitor_grid.set_records([
+        {"checked_at": "2026-08-01T00:00:00Z", "success": True, "duration_ms": 200, "status_code": 200},
+        {"checked_at": "2026-08-01T00:02:00Z", "success": False, "duration_ms": 400, "status_code": 503, "error_message": "busy"},
+    ])
     pagination.set_total(41)
     assert pagination.total_pages == 3
     assert pagination.next_button.isEnabled()
@@ -96,7 +103,9 @@ def test_desktop_components_are_constructible(monkeypatch):
     assert not pagination.next_button.isEnabled()
     assert re.fullmatch(r"\d{2}:\d{2}:\d{2}", clock.text())
     assert clock.timer.isActive()
-    priority.deleteLater(); badge.deleteLater(); filters.deleteLater(); pagination.deleteLater(); clock.deleteLater(); models_view.deleteLater()
+    assert monitor_grid.layout().count() == 30
+    assert "busy" in monitor_grid.layout().itemAt(29).widget().toolTip()
+    priority.deleteLater(); badge.deleteLater(); filters.deleteLater(); pagination.deleteLater(); clock.deleteLater(); monitor_grid.deleteLater(); models_view.deleteLater()
 
 
 def test_settings_view_saves_explicit_upstream_proxy(monkeypatch):
@@ -122,6 +131,7 @@ def test_settings_view_saves_explicit_upstream_proxy(monkeypatch):
                 "request_retry_attempts": 10,
                 "upstream_proxy_enabled": False,
                 "upstream_proxy_url": "http://127.0.0.1:7890",
+                "monitoring_enabled": True,
                 "local_token": "",
                 "launch_at_login": False,
             }
@@ -145,5 +155,39 @@ def test_settings_view_saves_explicit_upstream_proxy(monkeypatch):
     assert client.payload["upstream_proxy_enabled"] is True
     assert client.payload["upstream_proxy_url"] == "http://127.0.0.1:7890"
 
+    view.deleteLater()
+    application.processEvents()
+
+
+def test_monitor_view_renders_accounts_and_refreshes_status(monkeypatch):
+    """监控页面按 API 数据渲染账号行、状态条和开关状态。"""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication
+    from app.ui.views.monitor_view import MonitorView
+
+    class FakeClient:
+        def get(self, path: str, **kwargs):
+            assert path == "/api/monitor/records"
+            return {
+                "monitoring_enabled": False,
+                "items": [{
+                    "account_name": "账号 A",
+                    "account_type": "openai",
+                    "records": [{
+                        "checked_at": "2026-08-01T00:00:00Z",
+                        "model": "gpt-test",
+                        "success": True,
+                        "duration_ms": 250,
+                        "status_code": 200,
+                    }],
+                }],
+            }
+
+    application = QApplication.instance() or QApplication([])
+    view = MonitorView(FakeClient())
+    assert view.status.text() == "监控已关闭"
+    assert view.rows.count() == 1
+    row = view.rows.itemAt(0).layout()
+    assert row is not None and row.itemAt(0).widget().text() == "账号 A"
     view.deleteLater()
     application.processEvents()

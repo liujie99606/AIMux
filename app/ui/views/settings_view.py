@@ -29,6 +29,7 @@ class SettingsView(QWidget):
         self.proxy_url = QLineEdit()
         self.proxy_url.setPlaceholderText("http://127.0.0.1:7890")
         self.proxy_url.setEnabled(False)
+        self.monitoring_enabled = QCheckBox("开启账号监控")
         self.token = QLineEdit()
         self.token.setEchoMode(QLineEdit.EchoMode.Password)
         self.launch_at_login = QCheckBox("开机后自动启动 AIMux")
@@ -41,6 +42,7 @@ class SettingsView(QWidget):
             ("总尝试次数", self.retries),
             ("上游代理", self.proxy_enabled),
             ("上游代理地址", self.proxy_url),
+            ("账号监控", self.monitoring_enabled),
             ("本地令牌", self.token),
             ("开机自启", self.launch_at_login),
         ]:
@@ -68,6 +70,7 @@ class SettingsView(QWidget):
             self.proxy_enabled.setChecked(data["upstream_proxy_enabled"])
             self.proxy_url.setText(data["upstream_proxy_url"])
             self.proxy_url.setEnabled(self.proxy_enabled.isChecked())
+            self.monitoring_enabled.setChecked(data.get("monitoring_enabled", True))
             self.token.setText(data["local_token"])
             self.launch_at_login.setChecked(data["launch_at_login"])
         except Exception as exc:
@@ -83,6 +86,7 @@ class SettingsView(QWidget):
             "request_retry_attempts": self.retries.value(),
             "upstream_proxy_enabled": self.proxy_enabled.isChecked(),
             "upstream_proxy_url": self.proxy_url.text().strip(),
+            "monitoring_enabled": self.monitoring_enabled.isChecked(),
             "local_token": self.token.text(),
             "launch_at_login": self.launch_at_login.isChecked(),
         }

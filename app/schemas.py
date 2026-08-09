@@ -112,6 +112,35 @@ class TestResult(BaseModel):
     model: str | None = None
 
 
+class MonitorRecordView(BaseModel):
+    """监控状态格所需的单次检查结果。"""
+
+    checked_at: str
+    model: str | None = None
+    success: bool
+    duration_ms: int | None = None
+    status_code: int | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+
+
+class MonitorAccountView(BaseModel):
+    """当前启用账号的监控记录分组。"""
+
+    account_id: str
+    account_name: str
+    account_type: AccountType
+    model: str | None = None
+    records: list[MonitorRecordView]
+
+
+class MonitorResponse(BaseModel):
+    """监控页面查询响应。"""
+
+    items: list[MonitorAccountView]
+    monitoring_enabled: bool
+
+
 class SettingsPayload(BaseModel):
     host: str = "127.0.0.1"
     port: int = Field(default=7788, ge=1, le=65535)
@@ -121,6 +150,7 @@ class SettingsPayload(BaseModel):
     request_retry_attempts: int = Field(default=10, ge=1, le=20)
     upstream_proxy_enabled: bool = False
     upstream_proxy_url: str = "http://127.0.0.1:7890"
+    monitoring_enabled: bool = True
     local_token: str = ""
     launch_at_login: bool = False
 

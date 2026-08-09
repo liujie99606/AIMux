@@ -24,6 +24,7 @@ from app.ui.client import ApiClient, local_api_base_url
 from app.ui.components.common.current_time_label import CurrentTimeLabel
 from app.ui.views.accounts_view import AccountsView
 from app.ui.views.models_view import ModelsView
+from app.ui.views.monitor_view import MonitorView
 from app.ui.views.settings_view import SettingsView
 from app.ui.views.usage_view import UsageView
 from app.utils.resources import resource_path
@@ -115,10 +116,12 @@ class MainWindow(QMainWindow):
         self.content.addWidget(AccountsView(self.client))
         self.content.addWidget(UsageView(self.client))
         self.content.addWidget(ModelsView(self.client))
+        self.content.addWidget(MonitorView(self.client))
         self.content.addWidget(SettingsView(self.client))
         self._add_navigation_item("账号管理", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView))
         self._add_navigation_item("使用记录", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
         self._add_navigation_item("模型维护", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView))
+        self._add_navigation_item("监控", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView))
         self._add_navigation_item("设置", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
         self.navigation.currentRowChanged.connect(self._on_navigation_changed)
         self.navigation.setCurrentRow(0)

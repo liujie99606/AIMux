@@ -25,4 +25,7 @@ def update_settings(payload: SettingsPayload, request: Request):
         raise HTTPException(status_code=500, detail=f"无法更新开机自启: {exc}") from exc
     save_settings(settings)
     request.app.state.settings = settings
+    scheduler = getattr(request.app.state, "monitor_scheduler", None)
+    if scheduler is not None:
+        scheduler.update_settings(settings)
     return settings

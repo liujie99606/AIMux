@@ -11,7 +11,7 @@ from app.dao import account_dao
 from app.db import get_session
 from app.schemas import AccountCreate, AccountUpdate, AccountView, TestRequest, TestResult
 from app.service import account_service
-from app.utils import forwarders
+from app.service import monitor_service
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
@@ -61,10 +61,8 @@ async def _test_one(session: Session, account_id: str, model: str | None, settin
         except (ValueError, IndexError):
             chosen_model = None
     chosen_model = chosen_model or ("claude-3-5-haiku-latest" if account.type == "anthropic" else "gpt-4o-mini")
-    body = {"model": chosen_model, "max_tokens": 1, "messages": [{"role": "user", "content": "ping"}]}
-    endpoint = "/v1/messages" if account.type == "anthropic" else "/v1/chat/completions"
     try:
-        response = await forwarders.post(account, endpoint, body, settings)
+        response = await monitor_service.send_ping(account, chosen_model, settings)
     except Exception as exc:
         account_service.record_test_failure(session, account, "test_connection_error", str(exc))
         return TestResult(account_id=account.id, success=False, error_code="test_connection_error", error_message=str(exc), model=chosen_model).model_dump()
