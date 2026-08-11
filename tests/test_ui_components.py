@@ -35,6 +35,17 @@ def test_account_table_builds_checkbox_cell_without_alignment_type_error():
     assert table.rowCount() == 1
     assert table.selected_ids() == []
     assert table.horizontalHeaderItem(5).text() == "优先级快捷操作"
+    priority_actions = table.cellWidget(0, 5)
+    priority_buttons = priority_actions.findChildren(QPushButton)
+    assert [button.text() for button in priority_buttons] == ["0", "3", "6", "9"]
+    assert all(button.width() == button.height() == 26 for button in priority_buttons)
+    priority_changes: list[tuple[str, int]] = []
+    table.priority_changed.connect(
+        lambda account_id, value: priority_changes.append((account_id, value))
+    )
+    priority_buttons[2].click()
+    assert priority_changes == [("account-1", 6)]
+    assert [button.isChecked() for button in priority_buttons] == [False, False, True, False]
     toggled: list[str] = []
     table.toggle_requested.connect(toggled.append)
     status = table.cellWidget(0, 3)

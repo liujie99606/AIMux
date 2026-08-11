@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QLineEdit, QPushButton, QWidget
+from PySide6.QtWidgets import QButtonGroup, QCheckBox, QHBoxLayout, QLineEdit, QPushButton, QWidget
 
 from app.ui.components.common.data_table import Column, DataTable
 from app.ui.components.common.priority_editor import PriorityEditor
@@ -18,7 +18,6 @@ class AccountTable(DataTable):
     test_requested = Signal(str)
     toggle_requested = Signal(str)
     priority_changed = Signal(str, int)
-    adjust_priority_requested = Signal(str, int)
     name_changed = Signal(str, str)
     selection_changed = Signal()
 
@@ -28,7 +27,7 @@ class AccountTable(DataTable):
         Column("类型", lambda r: r["type"]),
         Column("状态", lambda r: r["_status"], widget=True, width=120),
         Column("优先级", lambda r: r["_priority"], widget=True, width=90),
-        Column("优先级快捷操作", lambda r: r["_priority_actions"], widget=True, width=170),
+        Column("优先级快捷操作", lambda r: r["_priority_actions"], widget=True, width=150),
         Column("最近使用", lambda r: format_time(r.get("last_used_at")), width=150),
         Column("操作", lambda r: r["_actions"], widget=True, stretch=True),
     ]
@@ -100,14 +99,31 @@ class AccountTable(DataTable):
             button = QPushButton(label)
             button.clicked.connect(lambda _, aid=account["id"], event=signal: event.emit(aid))
             buttons.addWidget(button)
-        # 优先级快捷调整按钮独立成列，避免混在常规操作中。
+        # 用固定尺寸的圆形按钮直接设置常用优先级，避免增量调整产生歧义。
         priority_actions = QWidget()
         priority_buttons = QHBoxLayout(priority_actions)
-        priority_buttons.setContentsMargins(0, 0, 0, 0)
-        for label, delta in [("优先级+4", 4), ("优先级-4", -4)]:
-            button = QPushButton(label)
+        priority_buttons.setContentsMargins(2, 0, 2, 0)
+        priority_buttons.setSpacing(4)
+        priority_group = QButtonGroup(priority_actions)
+        priority_group.setExclusive(True)
+        for value in (0, 3, 6, 9):
+            button = QPushButton(str(value))
+            button.setFixedSize(26, 26)
+            button.setCheckable(True)
+            button.setChecked(account["priority"] == value)
+            priority_group.addButton(button)
+            button.setToolTip(f"设置优先级为 {value}")
+            button.setAccessibleName(f"设置优先级为 {value}")
+            button.setStyleSheet(
+                "QPushButton { border: 1px solid #9aa4b2; border-radius: 13px; "
+                "padding: 0; background: transparent; }"
+                "QPushButton:hover { background: #e6f0ff; border-color: #2f80ed; }"
+                "QPushButton:checked { color: white; background: #2f80ed; border-color: #2f80ed; }"
+            )
             button.clicked.connect(
-                lambda _, aid=account["id"], d=delta: self.adjust_priority_requested.emit(aid, d)
+                lambda _, aid=account["id"], priority_value=value: self.priority_changed.emit(
+                    aid, priority_value
+                )
             )
             priority_buttons.addWidget(button)
 
