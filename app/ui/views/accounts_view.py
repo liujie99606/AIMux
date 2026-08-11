@@ -169,11 +169,11 @@ class AccountsView(QWidget):
             self._error(exc)
 
     def change_priority(self, account_id: str, priority: int) -> None:
-        """只在数值确实变化时保存表格内的优先级编辑。"""
+        """保存变更后的优先级并刷新列表，使排序与数据保持最新。"""
         if account_id in self.accounts and self.accounts[account_id]["priority"] != priority:
             try:
                 self.client.put(f"/api/accounts/{account_id}", json={"priority": priority})
-                self.accounts[account_id]["priority"] = priority
+                self.refresh()
             except Exception as exc:
                 self._error(exc)
 

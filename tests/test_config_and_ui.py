@@ -104,6 +104,41 @@ def test_main_window_constructs_github_link(monkeypatch):
     application.processEvents()
 
 
+def test_account_priority_change_refreshes_account_list(monkeypatch):
+    """账号优先级保存后应重新查询列表，以应用最新排序。"""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication
+
+    from app.ui.views.accounts_view import AccountsView
+
+    class FakeClient:
+        """提供账号视图构造与优先级保存所需的最小 API 响应。"""
+
+        def __init__(self) -> None:
+            self.put_calls: list[tuple[str, dict]] = []
+
+        def get(self, path: str, **_: object) -> dict[str, list[dict]]:
+            assert path == "/api/accounts"
+            return {"items": []}
+
+        def put(self, path: str, *, json: dict) -> None:
+            self.put_calls.append((path, json))
+
+    application = QApplication.instance() or QApplication([])
+    client = FakeClient()
+    view = AccountsView(client)
+    view.accounts = {"account-1": {"priority": 5}}
+    refreshes: list[bool] = []
+    monkeypatch.setattr(view, "refresh", lambda: refreshes.append(True))
+
+    view.change_priority("account-1", 6)
+
+    assert client.put_calls == [("/api/accounts/account-1", {"priority": 6})]
+    assert refreshes == [True]
+    view.deleteLater()
+    application.processEvents()
+
+
 def test_desktop_components_are_constructible(monkeypatch):
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     from PySide6.QtWidgets import QApplication
