@@ -168,10 +168,13 @@ def test_usage_formatting_and_failed_result_color():
         {"id": "failed", "success": False, "duration_ms": 1234, "first_token_ms": None, "attempts": 3},
         {"id": "success", "success": True, "duration_ms": 1234, "first_token_ms": None, "attempts": 1},
     ])
-    result_column = 5
+    assert table.horizontalHeaderItem(3).text() == "模型"
+    assert table.horizontalHeaderItem(4).text() == "推理强度"
+    assert table.horizontalHeaderItem(5).text() == "接口"
+    result_column = 6
     assert table.item(0, result_column).text() == "失败"
     assert table.item(0, result_column).foreground().color().name().upper() == "#D95C5C"
-    assert table.item(0, 7).text() == "1.2 s"
+    assert table.item(0, 8).text() == "1.2 s"
     assert table.horizontalHeaderItem(9).text() == "重试次数"
     assert table.item(0, 9).text() == "3"
     assert "缓存Token" not in [table.horizontalHeaderItem(index).text() for index in range(table.columnCount())]
