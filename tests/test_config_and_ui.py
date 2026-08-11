@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+from pathlib import Path
 
 from app.config import load_settings
 from app.ui.client import local_api_base_url
@@ -115,7 +116,7 @@ def test_desktop_components_are_constructible(monkeypatch):
     priority.deleteLater(); badge.deleteLater(); filters.deleteLater(); pagination.deleteLater(); clock.deleteLater(); monitor_grid.deleteLater(); models_view.deleteLater(); statistics_view.deleteLater()
 
 
-def test_settings_view_saves_explicit_upstream_proxy(monkeypatch):
+def test_settings_view_saves_explicit_upstream_proxy(tmp_path, monkeypatch):
     """设置页应加载并保存上游代理开关和地址。"""
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     from PySide6.QtWidgets import QApplication, QMessageBox
@@ -149,6 +150,12 @@ def test_settings_view_saves_explicit_upstream_proxy(monkeypatch):
             return json
 
     monkeypatch.setattr(QMessageBox, "information", lambda *args: None)
+    opened: list[str] = []
+    monkeypatch.setattr("app.ui.views.settings_view.data_dir", lambda: tmp_path / "aimux-data")
+    monkeypatch.setattr(
+        "app.ui.views.settings_view.QDesktopServices.openUrl",
+        lambda url: opened.append(url.toLocalFile()) or True,
+    )
     application = QApplication.instance() or QApplication([])
     client = FakeClient()
     view = SettingsView(client)
@@ -161,6 +168,8 @@ def test_settings_view_saves_explicit_upstream_proxy(monkeypatch):
     assert client.payload is not None
     assert client.payload["upstream_proxy_enabled"] is True
     assert client.payload["upstream_proxy_url"] == "http://127.0.0.1:7890"
+    view.open_data_button.click()
+    assert [Path(path) for path in opened] == [tmp_path / "aimux-data"]
 
     view.deleteLater()
     application.processEvents()

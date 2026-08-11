@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from PySide6.QtCore import QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QCheckBox, QFormLayout, QLineEdit, QMessageBox, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 from app.ui.client import ApiClient
+from app.utils.paths import data_dir
 
 
 class SettingsView(QWidget):
-    def __init__(self, client: ApiClient, parent=None) -> None:
+    def __init__(self, client: ApiClient, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.client = client
         root = QVBoxLayout(self)
@@ -48,11 +51,20 @@ class SettingsView(QWidget):
         ]:
             form.addRow(label, field)
         self.proxy_enabled.toggled.connect(self.proxy_url.setEnabled)
+        self.open_data_button = QPushButton("打开数据目录")
+        self.open_data_button.clicked.connect(self.open_data_directory)
+        form.addRow("数据目录", self.open_data_button)
         save = QPushButton("保存设置")
         root.addWidget(save)
         root.addStretch()
         save.clicked.connect(self.save)
         self.refresh()
+
+    def open_data_directory(self) -> None:
+        """使用系统文件管理器打开 AIMux 用户数据目录。"""
+        directory = data_dir()
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(directory))):
+            QMessageBox.warning(self, "打开失败", f"无法打开数据目录：{directory}")
 
     def refresh(self) -> None:
         """重新读取最新设置。"""
