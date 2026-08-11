@@ -67,8 +67,8 @@ def test_github_link_shows_url_then_opens_default_browser(monkeypatch):
 
     main_window.MainWindow.open_github(object())
 
-    assert messages == [("打开 GitHub", "将使用默认浏览器打开：\nhttps://github.com/liujie99606/AIMux.g")]
-    assert opened == ["https://github.com/liujie99606/AIMux.g"]
+    assert messages == [("打开 GitHub", "将使用默认浏览器打开：\nhttps://github.com/liujie99606/AIMux.git")]
+    assert opened == ["https://github.com/liujie99606/AIMux.git"]
 
 
 def test_desktop_components_are_constructible(monkeypatch):

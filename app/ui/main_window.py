@@ -30,7 +30,7 @@ from app.ui.views.statistics_view import StatisticsView
 from app.ui.views.usage_view import UsageView
 from app.utils.resources import resource_path
 
-_GITHUB_URL = "https://github.com/liujie99606/AIMux.g"
+_GITHUB_URL = "https://github.com/liujie99606/AIMux.git"
 
 
 class MainWindow(QMainWindow):
