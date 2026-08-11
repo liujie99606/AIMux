@@ -27,8 +27,8 @@ def after_request_success(priority: int) -> int:
 
 
 def after_monitor_success(priority: int) -> int:
-    """监控成功后提升一级，最高限制为 6。"""
-    return min(MONITOR_PRIORITY_MAX, priority + 1)
+    """监控成功时 0-5 提升一级，6-9 保持原优先级。"""
+    return priority + 1 if priority < MONITOR_PRIORITY_MAX else priority
 
 
 def after_monitor_failure(priority: int) -> int:

@@ -61,7 +61,7 @@ async def test_ping_uses_protocol_specific_minimal_request_without_mutating_acco
 
 @pytest.mark.asyncio
 async def test_monitor_scheduler_round_writes_success_and_adjusts_active_account_priority(session, settings, monkeypatch):
-    """一轮监控只检查启用账号，成功记录会将优先级封顶调整为 6。"""
+    """一轮监控只检查启用账号，优先级 7 的成功结果保持不变。"""
     account = add_account(session)
     disabled = add_account(session, name="停用")
     account_service.update_account(session, disabled, AccountUpdate(status="disabled"))
@@ -82,12 +82,15 @@ async def test_monitor_scheduler_round_writes_success_and_adjusts_active_account
     assert len(active_records) == 1 and active_records[0].success
     assert records.get(disabled.id, []) == []
     refreshed = account_dao.get(session, account.id)
-    assert refreshed is not None and (refreshed.priority, refreshed.total_requests) == (6, 0)
+    assert refreshed is not None and (refreshed.priority, refreshed.total_requests) == (7, 0)
 
 
 def test_save_monitor_result_adjusts_priority_with_monitor_limits_only(session):
-    """监控成功最高为 6、失败最低为 0，且不改账号其他运行状态。"""
+    """监控成功按分段规则调整，失败最低为 0，且不改账号其他运行状态。"""
     account = add_account(session)
+    account_service.update_account(session, account, AccountUpdate(priority=5))
+    account = account_dao.get(session, account.id)
+    assert account is not None
     account.last_error_code = "existing_error"
     account.last_error_message = "保留的错误"
     account_dao.save(session, account)
@@ -104,7 +107,22 @@ def test_save_monitor_result_adjusts_priority_with_monitor_limits_only(session):
         refreshed.total_tokens,
     ) == (6, "active", "existing_error", "保留的错误", 0, 0)
 
-    for _ in range(7):
+    save_result(session, refreshed, MonitorResult("gpt-test", 12, True, 200))
+    refreshed = account_dao.get(session, account.id)
+    assert refreshed is not None and refreshed.priority == 6
+
+    for expected in (7, 8, 9):
+        account_service.update_account(session, refreshed, AccountUpdate(priority=expected))
+        refreshed = account_dao.get(session, account.id)
+        assert refreshed is not None
+        save_result(session, refreshed, MonitorResult("gpt-test", 12, True, 200))
+        refreshed = account_dao.get(session, account.id)
+        assert refreshed is not None and refreshed.priority == expected
+
+    account_service.update_account(session, refreshed, AccountUpdate(priority=6))
+    refreshed = account_dao.get(session, account.id)
+    assert refreshed is not None
+    for _ in range(6):
         save_result(session, refreshed, MonitorResult("gpt-test", 12, False, 502))
         refreshed = account_dao.get(session, account.id)
         assert refreshed is not None
