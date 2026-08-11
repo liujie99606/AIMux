@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QAction, QCloseEvent, QIcon, QKeySequence
+from PySide6.QtCore import QSize, Qt, QUrl
+from PySide6.QtGui import QAction, QCloseEvent, QDesktopServices, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -29,6 +29,8 @@ from app.ui.views.settings_view import SettingsView
 from app.ui.views.statistics_view import StatisticsView
 from app.ui.views.usage_view import UsageView
 from app.utils.resources import resource_path
+
+_GITHUB_URL = "https://github.com/liujie99606/AIMux.g"
 
 
 class MainWindow(QMainWindow):
@@ -74,6 +76,13 @@ class MainWindow(QMainWindow):
         sidebar_layout.addWidget(CurrentTimeLabel(sidebar))
         sidebar_layout.addWidget(self.navigation)
         sidebar_layout.addStretch()
+        self.github_button = QPushButton("GitHub")
+        self.github_button.setObjectName("githubLink")
+        self.github_button.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirLinkIcon))
+        self.github_button.setToolTip(_GITHUB_URL)
+        self.github_button.setAccessibleName("打开 AIMux GitHub 地址")
+        self.github_button.clicked.connect(self.open_github)
+        sidebar_layout.addWidget(self.github_button)
         root = QWidget()
         layout = QHBoxLayout(root)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -92,6 +101,8 @@ class MainWindow(QMainWindow):
             "QListWidget#navigation::item { padding: 9px 12px; border-radius: 6px; color: #c5c8ce; }"
             "QListWidget#navigation::item:selected { background: #3b82f6; color: #ffffff; }"
             "QListWidget#navigation::item:hover { background: #2d3139; }"
+            "QPushButton#githubLink { color: #c5c8ce; text-align: left; padding: 9px 12px; }"
+            "QPushButton#githubLink:hover { background: #2d3139; }"
             # 统计卡片样式。
             "QFrame#statCard { background: #1e2128; border: 1px solid #2d3139; border-radius: 8px; }"
             "QLabel#statTitle { color: #8b909a; font-size: 12px; }"
@@ -163,6 +174,12 @@ class MainWindow(QMainWindow):
         item = QListWidgetItem(icon, title)
         item.setSizeHint(QSize(152, 42))
         self.navigation.addItem(item)
+
+    def open_github(self) -> None:
+        """提示 GitHub 地址后使用系统默认浏览器打开。"""
+        QMessageBox.information(self, "打开 GitHub", f"将使用默认浏览器打开：\n{_GITHUB_URL}")
+        if not QDesktopServices.openUrl(QUrl(_GITHUB_URL)):
+            QMessageBox.warning(self, "打开失败", f"无法打开 GitHub 地址：\n{_GITHUB_URL}")
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self._closing:

@@ -48,6 +48,29 @@ def test_desktop_local_api_url_replaces_wildcard_listen_address():
     assert local_api_base_url("127.0.0.1", 7788) == "http://127.0.0.1:7788"
 
 
+def test_github_link_shows_url_then_opens_default_browser(monkeypatch):
+    """侧栏 GitHub 入口先提示地址，再交给系统默认浏览器。"""
+    from app.ui import main_window
+
+    messages: list[tuple[str, str]] = []
+    opened: list[str] = []
+    monkeypatch.setattr(
+        main_window.QMessageBox,
+        "information",
+        lambda _, title, message: messages.append((title, message)),
+    )
+    monkeypatch.setattr(
+        main_window.QDesktopServices,
+        "openUrl",
+        lambda url: opened.append(url.toString()) or True,
+    )
+
+    main_window.MainWindow.open_github(object())
+
+    assert messages == [("打开 GitHub", "将使用默认浏览器打开：\nhttps://github.com/liujie99606/AIMux.g")]
+    assert opened == ["https://github.com/liujie99606/AIMux.g"]
+
+
 def test_desktop_components_are_constructible(monkeypatch):
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     from PySide6.QtWidgets import QApplication
