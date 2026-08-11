@@ -13,7 +13,7 @@ from app.models import MonitorRecord
 from app.schemas import AccountCreate, AccountUpdate
 from app.service import account_service
 from app.service.monitor_scheduler import MonitorScheduler
-from app.service.monitor_service import ping_account, save_result
+from app.service.monitor_service import MonitorResult, ping_account, save_result
 
 
 def add_account(session: Session, *, name: str = "监控账号", account_type: str = "openai"):
@@ -60,8 +60,8 @@ async def test_ping_uses_protocol_specific_minimal_request_without_mutating_acco
 
 
 @pytest.mark.asyncio
-async def test_monitor_scheduler_round_writes_success_and_model_failure_without_account_changes(session, settings, monkeypatch):
-    """一轮监控每个启用账号写一条记录，缺少默认模型时不发请求且不改账号。"""
+async def test_monitor_scheduler_round_writes_success_and_adjusts_active_account_priority(session, settings, monkeypatch):
+    """一轮监控只检查启用账号，成功记录会将优先级封顶调整为 6。"""
     account = add_account(session)
     disabled = add_account(session, name="停用")
     account_service.update_account(session, disabled, AccountUpdate(status="disabled"))
@@ -82,7 +82,33 @@ async def test_monitor_scheduler_round_writes_success_and_model_failure_without_
     assert len(active_records) == 1 and active_records[0].success
     assert records.get(disabled.id, []) == []
     refreshed = account_dao.get(session, account.id)
-    assert refreshed is not None and (refreshed.priority, refreshed.total_requests) == (7, 0)
+    assert refreshed is not None and (refreshed.priority, refreshed.total_requests) == (6, 0)
+
+
+def test_save_monitor_result_adjusts_priority_with_monitor_limits_only(session):
+    """监控成功最高为 6、失败最低为 0，且不改账号其他运行状态。"""
+    account = add_account(session)
+    account.last_error_code = "existing_error"
+    account.last_error_message = "保留的错误"
+    account_dao.save(session, account)
+
+    save_result(session, account, MonitorResult("gpt-test", 12, True, 200))
+    refreshed = account_dao.get(session, account.id)
+    assert refreshed is not None
+    assert (
+        refreshed.priority,
+        refreshed.status,
+        refreshed.last_error_code,
+        refreshed.last_error_message,
+        refreshed.total_requests,
+        refreshed.total_tokens,
+    ) == (6, "active", "existing_error", "保留的错误", 0, 0)
+
+    for _ in range(7):
+        save_result(session, refreshed, MonitorResult("gpt-test", 12, False, 502))
+        refreshed = account_dao.get(session, account.id)
+        assert refreshed is not None
+    assert refreshed.priority == 0
 
 
 @pytest.mark.asyncio

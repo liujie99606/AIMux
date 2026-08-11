@@ -125,3 +125,12 @@ def record_request_success(session: Session, account: Account) -> Account:
     account.last_error_code = None
     account.last_error_message = None
     return account_dao.save(session, account)
+
+
+def record_monitor_result(session: Session, account: Account, success: bool) -> Account:
+    """按监控结果调整优先级，不改变人工状态、错误或真实使用统计。"""
+    if success:
+        account.priority = priority.after_monitor_success(account.priority)
+    else:
+        account.priority = priority.after_monitor_failure(account.priority)
+    return account_dao.save(session, account)

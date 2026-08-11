@@ -11,6 +11,7 @@ from app.config import Settings
 from app.dao import monitor_dao
 from app.dao import model_dao
 from app.models import Account, MonitorRecord, utc_now
+from app.service import account_service
 from app.utils import forwarders
 
 _MAX_ERROR_LENGTH = 4096
@@ -103,7 +104,8 @@ async def send_ping(account: Account, model: str, settings: Settings) -> httpx.R
 
 
 def save_result(session: Session, account: Account, result: MonitorResult) -> MonitorRecord:
-    """只保存监控结果，不调用账号状态或优先级服务。"""
+    """保存监控结果，并按监控专用规则调整账号优先级。"""
+    account_service.record_monitor_result(session, account, result.success)
     return monitor_dao.create(
         session,
         MonitorRecord(
