@@ -71,6 +71,39 @@ def test_github_link_shows_url_then_opens_default_browser(monkeypatch):
     assert opened == ["https://github.com/liujie99606/AIMux.git"]
 
 
+def test_main_window_constructs_github_link(monkeypatch):
+    """主窗口应能构造侧栏 GitHub 按钮。"""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication, QWidget
+
+    from app.config import Settings
+    from app.ui import main_window
+
+    class EmptyView(QWidget):
+        """隔离主窗口布局测试，避免访问本地 API。"""
+
+        def __init__(self, *_: object) -> None:
+            super().__init__()
+
+    for view_name in (
+        "AccountsView",
+        "UsageView",
+        "StatisticsView",
+        "ModelsView",
+        "MonitorView",
+        "SettingsView",
+    ):
+        monkeypatch.setattr(main_window, view_name, EmptyView)
+
+    application = QApplication.instance() or QApplication([])
+    window = main_window.MainWindow(Settings())
+    assert window.github_button.text() == "GitHub"
+    assert window.github_button.toolTip() == "https://github.com/liujie99606/AIMux.git"
+    window.tray.hide()
+    window.deleteLater()
+    application.processEvents()
+
+
 def test_desktop_components_are_constructible(monkeypatch):
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
     from PySide6.QtWidgets import QApplication
