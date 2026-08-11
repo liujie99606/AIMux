@@ -196,5 +196,7 @@ def test_monitor_view_renders_accounts_and_refreshes_status(monkeypatch):
     assert view.rows.count() == 1
     row = view.rows.itemAt(0).layout()
     assert row is not None and row.itemAt(0).widget().text() == "账号 A"
+    assert [row.itemAt(index).widget().width() for index in range(5)] == [160, 80, 180, 170, 80]
+    assert row.itemAt(5).widget().minimumWidth() == 567
     view.deleteLater()
     application.processEvents()

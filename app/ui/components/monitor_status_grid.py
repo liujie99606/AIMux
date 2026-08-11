@@ -1,25 +1,32 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QWidget
 
 from app.ui.formatting import format_duration_ms, format_time
 
 _CELL_COUNT = 30
+_CELL_WIDTH = 16
+_CELL_HEIGHT = 22
+_CELL_SPACING = 3
+_GRID_MIN_WIDTH = _CELL_COUNT * _CELL_WIDTH + (_CELL_COUNT - 1) * _CELL_SPACING
 
 
 class MonitorStatusGrid(QWidget):
     """固定三十格的账号监控状态条。"""
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setMinimumWidth(_GRID_MIN_WIDTH)
+        self.setFixedHeight(_CELL_HEIGHT)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._layout = QHBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setSpacing(3)
+        self._layout.setSpacing(_CELL_SPACING)
         self._cells: list[QLabel] = []
         for _ in range(_CELL_COUNT):
             cell = QLabel()
-            cell.setFixedSize(16, 22)
+            cell.setFixedSize(_CELL_WIDTH, _CELL_HEIGHT)
             cell.setAlignment(Qt.AlignmentFlag.AlignCenter)
             cell.setStyleSheet("background: #59606b; border-radius: 2px;")
             self._layout.addWidget(cell)
