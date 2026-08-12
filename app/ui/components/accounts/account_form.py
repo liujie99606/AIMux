@@ -29,9 +29,8 @@ class AccountForm(QDialog):
         if account:
             self.type.setCurrentText(account["type"])
         self.base_url = QLineEdit(account.get("base_url", "") if account else "")
-        self.api_key = QLineEdit()
-        self.api_key.setEchoMode(QLineEdit.EchoMode.Password)
-        self.api_key.setPlaceholderText("新增时必填；编辑时留空保持不变")
+        self.api_key = QLineEdit(account.get("api_key", "") if account else "")
+        self.api_key.setPlaceholderText("必填")
         self.priority = QSpinBox()
         self.priority.setRange(0, 9)
         self.priority.setValue(account.get("priority", 5) if account else 5)
@@ -78,10 +77,8 @@ class AccountForm(QDialog):
     def payload(self, creating: bool) -> dict:
         """校验输入并构造账号管理 API 所需的 JSON。"""
         split = lambda value: [part.strip() for part in value.split(",") if part.strip()] or None
-        result = {"name": self.name.text().strip(), "type": self.type.currentText(), "base_url": self.base_url.text().strip(), "priority": self.priority.value(), "supported_models": self.selected_models() or None, "tags": split(self.tags.text()), "notes": self.notes.toPlainText().strip() or None}
-        if self.api_key.text():
-            result["api_key"] = self.api_key.text()
-        if creating and not result.get("api_key"):
+        result = {"name": self.name.text().strip(), "type": self.type.currentText(), "base_url": self.base_url.text().strip(), "api_key": self.api_key.text().strip(), "priority": self.priority.value(), "supported_models": self.selected_models() or None, "tags": split(self.tags.text()), "notes": self.notes.toPlainText().strip() or None}
+        if not result["api_key"]:
             raise ValueError("请输入 API 密钥")
         if not result["name"] or not result["base_url"]:
             raise ValueError("名称和上游地址不能为空")

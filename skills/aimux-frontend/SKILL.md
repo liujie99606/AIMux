@@ -100,7 +100,7 @@ app/ui/
 - 继承 `QDialog`，`setWindowTitle` 区分新增/编辑/测试。
 - 表单用 `QFormLayout`，`addRow("标签", widget)` 逐行加；底部 `QDialogButtonBox(Save | Cancel)`，`accepted→accept`、`rejected→reject`。
 - 模式切换用布尔参数控制标题与提交方式，避免重复建类。例：`AccountForm(models, account, parent, copy=False)`，`copy=True` 时标题显示"新增账号"但预填数据。
-- 密码字段：`QLineEdit` + `setEchoMode(EchoMode.Password)` + `setPlaceholderText` 说明必填/可选。
+- API 密钥字段：QLineEdit 明文可见回显（本地单机，不用 EchoMode.Password），`setPlaceholderText("必填")`；编辑/复制时预填 `account["api_key"]`，`payload()` 始终校验非空。
 - 多选列表：`QListWidget` + `QListWidgetItem`，`setFlags(flags | ItemIsUserCheckable)`，`setCheckState` 控制勾选。
 - 弹窗尺寸用 `setMinimumSize`/`setMinimumWidth` 约束最小可读宽度（表单类约 460–920，结果展示类 ≥ 900×700）。
 - 集成型弹窗（如 `AccountTestDialog`）：自包含"选模型 + 触发请求 + 渲染结果"，通过构造注入 `client/account/models`，内部完成 HTTP 调用与日志渲染，视图层只 `dialog.exec()`。

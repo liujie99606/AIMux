@@ -8,7 +8,6 @@ from app.dao import account_dao
 from app.models import Account
 from app.schemas import AccountCreate, AccountUpdate
 from app.service import priority
-from app.utils.crypto import encrypt_api_key
 
 
 def _json(value: list[str] | None) -> str | None:
@@ -17,12 +16,13 @@ def _json(value: list[str] | None) -> str | None:
 
 
 def to_view(account: Account) -> dict:
-    """转换为管理 API 可返回的账号视图，绝不暴露加密密钥。"""
+    """转换为管理 API 可返回的账号视图；本地单机使用，密钥以明文返回便于编辑回显。"""
     return {
         "id": account.id,
         "name": account.name,
         "type": account.type,
         "base_url": account.base_url,
+        "api_key": account.api_key,
         "status": account.status,
         "priority": account.priority,
         "supported_models": json.loads(account.supported_models) if account.supported_models else None,
@@ -40,14 +40,14 @@ def to_view(account: Account) -> dict:
 
 
 def create_account(session: Session, payload: AccountCreate) -> Account:
-    """加密上游密钥后创建账号。"""
+    """创建账号；密钥以明文直接保存。"""
     return account_dao.create(
         session,
         Account(
             name=payload.name,
             type=payload.type,
             base_url=payload.base_url,
-            api_key_encrypted=encrypt_api_key(payload.api_key),
+            api_key=payload.api_key,
             status=payload.status,
             priority=payload.priority,
             supported_models=_json(payload.supported_models),
@@ -64,7 +64,7 @@ def update_account(session: Session, account: Account, payload: AccountUpdate) -
         if field in fields:
             setattr(account, field, getattr(payload, field))
     if "api_key" in fields and payload.api_key:
-        account.api_key_encrypted = encrypt_api_key(payload.api_key)
+        account.api_key = payload.api_key
     if "supported_models" in fields:
         account.supported_models = _json(payload.supported_models)
     if "tags" in fields:

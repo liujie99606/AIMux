@@ -8,7 +8,6 @@ import httpx
 
 from app.config import Settings
 from app.models import Account
-from app.utils.crypto import decrypt_api_key
 
 
 @dataclass
@@ -41,7 +40,7 @@ def _headers(
     account: Account, body: dict[str, Any], extra_headers: dict[str, str] | None = None
 ) -> dict[str, str]:
     """根据账号类型组装上游认证头，不做协议转换。"""
-    key = decrypt_api_key(account.api_key_encrypted)
+    key = account.api_key
     if account.type == "anthropic":
         headers = {
             "x-api-key": key,

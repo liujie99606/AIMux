@@ -27,7 +27,7 @@ class Account(SQLModel, table=True):
     name: str
     type: str = Field(default="openai", index=True)
     base_url: str
-    api_key_encrypted: bytes
+    api_key: str
     status: str = Field(default="active", index=True)
     priority: int = Field(default=5, ge=0, le=9, index=True)
     supported_models: Optional[str] = None

@@ -49,6 +49,7 @@ class AccountView(BaseModel):
     name: str
     type: AccountType
     base_url: str
+    api_key: str
     status: AccountStatus
     priority: int
     supported_models: list[str] | None

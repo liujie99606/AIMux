@@ -1,6 +1,6 @@
 ---
 name: aimux-backend
-description: AIMux 项目后端开发规范。涵盖 Python 3.13 + FastAPI + SQLModel + Pydantic 的分层架构、目录约定、数据模型、加密、配置与测试规范。在新增/修改 app/ 下的 controller、service、dao、models、schemas、utils 模块，或调整 API、数据库表、账号/模型/用量相关业务逻辑时使用。
+description: AIMux 项目后端开发规范。涵盖 Python 3.13 + FastAPI + SQLModel + Pydantic 的分层架构、目录约定、数据模型、密钥存储、配置与测试规范。在新增/修改 app/ 下的 controller、service、dao、models、schemas、utils 模块，或调整 API、数据库表、账号/模型/用量相关业务逻辑时使用。
 agent_created: true
 ---
 
@@ -15,7 +15,6 @@ AIMux 是本地桌面端的 OpenAI 与 Anthropic API 账号池。后端只保留
 - SQLModel + SQLAlchemy（ORM，SQLite 存储）
 - Pydantic v2（请求/响应 schema 与校验）
 - httpx（向上游转发请求）
-- cryptography.Fernet（上游密钥加密，机器绑定密钥）
 - pytest（测试）
 
 ## 分层架构（严格遵循）
@@ -25,11 +24,11 @@ AIMux 是本地桌面端的 OpenAI 与 Anthropic API 账号池。后端只保留
 | 层 | 目录 | 职责 | 禁止 |
 |----|------|------|------|
 | controller | `../../app/controller` | 路由、参数解析、调用 service、组装响应 | 直接写 SQL、操作加密 |
-| service | `../../app/service` | 业务规则、字段映射、加密调用、调用 dao | 直接暴露加密密钥 |
+| service | `../../app/service` | 业务规则、字段映射、调用 dao | — |
 | dao | `../../app/dao` | 持久化 CRUD、查询过滤、排序 | 含业务判断 |
 | models | `../../app/models.py` | SQLModel 表定义、约束、索引 | 含业务方法 |
 | schemas | `../../app/schemas.py` | Pydantic I/O 模型与校验 | 与表定义耦合 |
-| utils | `../../app/utils` | 加密、转发、路径、SSE、自启动等纯工具 | 依赖业务层 |
+| utils | `../../app/utils` | 转发、路径、SSE、自启动等纯工具 | 依赖业务层 |
 
 ## 目录结构
 
@@ -61,7 +60,7 @@ app/
 - 约束放 `__table_args__`：`CheckConstraint`（枚举/范围）、`UniqueConstraint`、`Index`（命名 `idx_` / `uq_` / `ck_` 前缀 + 表名）。
 - 枚举字段用 `str` + CheckConstraint（如 `type IN ('openai','anthropic')`），不建独立枚举表。
 - 列表字段（`supported_models`、`tags`）以 JSON 字符串存 `Optional[str]`，读写时在 service/dao 层 `json.dumps/loads` 转换；空列表存 `None` 表示"不限"。
-- 敏感字段用 `_encrypted` 后缀 + `bytes` 类型（如 `api_key_encrypted`），绝不存明文。
+- API 密钥以明文 `str` 存 `api_key` 字段（本地单机使用，不加密）；不再有 `api_key_encrypted` 列与 `app/utils/crypto.py`。
 
 ## Schema 规范（schemas.py）
 
@@ -70,7 +69,7 @@ app/
 - 校验用 `Field(min_length=..., ge=..., le=...)` + `@field_validator` 装饰器（`@classmethod`）。
 - 更新场景用 `payload.model_fields_set` 判断"是否显式提供"，仅更新已提供字段。
 - `base_url` 等字段用 validator `rstrip("/")` 规整尾斜杠。
-- 响应视图绝不包含 `api_key` / `api_key_encrypted`；通过 service 的 `to_view()` 显式字段映射。
+- 响应视图通过 service 的 `to_view()` 显式字段映射；`api_key` 以明文返回以便编辑回显。
 
 ## Controller 规范（app/controller/）
 
@@ -85,8 +84,7 @@ app/
 
 ## Service 规范（app/service/）
 
-- `to_view(model)`：model → dict 转换，显式列出对外字段，JSON 字符串反序列化为列表，绝不输出密钥。
-- 加密只在 service 层调用 `app.utils.crypto.encrypt_api_key` / `decrypt_api_key`。
+- `to_view(model)`：model → dict 转换，显式列出对外字段，JSON 字符串反序列化为列表；`api_key` 以明文返回以便编辑回显。
 - 测试结果记录：成功调 `record_test_success`（优先级 +3、清错误、记模型），失败调 `record_test_failure`（优先级 -1、存错误）；真实请求成功调 `record_request_success`（优先级 +1、清错误），失败调 `record_request_failure`（优先级 -1、存错误，绝不自动停用账号）。
 - 优先级算法集中在 `../../app/service/priority.py`，范围保持 0–9。
 
@@ -99,11 +97,11 @@ app/
 - 统计累加（`total_requests`/`total_tokens`）用独立函数 `mark_used`/`add_tokens`，空值短路。
 - 单条硬删除用 `session.delete` + `commit`；大批量历史清理可使用带明确筛选条件的 SQL `DELETE` + `commit`，禁止先全量读入再逐条删除。
 
-## 加密规范（app/utils/crypto.py）
+## 密钥存储规范
 
-- Fernet 密钥由机器稳定信息派生：`aimux:{system}:{node}:{mac}` → SHA256 → urlsafe_b64encode。
-- 不落盘密钥文件；换机器后旧密文不可解（符合"机器绑定"设计）。
-- 仅在向上游发起请求前 `decrypt_api_key`；其余场景只持有密文。
+- API 密钥以明文 `str` 直接存于 `accounts.api_key` 列（本地单机使用，不加密）。
+- 已移除 `app/utils/crypto.py` 与 `cryptography` 依赖；forwarders 直接用 `account.api_key` 组装上游认证头。
+- 历史 `api_key_encrypted`（bytes）列已通过一次性迁移解密为明文 `api_key`，旧列删除。
 
 ## 配置规范（app/config.py）
 
@@ -150,7 +148,7 @@ app/
 
 1. 是否遵循 controller→service→dao→models 分层，无跨层？
 2. 文件首行是否有 `from __future__ import annotations`？类型注解齐全？
-3. 敏感字段是否加密存储，`to_view` 是否泄漏密钥？
+3. API 密钥是否以明文存 `api_key`？`to_view` 是否返回 `api_key` 供编辑回显？
 4. 列表接口 limit 是否钳制到 200？删除是否 204？
 5. 时间是否用 `utc_now()`？主键是否 UUID 字符串？
 6. 新增表是否带 `__tablename__` 与命名一致的约束/索引？

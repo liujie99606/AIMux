@@ -21,7 +21,7 @@ def test_account_management_api_and_local_token(settings):
     assert created.status_code == 200
     account = created.json()
     assert account["base_url"] == "https://api.example/v1"
-    assert "api_key" not in account
+    assert account["api_key"] == "sk-test"
     assert client.post(f"/api/accounts/{account['id']}/super-priority", headers=headers).json()["priority"] == 9
     assert client.post(f"/api/accounts/{account['id']}/toggle-status", headers=headers).json()["status"] == "disabled"
     assert client.get("/api/accounts", headers=headers, params={"status": "disabled"}).json()["total"] == 1

@@ -16,13 +16,14 @@ def add(session, *, name: str, priority: int, models: list[str] | None):
     )
 
 
-def test_pick_prefers_explicit_model_then_priority_and_keeps_key_secret(session):
+def test_pick_prefers_explicit_model_then_priority_and_returns_plaintext_key(session):
     wildcard = add(session, name="通用", priority=9, models=None)
     specific = add(session, name="指定", priority=3, models=["gpt-test"])
     assert pick(session, "gpt-test", "openai").id == specific.id
     assert pick(session, "other", "openai").id == wildcard.id
     view = account_service.to_view(specific)
-    assert "api_key" not in view and "api_key_encrypted" not in view
+    assert view["api_key"] == "secret"
+    assert "api_key_encrypted" not in view
 
 
 def test_account_list_orders_active_then_priority_then_name(session):
