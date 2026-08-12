@@ -36,8 +36,8 @@ def test_account_table_builds_checkbox_cell_without_alignment_type_error():
     ])
     assert table.rowCount() == 1
     assert table.selected_ids() == []
-    assert table.horizontalHeaderItem(4).text() == "倍率"
-    assert table.item(0, 4).text() == "0.08"
+    assert table.horizontalHeaderItem(2).text() == "倍率"
+    assert table.item(0, 2).text() == "0.08"
     assert table.horizontalHeaderItem(6).text() == "优先级快捷操作"
     priority_actions = table.cellWidget(0, 6)
     priority_buttons = priority_actions.findChildren(QPushButton)
@@ -52,7 +52,7 @@ def test_account_table_builds_checkbox_cell_without_alignment_type_error():
     assert [button.isChecked() for button in priority_buttons] == [False, False, True, False]
     toggled: list[str] = []
     table.toggle_requested.connect(toggled.append)
-    status = table.cellWidget(0, 3)
+    status = table.cellWidget(0, 4)
     assert status.text() == "启用"
     status.click()
     assert toggled == ["account-1"]
