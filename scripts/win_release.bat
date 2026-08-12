@@ -1,29 +1,28 @@
 @echo off
 setlocal EnableExtensions
-chcp 65001 >nul 2>&1
 
-REM AIMux Windows 发布入口：全量构建 onedir，再封装为单个 Inno Setup 安装包。
+REM AIMux Windows release entry: build onedir, then create one setup EXE.
 
 cd /d "%~dp0\.."
 
-echo [%time:~0,8%] [AIMux] 阶段 1/3：全量构建 Windows 应用 ...
+echo [%time:~0,8%] [AIMux] Stage 1/3: building Windows app ...
 call "%~dp0win_build.bat" --clean
 if errorlevel 1 (
-    echo [AIMux] 发布已停止：应用构建失败。
+    echo [AIMux] Release stopped: application build failed.
     pause
     exit /b 1
 )
 
-echo [%time:~0,8%] [AIMux] 阶段 2/3：生成单文件安装包 ...
+echo [%time:~0,8%] [AIMux] Stage 2/3: creating setup EXE ...
 ".venv\Scripts\python.exe" scripts\release_installer.py
 if errorlevel 1 (
-    echo [AIMux] 发布已停止：安装包生成失败，请查看上方日志。
+    echo [AIMux] Release stopped: setup creation failed. See the log above.
     pause
     exit /b 1
 )
 
-echo [%time:~0,8%] [AIMux] 阶段 3/3：发布完成。
-echo [AIMux] 用户数据库和配置仍保存在 %%APPDATA%%\aimux，覆盖安装不会删除。
+echo [%time:~0,8%] [AIMux] Stage 3/3: release completed.
+echo [AIMux] User data remains in %%APPDATA%%\aimux during upgrades.
 echo.
 pause
 endlocal

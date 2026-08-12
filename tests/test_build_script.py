@@ -93,10 +93,13 @@ def test_windows_release_installer_preserves_user_data_and_supports_upgrade() ->
 
 def test_windows_release_script_reads_project_version_and_uses_clean_build() -> None:
     """发布入口应先执行全量应用构建，再调用可测试的安装包脚本。"""
-    script = (build.ROOT / "scripts" / "win_release.bat").read_text(encoding="utf-8")
+    script_path = build.ROOT / "scripts" / "win_release.bat"
+    script_bytes = script_path.read_bytes()
+    script = script_bytes.decode("ascii")
 
     assert 'call "%~dp0win_build.bat" --clean' in script
     assert '".venv\\Scripts\\python.exe" scripts\\release_installer.py' in script
+    assert all(byte < 128 for byte in script_bytes)
 
 
 def test_release_installer_reads_project_version() -> None:
