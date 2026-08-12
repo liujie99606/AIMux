@@ -31,6 +31,16 @@ def find_inno_compiler() -> Path | None:
 
 def main() -> None:
     """将 PyInstaller onedir 产物封装为单个 Windows 安装包。"""
+    if "--check-only" in sys.argv:
+        compiler = find_inno_compiler()
+        if compiler is None:
+            raise SystemExit(
+                "[AIMux] 未找到 Inno Setup 6。\n"
+                "[AIMux] 请先执行：winget install --id JRSoftware.InnoSetup -e"
+            )
+        print(f"[AIMux] 已找到 Inno Setup：{compiler}", flush=True)
+        print(f"[AIMux] 当前发布版本：{read_project_version()}", flush=True)
+        return
     executable = ROOT / "dist" / "AIMux" / "AIMux.exe"
     if not executable.is_file():
         raise SystemExit(f"[AIMux] 未找到应用构建产物：{executable}")

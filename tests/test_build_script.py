@@ -99,6 +99,7 @@ def test_windows_release_script_reads_project_version_and_uses_clean_build() -> 
 
     assert 'call "%~dp0win_build.bat" --clean' in script
     assert '".venv\\Scripts\\python.exe" scripts\\release_installer.py' in script
+    assert 'scripts\\release_installer.py --check-only' in script
     assert all(byte < 128 for byte in script_bytes)
 
 
