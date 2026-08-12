@@ -34,7 +34,7 @@ jobs:
       - name: Install Inno Setup
         shell: powershell
         run: |
-          winget install --id JRSoftware.InnoSetup -e --accept-package-agreements --accept-source-agreements
+          choco install innosetup -y --no-progress
       - name: Build Windows installer
         shell: powershell
         run: |

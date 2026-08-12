@@ -29,6 +29,8 @@ def test_cross_platform_workflow_builds_windows_and_macos_artifacts() -> None:
     assert "uses: actions/setup-python@v6" in workflow
     assert "AIMUX_PYTHON: python3.13" in workflow
     assert "python scripts/release_installer.py" in workflow
+    assert "choco install innosetup -y --no-progress" in workflow
+    assert "winget install" not in workflow
     assert "ditto -c -k --sequesterRsrc --keepParent" in workflow
     assert "AIMux-Windows-${{ matrix.arch }}" in workflow
     assert "AIMux-macOS-${{ matrix.arch }}" in workflow
