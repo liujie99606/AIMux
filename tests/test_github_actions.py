@@ -1,6 +1,16 @@
 from __future__ import annotations
 
 from pathlib import Path
+import tomllib
+
+
+def test_project_uses_installable_qdarktheme_package() -> None:
+    """干净环境必须安装提供 qdarktheme 模块的当前维护包。"""
+    config = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
+    dependencies = config["project"]["dependencies"]
+
+    assert "pyqtdarktheme-fork>=2.3.6" in dependencies
+    assert not any(item.startswith("pyqtdarktheme>=") for item in dependencies)
 
 
 def test_cross_platform_workflow_builds_windows_and_macos_artifacts() -> None:
@@ -11,6 +21,9 @@ def test_cross_platform_workflow_builds_windows_and_macos_artifacts() -> None:
     assert 'tags:\n      - "v*"' in workflow
     assert "runs-on: windows-latest" in workflow
     assert "runs-on: macos-14" in workflow
+    assert "uses: actions/checkout@v5" in workflow
+    assert "uses: actions/setup-python@v6" in workflow
+    assert "AIMUX_PYTHON: python3.13" in workflow
     assert "python scripts/release_installer.py" in workflow
     assert "ditto -c -k --sequesterRsrc --keepParent" in workflow
     assert "AIMux-Windows-Installer" in workflow
