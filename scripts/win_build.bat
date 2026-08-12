@@ -25,8 +25,8 @@ if not exist ".venv\Scripts\python.exe" (
     )
 )
 
-echo [AIMux] 正在打包，首次构建需要下载依赖，请耐心等待 ...
-".venv\Scripts\python.exe" scripts\build.py
+echo [%time:~0,8%] [AIMux] 正在打包；默认保留增量缓存，可传入 --clean 全量构建。
+".venv\Scripts\python.exe" scripts\build.py %*
 if errorlevel 1 (
     echo [AIMux] 打包失败，请查看上方日志。
     pause
