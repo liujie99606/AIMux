@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from decimal import Decimal
+
 import httpx
 import pytest
 
@@ -9,10 +11,24 @@ from app.service import account_service
 from app.service.dispatch_service import forward_non_stream, forward_stream, pick
 
 
-def add(session, *, name: str, priority: int, models: list[str] | None):
+def add(
+    session,
+    *,
+    name: str,
+    priority: int,
+    models: list[str] | None,
+    multiplier: Decimal = Decimal("0.10"),
+):
     return account_service.create_account(
         session,
-        AccountCreate(name=name, base_url="https://upstream.example/v1", api_key="secret", priority=priority, supported_models=models),
+        AccountCreate(
+            name=name,
+            base_url="https://upstream.example/v1",
+            api_key="secret",
+            priority=priority,
+            multiplier=multiplier,
+            supported_models=models,
+        ),
     )
 
 
@@ -24,6 +40,30 @@ def test_pick_prefers_explicit_model_then_priority_and_returns_plaintext_key(ses
     view = account_service.to_view(specific)
     assert view["api_key"] == "secret"
     assert "api_key_encrypted" not in view
+
+
+def test_pick_prefers_lower_multiplier_when_priority_is_equal(session):
+    """模型匹配和优先级相同时，应优先调度倍率更低的账号。"""
+    expensive = add(
+        session,
+        name="高倍率",
+        priority=8,
+        multiplier=Decimal("0.20"),
+        models=["gpt-test"],
+    )
+    cheaper = add(
+        session,
+        name="低倍率",
+        priority=8,
+        multiplier=Decimal("0.05"),
+        models=["gpt-test"],
+    )
+
+    selected = pick(session, "gpt-test", "openai")
+
+    assert selected is not None
+    assert selected.id == cheaper.id
+    assert selected.id != expensive.id
 
 
 def test_account_list_orders_active_then_priority_then_name(session):

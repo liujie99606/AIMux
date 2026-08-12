@@ -72,9 +72,15 @@ def pick_one(
         account for account in candidates
         if model is None or not _models(account.supported_models) or model in _models(account.supported_models)
     ]
-    # Explicit model declarations win over wildcard accounts, then priority and stable name/id.
+    # 明确声明模型的账号优先于通配账号，其次按优先级、倍率和稳定名称排序。
     eligible.sort(
-        key=lambda item: (-(model in _models(item.supported_models)), -item.priority, item.name.lower(), item.id)
+        key=lambda item: (
+            -(model in _models(item.supported_models)),
+            -item.priority,
+            item.multiplier,
+            item.name.lower(),
+            item.id,
+        )
     )
     return eligible[0] if eligible else None
 
@@ -86,6 +92,15 @@ def save(session: Session, account: Account) -> Account:
     session.commit()
     session.refresh(account)
     return account
+
+
+def save_many(session: Session, accounts: list[Account]) -> None:
+    """在一次事务中保存多个账号变更。"""
+    updated_at = utc_now()
+    for account in accounts:
+        account.updated_at = updated_at
+        session.add(account)
+    session.commit()
 
 
 def mark_used(session: Session, account: Account) -> None:

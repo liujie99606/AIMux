@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections import defaultdict
 
 from sqlmodel import Session
 
@@ -9,7 +10,7 @@ from app.config import Settings
 from app.dao import account_dao
 from app.db import get_engine
 from app.models import Account
-from app.service import monitor_service
+from app.service import account_service, monitor_service
 
 _INTERVAL_SECONDS = 120
 _MAX_CONCURRENCY = 5
@@ -91,10 +92,13 @@ class MonitorScheduler:
         """读取当前启用账号并以最多五个并发执行一轮。"""
         with Session(get_engine()) as session:
             accounts, _ = account_dao.list_accounts(session, limit=10_000, status="active")
-            targets = [(account, monitor_service.default_model(session, account.type)) for account in accounts]
+            targets = [
+                (account, monitor_service.default_model(session, account.type))
+                for account in accounts
+            ]
         semaphore = asyncio.Semaphore(_MAX_CONCURRENCY)
 
-        async def check(target: tuple[Account, str | None]) -> None:
+        async def check(target: tuple[Account, str | None]) -> tuple[str, str, str | None, bool]:
             account, model = target
             async with semaphore:
                 if model is None:
@@ -107,5 +111,47 @@ class MonitorScheduler:
                     current = account_dao.get(session, account.id)
                     if current is not None:
                         monitor_service.save_result(session, current, result)
+                return account.id, account.type, model, result.success
 
-        await asyncio.gather(*(check(target) for target in targets))
+        results = await asyncio.gather(*(check(target) for target in targets))
+        self._rebalance_by_multiplier(results)
+
+    @staticmethod
+    def _rebalance_by_multiplier(results: list[tuple[str, str, str | None, bool]]) -> None:
+        """按协议将本轮成功的最低倍率账号提升为调度首选。"""
+        successful_by_type: dict[str, list[tuple[str, str | None]]] = defaultdict(list)
+        for account_id, account_type, model, success in results:
+            if success:
+                successful_by_type[account_type].append((account_id, model))
+        with Session(get_engine()) as session:
+            for account_type, successful in successful_by_type.items():
+                candidates = [
+                    account_dao.get(session, account_id) for account_id, _ in successful
+                ]
+                active = [
+                    account
+                    for account in candidates
+                    if account is not None and account.status == "active"
+                ]
+                if not active:
+                    continue
+                candidate = min(
+                    active,
+                    key=lambda account: (
+                        account.multiplier,
+                        -account.priority,
+                        account.name.lower(),
+                        account.id,
+                    ),
+                )
+                model = next(
+                    model for account_id, model in successful if account_id == candidate.id
+                )
+                current = account_dao.pick_one(session, model, account_type)
+                if (
+                    current is None
+                    or current.id == candidate.id
+                    or candidate.multiplier >= current.multiplier
+                ):
+                    continue
+                account_service.promote_lower_multiplier_account(session, candidate, current)

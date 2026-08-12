@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import time
 import uuid
+from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import CheckConstraint, Index, UniqueConstraint
+from sqlalchemy import CheckConstraint, Index, Numeric, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -20,6 +21,7 @@ class Account(SQLModel, table=True):
         CheckConstraint("type IN ('openai', 'anthropic')", name="ck_accounts_type"),
         CheckConstraint("status IN ('active', 'disabled')", name="ck_accounts_status"),
         CheckConstraint("priority BETWEEN 0 AND 9", name="ck_accounts_priority"),
+        CheckConstraint("multiplier BETWEEN 0.01 AND 0.30", name="ck_accounts_multiplier"),
         Index("idx_accounts_dispatch", "status", "priority", "id"),
     )
 
@@ -27,9 +29,12 @@ class Account(SQLModel, table=True):
     name: str
     type: str = Field(default="openai", index=True)
     base_url: str
-    api_key: str
+    api_key_encrypted: str
     status: str = Field(default="active", index=True)
     priority: int = Field(default=5, ge=0, le=9, index=True)
+    multiplier: Decimal = Field(
+        default=Decimal("0.10"), ge=0.01, le=0.30, sa_type=Numeric(4, 2)
+    )
     supported_models: Optional[str] = None
     tags: Optional[str] = None
     notes: Optional[str] = None

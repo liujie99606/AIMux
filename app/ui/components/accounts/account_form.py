@@ -3,13 +3,30 @@ from __future__ import annotations
 from collections import defaultdict
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QComboBox, QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QListWidget, QListWidgetItem, QPlainTextEdit, QSpinBox
+from PySide6.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QDoubleSpinBox,
+    QFormLayout,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QPlainTextEdit,
+    QSpinBox,
+)
 
 
 class AccountForm(QDialog):
     """账号新增/编辑表单，模型选项由模型目录按协议类型过滤。"""
 
-    def __init__(self, model_catalog: list[dict], account: dict | None = None, parent=None, copy: bool = False) -> None:
+    def __init__(
+        self,
+        model_catalog: list[dict],
+        account: dict | None = None,
+        parent=None,
+        copy: bool = False,
+    ) -> None:
         super().__init__(parent)
         # copy=True 时以现有账号数据预填表单，但作为新增账号处理（标题与提交均按新增）。
         self.setWindowTitle("编辑账号" if account and not copy else "新增账号")
@@ -34,6 +51,13 @@ class AccountForm(QDialog):
         self.priority = QSpinBox()
         self.priority.setRange(0, 9)
         self.priority.setValue(account.get("priority", 5) if account else 5)
+        self.multiplier = QDoubleSpinBox()
+        self.multiplier.setRange(0.01, 0.30)
+        self.multiplier.setDecimals(2)
+        self.multiplier.setSingleStep(0.01)
+        self.multiplier.setValue(
+            float(account.get("multiplier", 0.10)) if account else 0.10
+        )
         self.models = QListWidget()
         self.models.setMaximumHeight(130)
         self.models.setToolTip("可多选；不选择表示该账号支持全部模型")
@@ -44,10 +68,14 @@ class AccountForm(QDialog):
         form.addRow("上游地址", self.base_url)
         form.addRow("API 密钥", self.api_key)
         form.addRow("优先级", self.priority)
+        form.addRow("倍率", self.multiplier)
         form.addRow("支持模型", self.models)
         form.addRow("标签", self.tags)
         form.addRow("备注", self.notes)
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save
+            | QDialogButtonBox.StandardButton.Cancel
+        )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         form.addRow(buttons)
@@ -72,12 +100,26 @@ class AccountForm(QDialog):
 
     def selected_models(self) -> list[str]:
         """返回用户勾选的模型；空列表表示不限模型。"""
-        return [self.models.item(index).text() for index in range(self.models.count()) if self.models.item(index).checkState() == Qt.CheckState.Checked]
+        return [
+            self.models.item(index).text()
+            for index in range(self.models.count())
+            if self.models.item(index).checkState() == Qt.CheckState.Checked
+        ]
 
     def payload(self, creating: bool) -> dict:
         """校验输入并构造账号管理 API 所需的 JSON。"""
         split = lambda value: [part.strip() for part in value.split(",") if part.strip()] or None
-        result = {"name": self.name.text().strip(), "type": self.type.currentText(), "base_url": self.base_url.text().strip(), "api_key": self.api_key.text().strip(), "priority": self.priority.value(), "supported_models": self.selected_models() or None, "tags": split(self.tags.text()), "notes": self.notes.toPlainText().strip() or None}
+        result = {
+            "name": self.name.text().strip(),
+            "type": self.type.currentText(),
+            "base_url": self.base_url.text().strip(),
+            "api_key": self.api_key.text().strip(),
+            "priority": self.priority.value(),
+            "multiplier": self.multiplier.value(),
+            "supported_models": self.selected_models() or None,
+            "tags": split(self.tags.text()),
+            "notes": self.notes.toPlainText().strip() or None,
+        }
         if not result["api_key"]:
             raise ValueError("请输入 API 密钥")
         if not result["name"] or not result["base_url"]:

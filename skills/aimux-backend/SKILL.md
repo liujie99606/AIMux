@@ -60,7 +60,7 @@ app/
 - 约束放 `__table_args__`：`CheckConstraint`（枚举/范围）、`UniqueConstraint`、`Index`（命名 `idx_` / `uq_` / `ck_` 前缀 + 表名）。
 - 枚举字段用 `str` + CheckConstraint（如 `type IN ('openai','anthropic')`），不建独立枚举表。
 - 列表字段（`supported_models`、`tags`）以 JSON 字符串存 `Optional[str]`，读写时在 service/dao 层 `json.dumps/loads` 转换；空列表存 `None` 表示"不限"。
-- API 密钥以明文 `str` 存 `api_key` 字段（本地单机使用，不加密）；不再有 `api_key_encrypted` 列与 `app/utils/crypto.py`。
+- API 密钥以明文 `str` 存于历史字段名 `api_key_encrypted`（本地单机使用，字段名仅为兼容，不代表内容仍加密）；不再有 `app/utils/crypto.py`。
 
 ## Schema 规范（schemas.py）
 
@@ -99,9 +99,9 @@ app/
 
 ## 密钥存储规范
 
-- API 密钥以明文 `str` 直接存于 `accounts.api_key` 列（本地单机使用，不加密）。
-- 已移除 `app/utils/crypto.py` 与 `cryptography` 依赖；forwarders 直接用 `account.api_key` 组装上游认证头。
-- 历史 `api_key_encrypted`（bytes）列已通过一次性迁移解密为明文 `api_key`，旧列删除。
+- API 密钥以明文 `str` 直接存于 `accounts.api_key_encrypted` 列（本地单机使用，保留历史字段名但不加密）。
+- 已移除 `app/utils/crypto.py` 与 `cryptography` 依赖；forwarders 直接读取该明文字段组装上游认证头。
+- 历史 `api_key_encrypted`（bytes）内容已通过一次性迁移解密为明文，字段名保持不变。
 
 ## 配置规范（app/config.py）
 
@@ -148,7 +148,7 @@ app/
 
 1. 是否遵循 controller→service→dao→models 分层，无跨层？
 2. 文件首行是否有 `from __future__ import annotations`？类型注解齐全？
-3. API 密钥是否以明文存 `api_key`？`to_view` 是否返回 `api_key` 供编辑回显？
+3. API 密钥是否以明文存于历史字段名 `api_key_encrypted`？`to_view` 是否返回 `api_key` 供编辑回显？
 4. 列表接口 limit 是否钳制到 200？删除是否 204？
 5. 时间是否用 `utc_now()`？主键是否 UUID 字符串？
 6. 新增表是否带 `__tablename__` 与命名一致的约束/索引？

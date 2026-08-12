@@ -28,7 +28,22 @@ def configure_database(path: Path | str):
 
 def _ensure_columns(engine) -> None:
     """幂等补齐已有表缺失的列，兼容旧库升级时自动加列。"""
+    with engine.connect() as conn:
+        account_columns = {
+            row[1] for row in conn.exec_driver_sql("PRAGMA table_info(accounts)")
+        }
+        # 保留历史列名，但列内容已经是明文；兼容此前短暂使用 api_key 的版本。
+        if "api_key" in account_columns and "api_key_encrypted" not in account_columns:
+            conn.exec_driver_sql(
+                "ALTER TABLE accounts RENAME COLUMN api_key TO api_key_encrypted"
+            )
+            conn.commit()
     additions = [
+        (
+            "accounts",
+            "multiplier",
+            "NUMERIC(4, 2) NOT NULL DEFAULT 0.10 CHECK (multiplier BETWEEN 0.01 AND 0.30)",
+        ),
         ("usage_records", "reasoning_effort", "TEXT"),
         ("usage_records", "cached_tokens", "INTEGER"),
         ("models", "is_default", "INTEGER NOT NULL DEFAULT 0"),

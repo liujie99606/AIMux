@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Literal
 from urllib.parse import urlparse
 
@@ -17,6 +18,9 @@ class AccountCreate(BaseModel):
     api_key: str = Field(min_length=1)
     status: AccountStatus = "active"
     priority: int = Field(default=5, ge=0, le=9)
+    multiplier: Decimal = Field(
+        default=Decimal("0.10"), ge=Decimal("0.01"), le=Decimal("0.30")
+    )
     supported_models: list[str] | None = None
     tags: list[str] | None = None
     notes: str | None = None
@@ -34,6 +38,9 @@ class AccountUpdate(BaseModel):
     api_key: str | None = None
     status: AccountStatus | None = None
     priority: int | None = Field(default=None, ge=0, le=9)
+    multiplier: Decimal | None = Field(
+        default=None, ge=Decimal("0.01"), le=Decimal("0.30")
+    )
     supported_models: list[str] | None = None
     tags: list[str] | None = None
     notes: str | None = None
@@ -52,6 +59,7 @@ class AccountView(BaseModel):
     api_key: str
     status: AccountStatus
     priority: int
+    multiplier: Decimal
     supported_models: list[str] | None
     tags: list[str] | None
     notes: str | None

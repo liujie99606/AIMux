@@ -26,6 +26,7 @@ class AccountTable(DataTable):
         Column("名称", lambda r: r["_name_editor"], widget=True, width=170),
         Column("类型", lambda r: r["type"]),
         Column("状态", lambda r: r["_status"], widget=True, width=120),
+        Column("倍率", lambda r: f"{float(r.get('multiplier', 0.10)):.2f}", width=70),
         Column("优先级", lambda r: r["_priority"], widget=True, width=90),
         Column("优先级快捷操作", lambda r: r["_priority_actions"], widget=True, width=150),
         Column("最近使用", lambda r: format_time(r.get("last_used_at")), width=150),

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+from decimal import Decimal
+
 import httpx
 import pytest
 from fastapi.testclient import TestClient
@@ -16,7 +18,15 @@ from app.service.monitor_scheduler import MonitorScheduler
 from app.service.monitor_service import MonitorResult, ping_account, save_result
 
 
-def add_account(session: Session, *, name: str = "监控账号", account_type: str = "openai"):
+def add_account(
+    session: Session,
+    *,
+    name: str = "监控账号",
+    account_type: str = "openai",
+    priority: int = 7,
+    multiplier: str = "0.10",
+    supported_models: list[str] | None = None,
+):
     return account_service.create_account(
         session,
         AccountCreate(
@@ -24,7 +34,9 @@ def add_account(session: Session, *, name: str = "监控账号", account_type: s
             type=account_type,
             base_url="https://upstream.example/v1",
             api_key="secret",
-            priority=7,
+            priority=priority,
+            multiplier=Decimal(multiplier),
+            supported_models=supported_models,
         ),
     )
 
@@ -83,6 +95,87 @@ async def test_monitor_scheduler_round_writes_success_and_adjusts_active_account
     assert records.get(disabled.id, []) == []
     refreshed = account_dao.get(session, account.id)
     assert refreshed is not None and (refreshed.priority, refreshed.total_requests) == (7, 0)
+
+
+@pytest.mark.asyncio
+async def test_monitor_round_promotes_successful_lower_multiplier_account(session, settings, monkeypatch):
+    """整轮成功后应按调度模型将更低倍率账号置 9，并把当前账号降 3。"""
+    current = add_account(
+        session,
+        name="当前调度",
+        priority=9,
+        multiplier="0.20",
+        supported_models=["gpt-5.5"],
+    )
+    cheaper = add_account(session, name="低倍率", priority=5, multiplier="0.05")
+
+    async def fake_ping(account, model, passed_settings):
+        return MonitorResult(model, 10, True, 200)
+
+    monkeypatch.setattr("app.service.monitor_scheduler.monitor_service.ping_account", fake_ping)
+    await MonitorScheduler(settings).run_round()
+
+    session.expire_all()
+    refreshed_current = account_dao.get(session, current.id)
+    refreshed_cheaper = account_dao.get(session, cheaper.id)
+    assert refreshed_current is not None and refreshed_current.priority == 6
+    assert refreshed_cheaper is not None and refreshed_cheaper.priority == 9
+    # 对照账号必须沿用正式调度的“明确模型优先”规则，而非仅按优先级取值。
+    assert account_dao.pick_one(session, "gpt-5.5", "openai").id == current.id
+
+
+@pytest.mark.asyncio
+async def test_monitor_round_does_not_switch_for_equal_or_failed_multiplier(session, settings, monkeypatch):
+    """倍率相等不切换，倍率更低但本轮失败的账号也不能参与。"""
+    current = add_account(session, name="当前调度", priority=9, multiplier="0.10")
+    equal = add_account(session, name="同倍率", priority=5, multiplier="0.10")
+    failed = add_account(session, name="失败低倍率", priority=8, multiplier="0.01")
+
+    async def fake_ping(account, model, passed_settings):
+        return MonitorResult(model, 10, account.id != failed.id, 200 if account.id != failed.id else 502)
+
+    monkeypatch.setattr("app.service.monitor_scheduler.monitor_service.ping_account", fake_ping)
+    await MonitorScheduler(settings).run_round()
+
+    session.expire_all()
+    assert account_dao.get(session, current.id).priority == 9
+    assert account_dao.get(session, equal.id).priority == 6
+    assert account_dao.get(session, failed.id).priority == 7
+
+
+@pytest.mark.asyncio
+async def test_monitor_round_rebalances_each_protocol_and_uses_stable_tie_breaker(session, settings, monkeypatch):
+    """OpenAI 与 Anthropic 应独立切换，最低倍率并列时优先当前优先级更高者。"""
+    openai_current = add_account(session, name="OpenAI 当前", priority=9, multiplier="0.20")
+    openai_lower = add_account(session, name="OpenAI 低", priority=4, multiplier="0.05")
+    openai_higher = add_account(session, name="OpenAI 高", priority=6, multiplier="0.05")
+    anthropic_current = add_account(
+        session,
+        name="Anthropic 当前",
+        account_type="anthropic",
+        priority=9,
+        multiplier="0.30",
+    )
+    anthropic_lower = add_account(
+        session,
+        name="Anthropic 低",
+        account_type="anthropic",
+        priority=5,
+        multiplier="0.08",
+    )
+
+    async def fake_ping(account, model, passed_settings):
+        return MonitorResult(model, 10, True, 200)
+
+    monkeypatch.setattr("app.service.monitor_scheduler.monitor_service.ping_account", fake_ping)
+    await MonitorScheduler(settings).run_round()
+
+    session.expire_all()
+    assert account_dao.get(session, openai_current.id).priority == 6
+    assert account_dao.get(session, openai_lower.id).priority == 5
+    assert account_dao.get(session, openai_higher.id).priority == 9
+    assert account_dao.get(session, anthropic_current.id).priority == 6
+    assert account_dao.get(session, anthropic_lower.id).priority == 9
 
 
 def test_save_monitor_result_adjusts_priority_with_monitor_limits_only(session):

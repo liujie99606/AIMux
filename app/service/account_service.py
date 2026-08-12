@@ -22,9 +22,10 @@ def to_view(account: Account) -> dict:
         "name": account.name,
         "type": account.type,
         "base_url": account.base_url,
-        "api_key": account.api_key,
+        "api_key": account.api_key_encrypted,
         "status": account.status,
         "priority": account.priority,
+        "multiplier": account.multiplier,
         "supported_models": json.loads(account.supported_models) if account.supported_models else None,
         "tags": json.loads(account.tags) if account.tags else None,
         "notes": account.notes,
@@ -47,9 +48,10 @@ def create_account(session: Session, payload: AccountCreate) -> Account:
             name=payload.name,
             type=payload.type,
             base_url=payload.base_url,
-            api_key=payload.api_key,
+            api_key_encrypted=payload.api_key,
             status=payload.status,
             priority=payload.priority,
+            multiplier=payload.multiplier,
             supported_models=_json(payload.supported_models),
             tags=_json(payload.tags),
             notes=payload.notes,
@@ -60,11 +62,11 @@ def create_account(session: Session, payload: AccountCreate) -> Account:
 def update_account(session: Session, account: Account, payload: AccountUpdate) -> Account:
     """仅更新请求中明确提供的账号字段。"""
     fields = payload.model_fields_set
-    for field in ("name", "type", "base_url", "status", "priority", "notes"):
+    for field in ("name", "type", "base_url", "status", "priority", "multiplier", "notes"):
         if field in fields:
             setattr(account, field, getattr(payload, field))
     if "api_key" in fields and payload.api_key:
-        account.api_key = payload.api_key
+        account.api_key_encrypted = payload.api_key
     if "supported_models" in fields:
         account.supported_models = _json(payload.supported_models)
     if "tags" in fields:
@@ -134,3 +136,13 @@ def record_monitor_result(session: Session, account: Account, success: bool) -> 
     else:
         account.priority = priority.after_monitor_failure(account.priority)
     return account_dao.save(session, account)
+
+
+def promote_lower_multiplier_account(
+    session: Session, candidate: Account, current: Account
+) -> tuple[Account, Account]:
+    """将更低倍率的成功账号置为最高优先级，并将当前调度账号降三级。"""
+    current.priority = priority.after_multiplier_switch(current.priority)
+    candidate.priority = priority.super_priority()
+    account_dao.save_many(session, [current, candidate])
+    return candidate, current

@@ -40,7 +40,7 @@ def _headers(
     account: Account, body: dict[str, Any], extra_headers: dict[str, str] | None = None
 ) -> dict[str, str]:
     """根据账号类型组装上游认证头，不做协议转换。"""
-    key = account.api_key
+    key = account.api_key_encrypted
     if account.type == "anthropic":
         headers = {
             "x-api-key": key,

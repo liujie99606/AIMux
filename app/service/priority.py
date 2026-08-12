@@ -36,6 +36,11 @@ def after_monitor_failure(priority: int) -> int:
     return max(PRIORITY_MIN, priority - 1)
 
 
+def after_multiplier_switch(priority: int) -> int:
+    """倍率切换时将当前调度账号降低三级，最低保留为 0。"""
+    return max(PRIORITY_MIN, priority - 3)
+
+
 def super_priority() -> int:
     """返回超级优先对应的固定最高优先级。"""
     return PRIORITY_MAX

@@ -28,6 +28,7 @@ def test_account_table_builds_checkbox_cell_without_alignment_type_error():
             "name": "测试账号",
             "type": "openai",
             "status": "active",
+            "multiplier": 0.08,
             "priority": 5,
             "supported_models": ["gpt-test"],
             "last_used_at": None,
@@ -35,8 +36,10 @@ def test_account_table_builds_checkbox_cell_without_alignment_type_error():
     ])
     assert table.rowCount() == 1
     assert table.selected_ids() == []
-    assert table.horizontalHeaderItem(5).text() == "优先级快捷操作"
-    priority_actions = table.cellWidget(0, 5)
+    assert table.horizontalHeaderItem(4).text() == "倍率"
+    assert table.item(0, 4).text() == "0.08"
+    assert table.horizontalHeaderItem(6).text() == "优先级快捷操作"
+    priority_actions = table.cellWidget(0, 6)
     priority_buttons = priority_actions.findChildren(QPushButton)
     assert [button.text() for button in priority_buttons] == ["0", "3", "6", "9"]
     assert all(button.width() == button.height() == 26 for button in priority_buttons)
@@ -53,7 +56,7 @@ def test_account_table_builds_checkbox_cell_without_alignment_type_error():
     assert status.text() == "启用"
     status.click()
     assert toggled == ["account-1"]
-    actions = table.cellWidget(0, 7)
+    actions = table.cellWidget(0, 8)
     assert [button.text() for button in actions.findChildren(QPushButton)] == ["测试", "编辑", "复制", "删除"]
     table.set_all_selected(True)
     assert table.selected_ids() == ["account-1"]
@@ -132,6 +135,12 @@ def test_account_form_filters_checkable_models_when_type_changes():
         {"name": "claude-sonnet-4-8", "type": "anthropic"},
     ])
     assert [form.models.item(index).text() for index in range(form.models.count())] == ["gpt-5.5"]
+    assert form.multiplier.value() == 0.10
+    form.name.setText("测试")
+    form.base_url.setText("https://example.com")
+    form.api_key.setText("key")
+    form.multiplier.setValue(0.07)
+    assert form.payload(True)["multiplier"] == 0.07
     form.type.setCurrentText("anthropic")
     assert [form.models.item(index).text() for index in range(form.models.count())] == ["claude-sonnet-4-8"]
     application.processEvents()

@@ -22,6 +22,18 @@ def test_account_management_api_and_local_token(settings):
     account = created.json()
     assert account["base_url"] == "https://api.example/v1"
     assert account["api_key"] == "sk-test"
+    assert account["multiplier"] == "0.10"
+    updated = client.put(
+        f"/api/accounts/{account['id']}",
+        headers=headers,
+        json={"multiplier": 0.07},
+    )
+    assert updated.status_code == 200 and updated.json()["multiplier"] == "0.07"
+    assert client.put(
+        f"/api/accounts/{account['id']}",
+        headers=headers,
+        json={"multiplier": 0.31},
+    ).status_code == 422
     assert client.post(f"/api/accounts/{account['id']}/super-priority", headers=headers).json()["priority"] == 9
     assert client.post(f"/api/accounts/{account['id']}/toggle-status", headers=headers).json()["status"] == "disabled"
     assert client.get("/api/accounts", headers=headers, params={"status": "disabled"}).json()["total"] == 1
