@@ -87,6 +87,7 @@ def test_windows_release_installer_preserves_user_data_and_supports_upgrade() ->
     assert "PrivilegesRequired=lowest" in installer
     assert 'Source: "..\\dist\\AIMux\\*"' in installer
     assert "AIMux-Setup-{#MyAppVersion}" in installer
+    assert "ChineseSimplified.isl" not in installer
     assert "%appdata%" not in installer.lower()
     assert "{userappdata}" not in installer.lower()
 
