@@ -21,21 +21,22 @@ description: AIMux GitHub Actions 跨平台构建规范。用户要求配置、�
    - `AIMux-Windows-Installer`
    - `AIMux-macOS-App`
 
-## Tag 构建
+## Tag 构建与 Release
 
-推送 `v*` tag 会自动触发构建。例如：
+推送 `v*` tag 会自动触发构建。Windows 和 macOS 都成功后，workflow 会创建同名 GitHub Release，并上传两个平台产物。例如：
 
 ```powershell
 git tag v0.1.0
 git push origin v0.1.0
 ```
 
-不要替用户执行 `git push` 或创建 tag，除非用户明确要求。发布版本应先修改 `pyproject.toml` 的 `version`，再提交代码和 tag。
+不要替用户执行 `git push` 或创建 tag，除非用户明确要求。发布版本应先修改 `pyproject.toml` 的 `version`，确保标签使用对应的 `v<版本号>`，再提交代码和 tag。手动运行 workflow 只生成 Actions Artifact，不创建正式 Release。
 
 ## 产物边界
 
 - Windows runner 使用 PyInstaller 和 Inno Setup，产出单文件 `AIMux-Setup-<版本>.exe`。
 - macOS runner 使用 `scripts/mac_build.sh`，产出 `AIMux-macOS.zip`。
-- 当前 workflow 只构建和上传 Artifact，不包含 Apple 签名、公证或 Windows 代码签名。
+- `workflow_dispatch` 手动构建只上传 Artifact；`v*` 标签构建还会自动创建或更新 GitHub Release。
+- workflow 不包含 Apple 签名、公证或 Windows 代码签名。
 - 未签名产物可能触发 SmartScreen 或 Gatekeeper，不能将“构建成功”描述成“已获得系统信任”。
 - workflow 不读取或上传 `%APPDATA%\aimux` 用户数据库、配置和密钥。

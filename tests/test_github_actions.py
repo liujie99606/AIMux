@@ -30,6 +30,12 @@ def test_cross_platform_workflow_builds_windows_and_macos_artifacts() -> None:
     assert "ditto -c -k --sequesterRsrc --keepParent" in workflow
     assert "AIMux-Windows-Installer" in workflow
     assert "AIMux-macOS-App" in workflow
+    assert "contents: write" in workflow
+    assert "if: startsWith(github.ref, 'refs/tags/v')" in workflow
+    assert "uses: actions/download-artifact@v5" in workflow
+    assert workflow.count("uses: actions/upload-artifact@v5") == 2
+    assert "gh release create" in workflow
+    assert "gh release upload" in workflow
 
 
 def test_macos_build_checks_app_bundle_output(monkeypatch, tmp_path: Path) -> None:
