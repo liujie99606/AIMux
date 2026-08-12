@@ -78,6 +78,14 @@ def test_phase_log_mapping_covers_slow_build_steps() -> None:
     assert "复制" in (build._phase_for_line("123 INFO: Building COLLECT") or "")
 
 
+def test_output_path_matches_macos_app_bundle_layout(monkeypatch, tmp_path: Path) -> None:
+    """macOS PyInstaller app bundle 位于 dist 根目录。"""
+    monkeypatch.setattr(build, "ROOT", tmp_path)
+    monkeypatch.setattr(build.sys, "platform", "darwin")
+
+    assert build._output_path() == tmp_path / "dist" / "AIMux.app"
+
+
 def test_windows_release_installer_preserves_user_data_and_supports_upgrade() -> None:
     """安装器应固定 AppId、按用户安装，且不能打包或删除用户数据目录。"""
     installer = (build.ROOT / "installer" / "AIMux.iss").read_text(encoding="utf-8")

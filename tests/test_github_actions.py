@@ -21,6 +21,8 @@ def test_cross_platform_workflow_builds_windows_and_macos_artifacts() -> None:
     assert 'tags:\n      - "v*"' in workflow
     assert "runs-on: windows-latest" in workflow
     assert "runs-on: macos-14" in workflow
+    assert 'PYTHONUTF8: "1"' in workflow
+    assert "dist/AIMux.app AIMux-macOS.zip" in workflow
     assert "uses: actions/checkout@v5" in workflow
     assert "uses: actions/setup-python@v6" in workflow
     assert "AIMUX_PYTHON: python3.13" in workflow

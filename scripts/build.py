@@ -16,6 +16,15 @@ REQUIRED_ICONS = tuple(ICON_DIR / name for name in ("aimux.png", "aimux.ico", "a
 OUTPUT_EXECUTABLE = ROOT / "dist" / "AIMux" / "AIMux.exe"
 
 
+def _output_path() -> Path:
+    """返回当前平台的 PyInstaller 输出路径。"""
+    if sys.platform == "win32":
+        return ROOT / "dist" / "AIMux" / "AIMux.exe"
+    if sys.platform == "darwin":
+        return ROOT / "dist" / "AIMux.app"
+    return ROOT / "dist" / "AIMux" / "AIMux"
+
+
 def _log(message: str) -> None:
     """输出带本地时间的打包阶段日志。"""
     print(f"[{time.strftime('%H:%M:%S')}] [AIMux] {message}", flush=True)
@@ -143,13 +152,7 @@ def main() -> None:
     started = time.perf_counter()
     _run_pyinstaller(args.clean)
     elapsed = time.perf_counter() - started
-    if sys.platform == "win32":
-        output_name = "AIMux.exe"
-    elif sys.platform == "darwin":
-        output_name = "AIMux.app"
-    else:
-        output_name = "AIMux"
-    output = ROOT / "dist" / "AIMux" / output_name
+    output = _output_path()
     if not output.is_file():
         raise SystemExit(f"打包失败：未找到输出文件 {output}")
     _log(f"打包完成，PyInstaller 用时 {elapsed:.1f} 秒：{output}")

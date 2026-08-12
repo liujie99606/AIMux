@@ -14,6 +14,8 @@ jobs:
     name: Windows Installer
     runs-on: windows-latest
     timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -41,6 +43,8 @@ jobs:
     name: macOS App
     runs-on: macos-14
     timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -54,7 +58,7 @@ jobs:
           ./scripts/mac_build.sh
       - name: Package macOS app
         run: |
-          ditto -c -k --sequesterRsrc --keepParent dist/AIMux/AIMux.app AIMux-macOS.zip
+          ditto -c -k --sequesterRsrc --keepParent dist/AIMux.app AIMux-macOS.zip
       - name: Upload macOS app
         uses: actions/upload-artifact@v4
         with:
