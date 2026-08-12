@@ -6,7 +6,9 @@
   [`skills/aimux-frontend/SKILL.md`](skills/aimux-frontend/SKILL.md)。
 - 修改 `app/` 下的 FastAPI 控制器、服务、DAO、模型、Schema、工具或 API/数据库业务时，阅读
   [`skills/aimux-backend/SKILL.md`](skills/aimux-backend/SKILL.md)。
-- 同时涉及前后端时，两份 skill 都要阅读并遵守。
+- 修改 SQLModel 表结构、字段/约束/索引，或需要转换、回填已有持久化数据时，额外阅读
+  [`skills/aimux-database-migrations/SKILL.md`](skills/aimux-database-migrations/SKILL.md)，并同步维护 `migrations/versions/`。普通 DAO/Service 增删改查、查询、排序和分页不需要新增 migration。
+- 同时涉及多个范围时，对应 skill 都要阅读并遵守。
 
 ## 通用要求
 
