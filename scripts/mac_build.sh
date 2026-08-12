@@ -13,4 +13,4 @@ echo "[AIMux] 正在打包，首次构建需要下载依赖，请耐心等待 ..
 .venv/bin/python scripts/build.py
 
 echo ""
-echo "[AIMux] 打包完成！应用位于：dist/AIMux/AIMux.app"
+echo "[AIMux] 打包完成！应用位于：dist/AIMux.app"

@@ -38,8 +38,8 @@ def test_macos_build_checks_app_bundle_output(monkeypatch, tmp_path: Path) -> No
 
     monkeypatch.setattr(build, "ROOT", tmp_path)
     monkeypatch.setattr(build.sys, "platform", "darwin")
-    output = build.ROOT / "dist" / "AIMux" / "AIMux.app"
-    output.parent.mkdir(parents=True)
-    output.mkdir()
+    output = build.ROOT / "dist" / "AIMux.app"
+    output.mkdir(parents=True)
 
-    assert output.is_dir()
+    assert build._output_path() == output
+    assert build._output_exists(output)

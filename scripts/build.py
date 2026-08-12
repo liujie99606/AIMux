@@ -25,6 +25,13 @@ def _output_path() -> Path:
     return ROOT / "dist" / "AIMux" / "AIMux"
 
 
+def _output_exists(output: Path) -> bool:
+    """按平台产物类型校验 PyInstaller 输出。"""
+    if sys.platform == "darwin":
+        return output.is_dir()
+    return output.is_file()
+
+
 def _log(message: str) -> None:
     """输出带本地时间的打包阶段日志。"""
     print(f"[{time.strftime('%H:%M:%S')}] [AIMux] {message}", flush=True)
@@ -153,7 +160,7 @@ def main() -> None:
     _run_pyinstaller(args.clean)
     elapsed = time.perf_counter() - started
     output = _output_path()
-    if not output.is_file():
+    if not _output_exists(output):
         raise SystemExit(f"打包失败：未找到输出文件 {output}")
     _log(f"打包完成，PyInstaller 用时 {elapsed:.1f} 秒：{output}")
 
