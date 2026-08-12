@@ -12,6 +12,7 @@ from app.ui.components.accounts.account_table import AccountTable
 from app.ui.components.accounts.account_test_dialog import AccountTestDialog
 from app.ui.components.accounts.batch_toolbar import BatchToolbar
 from app.ui.components.statistics_cards import TokenStatisticsCards
+from app.ui.components.account_token_statistics_table import AccountTokenStatisticsTable
 from app.ui.components.usage.summary_card import SummaryCards
 from app.ui.components.usage.usage_table import UsageTable
 from app.ui.formatting import format_duration_ms, format_percentage, format_token_count
@@ -201,3 +202,31 @@ def test_token_statistics_cards_format_today_and_yesterday_values():
     assert cards._groups["yesterday"]["total_tokens"].value_label.text() == "2M"
     assert cards._groups["yesterday"]["cache_rate"].value_label.text() == "-"
     cards.deleteLater(); application.processEvents()
+
+
+def test_account_token_statistics_table_formats_today_values():
+    """启用账号今日统计表应复用 Token 和缓存率格式化规则。"""
+    application = QApplication.instance() or QApplication([])
+    table = AccountTokenStatisticsTable()
+    table.set_statistics(
+        [
+            {
+                "account_name": "账号一",
+                "account_type": "openai",
+                "priority": 9,
+                "total_tokens": 1_250,
+                "input_tokens": 1_000_000,
+                "output_tokens": 12,
+                "cached_tokens": 800,
+                "cache_rate": 0.8,
+            }
+        ]
+    )
+
+    assert table.rowCount() == 1
+    assert table.item(0, 0).text() == "账号一"
+    assert table.item(0, 2).text() == "9"
+    assert table.item(0, 3).text() == "1.2K"
+    assert table.item(0, 4).text() == "1M"
+    assert table.item(0, 7).text() == "80.0%"
+    table.deleteLater(); application.processEvents()

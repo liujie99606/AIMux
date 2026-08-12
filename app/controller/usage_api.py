@@ -12,8 +12,8 @@ router = APIRouter(prefix="/api/usage", tags=["usage"])
 
 
 @router.get("/statistics")
-def statistics(session: Session = Depends(get_session)) -> dict[str, usage_service.TokenStatistics]:
-    """返回本地今日和昨日的 Token 汇总。"""
+def statistics(session: Session = Depends(get_session)) -> dict[str, Any]:
+    """返回今日、昨日及各启用账号今日的 Token 汇总。"""
     return usage_service.token_statistics(session)
 
 

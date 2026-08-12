@@ -167,6 +167,96 @@ def test_usage_statistics_returns_today_and_yesterday_token_totals(settings):
     }
 
 
+def test_usage_statistics_groups_today_tokens_for_active_accounts(settings):
+    """账号今日统计只展示启用账号，并为无记录账号补零。"""
+    client = TestClient(create_app(settings))
+    high = client.post(
+        "/api/accounts",
+        json={
+            "name": "高优先级",
+            "base_url": "https://high.example/v1",
+            "api_key": "key",
+            "priority": 9,
+        },
+    ).json()
+    idle = client.post(
+        "/api/accounts",
+        json={
+            "name": "无用量",
+            "type": "anthropic",
+            "base_url": "https://idle.example",
+            "api_key": "key",
+            "priority": 6,
+        },
+    ).json()
+    disabled = client.post(
+        "/api/accounts",
+        json={
+            "name": "已禁用",
+            "base_url": "https://disabled.example/v1",
+            "api_key": "key",
+            "status": "disabled",
+        },
+    ).json()
+    today_start, _ = _local_day_range(0)
+    with Session(get_engine()) as session:
+        session.add_all(
+            [
+                UsageRecord(
+                    trace_id="high-1",
+                    started_at=today_start,
+                    account_id=high["id"],
+                    input_tokens=1000,
+                    output_tokens=200,
+                    cached_tokens=800,
+                    total_tokens=1200,
+                ),
+                UsageRecord(
+                    trace_id="high-2",
+                    started_at=today_start,
+                    account_id=high["id"],
+                    input_tokens=500,
+                    output_tokens=100,
+                    cached_tokens=200,
+                    total_tokens=600,
+                ),
+                UsageRecord(
+                    trace_id="disabled",
+                    started_at=today_start,
+                    account_id=disabled["id"],
+                    input_tokens=999,
+                    total_tokens=999,
+                ),
+            ]
+        )
+        session.commit()
+
+    accounts = client.get("/api/usage/statistics").json()["accounts_today"]
+    assert [item["account_id"] for item in accounts] == [high["id"], idle["id"]]
+    assert accounts[0] == {
+        "account_id": high["id"],
+        "account_name": "高优先级",
+        "account_type": "openai",
+        "priority": 9,
+        "input_tokens": 1500,
+        "output_tokens": 300,
+        "cached_tokens": 1000,
+        "total_tokens": 1800,
+        "cache_rate": 1000 / 1500,
+    }
+    assert accounts[1] == {
+        "account_id": idle["id"],
+        "account_name": "无用量",
+        "account_type": "anthropic",
+        "priority": 6,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "cache_rate": None,
+    }
+
+
 def test_reasoning_effort_recorded_from_request_body(settings, monkeypatch):
     """推理强度应原样记录下游请求体中的值，缺失时为空。"""
     import httpx

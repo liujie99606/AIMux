@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QLabel, QMessageBox, QVBoxLayout, QWidget
 
 from app.ui.client import ApiClient
+from app.ui.components.account_token_statistics_table import AccountTokenStatisticsTable
 from app.ui.components.common.background_loader import BackgroundLoader
 from app.ui.components.statistics_cards import TokenStatisticsCards
 
@@ -24,6 +25,11 @@ class StatisticsView(QWidget):
         layout.addWidget(title)
         self.cards = TokenStatisticsCards(self)
         layout.addWidget(self.cards)
+        account_title = QLabel("启用账号今日统计")
+        account_title.setObjectName("statisticsGroupTitle")
+        layout.addWidget(account_title)
+        self.account_table = AccountTokenStatisticsTable(self)
+        layout.addWidget(self.account_table, 1)
         self.refresh()
 
     def refresh(self) -> None:
@@ -32,7 +38,10 @@ class StatisticsView(QWidget):
 
     def _apply_statistics(self, data: object) -> None:
         """在主线程渲染后台查询返回的 Token 汇总。"""
-        self.cards.set_statistics(data if isinstance(data, dict) else {})
+        payload = data if isinstance(data, dict) else {}
+        self.cards.set_statistics(payload)
+        accounts = payload.get("accounts_today", [])
+        self.account_table.set_statistics(accounts if isinstance(accounts, list) else [])
 
     def _error(self, exc: object) -> None:
         """显示后台统计查询失败原因。"""

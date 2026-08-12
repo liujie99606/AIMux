@@ -5,7 +5,7 @@ from typing import Any
 
 from sqlmodel import Session
 
-from app.dao import usage_dao
+from app.dao import account_dao, usage_dao
 from app.models import UsageRecord
 
 UsageSummary = dict[str, int | float]
@@ -101,10 +101,24 @@ def get_usage_record(session: Session, record_id: str) -> dict[str, Any] | None:
     return to_view(record) if record else None
 
 
-def token_statistics(session: Session) -> dict[str, TokenStatistics]:
-    """汇总本地今日和昨日的 Token 数据。"""
+def token_statistics(session: Session) -> dict[str, TokenStatistics | list[dict[str, Any]]]:
+    """汇总本地今日、昨日及各启用账号今日的 Token 数据。"""
     yesterday_start, yesterday_end = _local_day_range(1)
     today_start, today_end = _local_day_range(0)
+    accounts, _ = account_dao.list_accounts(session, limit=10_000, status="active")
+    account_summaries = usage_dao.summarize_tokens_by_account(
+        session,
+        account_ids=[account.id for account in accounts],
+        started_after=today_start,
+        started_before=today_end,
+    )
+    empty_summary: TokenStatistics = {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "cache_rate": None,
+    }
     return {
         "yesterday": usage_dao.summarize_tokens(
             session, started_after=yesterday_start, started_before=yesterday_end
@@ -112,6 +126,16 @@ def token_statistics(session: Session) -> dict[str, TokenStatistics]:
         "today": usage_dao.summarize_tokens(
             session, started_after=today_start, started_before=today_end
         ),
+        "accounts_today": [
+            {
+                "account_id": account.id,
+                "account_name": account.name,
+                "account_type": account.type,
+                "priority": account.priority,
+                **account_summaries.get(account.id, empty_summary),
+            }
+            for account in accounts
+        ],
     }
 
 

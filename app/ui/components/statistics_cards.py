@@ -51,7 +51,6 @@ class TokenStatisticsCards(QWidget):
             group, cards = self._create_group(title)
             layout.addWidget(group)
             self._groups[key] = cards
-        layout.addStretch()
 
     def _create_group(self, title: str) -> tuple[QWidget, dict[str, _StatisticCard]]:
         """创建包含四项指标的日期分组。"""

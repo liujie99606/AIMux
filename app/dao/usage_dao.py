@@ -130,3 +130,46 @@ def summarize_tokens(
         "total_tokens": total_count,
         "cache_rate": cached_count / input_count if input_count else None,
     }
+
+
+def summarize_tokens_by_account(
+    session: Session,
+    *,
+    account_ids: list[str],
+    started_after: str,
+    started_before: str,
+) -> dict[str, dict[str, int | float | None]]:
+    """按账号汇总指定时间范围内的 Token 数据。"""
+    if not account_ids:
+        return {}
+    statement = (
+        select(
+            UsageRecord.account_id,
+            func.sum(UsageRecord.input_tokens),
+            func.sum(UsageRecord.output_tokens),
+            func.sum(UsageRecord.cached_tokens),
+            func.sum(UsageRecord.total_tokens),
+        )
+        .where(
+            UsageRecord.account_id.in_(account_ids),
+            UsageRecord.started_at >= started_after,
+            UsageRecord.started_at < started_before,
+        )
+        .group_by(UsageRecord.account_id)
+    )
+    summaries: dict[str, dict[str, int | float | None]] = {}
+    for account_id, input_tokens, output_tokens, cached_tokens, total_tokens in session.exec(
+        statement
+    ).all():
+        if account_id is None:
+            continue
+        input_count = input_tokens or 0
+        cached_count = cached_tokens or 0
+        summaries[account_id] = {
+            "input_tokens": input_count,
+            "output_tokens": output_tokens or 0,
+            "cached_tokens": cached_count,
+            "total_tokens": total_tokens or 0,
+            "cache_rate": cached_count / input_count if input_count else None,
+        }
+    return summaries
