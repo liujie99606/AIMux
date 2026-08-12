@@ -143,7 +143,12 @@ def main() -> None:
     started = time.perf_counter()
     _run_pyinstaller(args.clean)
     elapsed = time.perf_counter() - started
-    output_name = "AIMux.exe" if sys.platform == "win32" else "AIMux"
+    if sys.platform == "win32":
+        output_name = "AIMux.exe"
+    elif sys.platform == "darwin":
+        output_name = "AIMux.app"
+    else:
+        output_name = "AIMux"
     output = ROOT / "dist" / "AIMux" / output_name
     if not output.is_file():
         raise SystemExit(f"打包失败：未找到输出文件 {output}")

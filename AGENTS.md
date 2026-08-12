@@ -10,6 +10,8 @@
   [`skills/aimux-database-migrations/SKILL.md`](skills/aimux-database-migrations/SKILL.md)，并同步维护 `migrations/versions/`。普通 DAO/Service 增删改查、查询、排序和分页不需要新增 migration。
 - 执行 Windows 打包、安装包生成、版本升级、正式发版、产物验证或排查发布脚本时，阅读
   [`skills/aimux-windows-release/SKILL.md`](skills/aimux-windows-release/SKILL.md)。
+- 配置、触发、查看或排查 GitHub Actions 的 Windows/macOS 构建，或通过浏览器操作 GitHub Actions 页面时，阅读
+  [`skills/aimux-github-actions/SKILL.md`](skills/aimux-github-actions/SKILL.md)。
 - 同时涉及多个范围时，对应 skill 都要阅读并遵守。
 
 ## 通用要求

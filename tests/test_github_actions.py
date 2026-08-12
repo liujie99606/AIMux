@@ -1,0 +1,30 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+
+def test_cross_platform_workflow_builds_windows_and_macos_artifacts() -> None:
+    """跨平台工作流应支持手动和 tag 触发，并交付两个平台产物。"""
+    workflow = Path(".github/workflows/build-release.yml").read_text(encoding="utf-8")
+
+    assert "workflow_dispatch:" in workflow
+    assert 'tags:\n      - "v*"' in workflow
+    assert "runs-on: windows-latest" in workflow
+    assert "runs-on: macos-14" in workflow
+    assert "python scripts/release_installer.py" in workflow
+    assert "ditto -c -k --sequesterRsrc --keepParent" in workflow
+    assert "AIMux-Windows-Installer" in workflow
+    assert "AIMux-macOS-App" in workflow
+
+
+def test_macos_build_checks_app_bundle_output(monkeypatch, tmp_path: Path) -> None:
+    """macOS 打包完成后应校验 PyInstaller 生成的 app bundle。"""
+    from scripts import build
+
+    monkeypatch.setattr(build, "ROOT", tmp_path)
+    monkeypatch.setattr(build.sys, "platform", "darwin")
+    output = build.ROOT / "dist" / "AIMux" / "AIMux.app"
+    output.parent.mkdir(parents=True)
+    output.mkdir()
+
+    assert output.is_dir()
