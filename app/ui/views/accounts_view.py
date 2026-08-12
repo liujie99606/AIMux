@@ -7,6 +7,7 @@ from app.ui.components.accounts.account_form import AccountForm
 from app.ui.components.accounts.account_table import AccountTable
 from app.ui.components.accounts.account_test_dialog import AccountTestDialog
 from app.ui.components.accounts.batch_toolbar import BatchToolbar
+from app.ui.components.common.background_loader import BackgroundLoader
 
 
 class AccountsView(QWidget):
@@ -16,6 +17,9 @@ class AccountsView(QWidget):
         super().__init__(parent)
         self.client = client
         self.accounts: dict[str, dict] = {}
+        self.loader = BackgroundLoader(self)
+        self.loader.loaded.connect(self._apply_accounts)
+        self.loader.failed.connect(self._error)
         root = QVBoxLayout(self)
         root.setContentsMargins(20, 18, 20, 18)
         root.setSpacing(14)
@@ -70,19 +74,21 @@ class AccountsView(QWidget):
 
     def refresh(self) -> None:
         """按筛选条件刷新账号表格。"""
-        try:
-            params = {"limit": 200}
-            account_type = self.type_filter.currentText()
-            status = self.status_filter.currentText()
-            if account_type != "全部类型":
-                params["type"] = account_type
-            if status != "全部状态":
-                params["status"] = status
-            data = self.client.get("/api/accounts", params=params)
-            self.accounts = {item["id"]: item for item in data["items"]}
-            self.table.set_accounts(data["items"])
-        except Exception as exc:
-            self._error(exc)
+        params = {"limit": 200}
+        account_type = self.type_filter.currentText()
+        status = self.status_filter.currentText()
+        if account_type != "全部类型":
+            params["type"] = account_type
+        if status != "全部状态":
+            params["status"] = status
+        self.loader.load(lambda: self.client.get("/api/accounts", params=params))
+
+    def _apply_accounts(self, data: object) -> None:
+        """在主线程渲染后台查询返回的账号列表。"""
+        payload = data if isinstance(data, dict) else {}
+        items = payload.get("items", [])
+        self.accounts = {item["id"]: item for item in items}
+        self.table.set_accounts(items)
 
     def add(self) -> None:
         """打开带协议模型列表的账号创建表单。"""

@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QMessageBox, QVBoxLayout, QWidget
 
 from app.ui.client import ApiClient
+from app.ui.components.common.background_loader import BackgroundLoader
 from app.ui.components.usage.summary_card import SummaryCards
 from app.ui.components.usage.usage_detail_dialog import UsageDetailDialog
 from app.ui.components.usage.usage_filter import UsageFilter
@@ -30,6 +31,10 @@ class UsageView(QWidget):
     def __init__(self, client: ApiClient, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.client = client
+        self.loader = BackgroundLoader(self)
+        self.loader.loaded.connect(self._apply_records)
+        self.loader.failed.connect(self._query_error)
+        self._requested_page = 0
         root = QVBoxLayout(self)
         root.setContentsMargins(20, 18, 20, 18)
         root.setSpacing(14)
@@ -54,18 +59,27 @@ class UsageView(QWidget):
 
     def refresh(self, page: int | None = None) -> None:
         """按当前页查询使用记录。"""
-        try:
-            current_page = self.pagination.page if page is None else max(page, 0)
-            data = self.client.get(
+        current_page = self.pagination.page if page is None else max(page, 0)
+        self._requested_page = current_page
+        params = self.filter.parameters(offset=current_page * _PAGE_SIZE, limit=_PAGE_SIZE)
+        self.loader.load(
+            lambda: self.client.get(
                 "/api/usage/records",
-                params=self.filter.parameters(offset=current_page * _PAGE_SIZE, limit=_PAGE_SIZE),
+                params=params,
             )
-            items = data["items"]
-            self.table.set_records(items)
-            self.summary.set_summary(_page_summary(items))
-            self.pagination.set_total(data.get("total", 0), current_page)
-        except Exception as exc:
-            QMessageBox.warning(self, "查询失败", str(exc))
+        )
+
+    def _apply_records(self, data: object) -> None:
+        """在主线程渲染后台查询返回的当前页记录。"""
+        payload = data if isinstance(data, dict) else {}
+        items = payload.get("items", [])
+        self.table.set_records(items)
+        self.summary.set_summary(_page_summary(items))
+        self.pagination.set_total(payload.get("total", 0), self._requested_page)
+
+    def _query_error(self, exc: object) -> None:
+        """显示后台列表查询失败原因。"""
+        QMessageBox.warning(self, "查询失败", str(exc))
 
     def show_detail(self, record_id: str) -> None:
         """拉取使用记录详情并打开结构化弹窗展示全部字段。"""

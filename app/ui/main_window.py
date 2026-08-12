@@ -134,12 +134,36 @@ class MainWindow(QMainWindow):
     def _build_content(self) -> None:
         """构建各功能视图、导航项并接入内容栈。"""
         pages: list[tuple[str, QIcon, Callable[[ApiClient], QWidget]]] = [
-            ("账号管理", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView), AccountsView),
-            ("使用记录", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView), UsageView),
-            ("数据统计", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView), StatisticsView),
-            ("模型维护", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView), ModelsView),
-            ("监控", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView), MonitorView),
-            ("设置", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView), SettingsView),
+            (
+                "账号管理",
+                self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView),
+                AccountsView,
+            ),
+            (
+                "使用记录",
+                self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView),
+                UsageView,
+            ),
+            (
+                "数据统计",
+                self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView),
+                StatisticsView,
+            ),
+            (
+                "模型维护",
+                self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView),
+                ModelsView,
+            ),
+            (
+                "监控",
+                self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView),
+                MonitorView,
+            ),
+            (
+                "设置",
+                self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView),
+                SettingsView,
+            ),
         ]
         self._page_factories = [factory for _, _, factory in pages]
         self._page_widgets = [None] * len(pages)
@@ -197,15 +221,15 @@ class MainWindow(QMainWindow):
         self.navigation.clear()
         self._page_factories = []
         self._page_widgets = []
-        for index in range(self.content.count()):
-            widget = self.content.widget(index)
+        while self.content.count():
+            widget = self.content.widget(0)
             self.content.removeWidget(widget)
             widget.deleteLater()
         self._build_content()
         # 重建后恢复到原来所在页签。
         if 0 <= current < self.content.count():
             self.navigation.setCurrentRow(current)
-            if self._server_ready:
+            if self._server_ready and self._page_widgets[current] is None:
                 self._on_navigation_changed(current)
 
     def _add_navigation_item(self, title: str, icon: QIcon) -> None:

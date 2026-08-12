@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QLabel, QMessageBox, QVBoxLayout, QWidget
 
 from app.ui.client import ApiClient
+from app.ui.components.common.background_loader import BackgroundLoader
 from app.ui.components.statistics_cards import TokenStatisticsCards
 
 
@@ -12,6 +13,9 @@ class StatisticsView(QWidget):
     def __init__(self, client: ApiClient, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.client = client
+        self.loader = BackgroundLoader(self)
+        self.loader.loaded.connect(self._apply_statistics)
+        self.loader.failed.connect(self._error)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 18, 20, 18)
         layout.setSpacing(18)
@@ -24,7 +28,12 @@ class StatisticsView(QWidget):
 
     def refresh(self) -> None:
         """读取并展示最新的今日和昨日 Token 汇总。"""
-        try:
-            self.cards.set_statistics(self.client.get("/api/usage/statistics"))
-        except Exception as exc:
-            QMessageBox.warning(self, "查询失败", str(exc))
+        self.loader.load(lambda: self.client.get("/api/usage/statistics"))
+
+    def _apply_statistics(self, data: object) -> None:
+        """在主线程渲染后台查询返回的 Token 汇总。"""
+        self.cards.set_statistics(data if isinstance(data, dict) else {})
+
+    def _error(self, exc: object) -> None:
+        """显示后台统计查询失败原因。"""
+        QMessageBox.warning(self, "查询失败", str(exc))

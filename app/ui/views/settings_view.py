@@ -5,6 +5,7 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QCheckBox, QFormLayout, QLineEdit, QMessageBox, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 from app.ui.client import ApiClient
+from app.ui.components.common.background_loader import BackgroundLoader
 from app.utils.paths import data_dir
 
 
@@ -12,6 +13,9 @@ class SettingsView(QWidget):
     def __init__(self, client: ApiClient, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.client = client
+        self.loader = BackgroundLoader(self)
+        self.loader.loaded.connect(self._apply_settings)
+        self.loader.failed.connect(self._load_error)
         root = QVBoxLayout(self)
         root.setContentsMargins(20, 18, 20, 18)
         root.setSpacing(14)
@@ -54,10 +58,11 @@ class SettingsView(QWidget):
         self.open_data_button = QPushButton("打开数据目录")
         self.open_data_button.clicked.connect(self.open_data_directory)
         form.addRow("数据目录", self.open_data_button)
-        save = QPushButton("保存设置")
-        root.addWidget(save)
+        self.save_button = QPushButton("保存设置")
+        self.save_button.setEnabled(False)
+        root.addWidget(self.save_button)
         root.addStretch()
-        save.clicked.connect(self.save)
+        self.save_button.clicked.connect(self.save)
         self.refresh()
 
     def open_data_directory(self) -> None:
@@ -71,22 +76,31 @@ class SettingsView(QWidget):
         self.load()
 
     def load(self) -> None:
-        try:
-            data = self.client.get("/api/settings")
-            self.host.setText(data["host"])
-            self.port.setValue(data["port"])
-            self.db_path.setText(data["db_path"])
-            self.timeout.setValue(data["upstream_timeout_seconds"])
-            self.first_timeout.setValue(data["first_token_timeout_seconds"])
-            self.retries.setValue(data["request_retry_attempts"])
-            self.proxy_enabled.setChecked(data["upstream_proxy_enabled"])
-            self.proxy_url.setText(data["upstream_proxy_url"])
-            self.proxy_url.setEnabled(self.proxy_enabled.isChecked())
-            self.monitoring_enabled.setChecked(data.get("monitoring_enabled", True))
-            self.token.setText(data["local_token"])
-            self.launch_at_login.setChecked(data["launch_at_login"])
-        except Exception as exc:
-            QMessageBox.warning(self, "读取失败", str(exc))
+        """后台读取最新设置。"""
+        self.loader.load(lambda: self.client.get("/api/settings"))
+
+    def _apply_settings(self, data: object) -> None:
+        """在主线程将后台查询结果填入设置表单。"""
+        if not isinstance(data, dict):
+            return
+        self.host.setText(data["host"])
+        self.port.setValue(data["port"])
+        self.db_path.setText(data["db_path"])
+        self.timeout.setValue(data["upstream_timeout_seconds"])
+        self.first_timeout.setValue(data["first_token_timeout_seconds"])
+        self.retries.setValue(data["request_retry_attempts"])
+        self.proxy_enabled.setChecked(data["upstream_proxy_enabled"])
+        self.proxy_url.setText(data["upstream_proxy_url"])
+        self.proxy_url.setEnabled(self.proxy_enabled.isChecked())
+        self.monitoring_enabled.setChecked(data.get("monitoring_enabled", True))
+        self.token.setText(data["local_token"])
+        self.launch_at_login.setChecked(data["launch_at_login"])
+        self.save_button.setEnabled(True)
+
+    def _load_error(self, exc: object) -> None:
+        """显示后台设置查询失败原因。"""
+        self.save_button.setEnabled(True)
+        QMessageBox.warning(self, "读取失败", str(exc))
 
     def save(self) -> None:
         payload = {

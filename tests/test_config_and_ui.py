@@ -2,10 +2,21 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from pathlib import Path
 
 from app.config import load_settings
 from app.ui.client import local_api_base_url
+
+
+def _wait_until(predicate, timeout_ms: int = 1000) -> None:
+    """处理 Qt 事件直到异步断言条件成立或超时。"""
+    from PySide6.QtTest import QTest
+
+    deadline = time.monotonic() + timeout_ms / 1000
+    while not predicate() and time.monotonic() < deadline:
+        QTest.qWait(10)
+    assert predicate()
 
 
 def test_environment_overrides_config_and_uses_dynamic_data_dir(tmp_path, monkeypatch):
@@ -154,6 +165,125 @@ def test_main_window_lazily_creates_only_selected_page(monkeypatch):
     application.processEvents()
 
 
+def test_main_window_reload_rebuilds_selected_page_once(monkeypatch):
+    """非首页热重载应稳定清空内容栈，并只创建一次当前页面。"""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication, QWidget
+
+    from app.config import Settings
+    from app.ui import main_window
+
+    events: list[str] = []
+
+    class View(QWidget):
+        def __init__(self, *_args: object) -> None:
+            super().__init__()
+            events.append("create")
+
+        def refresh(self) -> None:
+            events.append("refresh")
+
+    view_names = (
+        "AccountsView",
+        "UsageView",
+        "StatisticsView",
+        "ModelsView",
+        "MonitorView",
+        "SettingsView",
+    )
+    for name in view_names:
+        monkeypatch.setattr(main_window, name, View)
+
+    application = QApplication.instance() or QApplication([])
+    window = main_window.MainWindow(Settings())
+    window._server_ready = True
+    window.navigation.setCurrentRow(3)
+    events.clear()
+
+    window._reload_views()
+
+    assert window.navigation.currentRow() == 3
+    assert events == ["create"]
+    assert window.content.count() == 6
+    window.tray.hide()
+    window.deleteLater()
+    application.processEvents()
+
+
+def test_account_background_refresh_does_not_block_qt_event_loop(monkeypatch):
+    """慢账号查询应在线程池运行，不能阻塞窗口事件循环。"""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication
+
+    from app.ui.views.accounts_view import AccountsView
+
+    class SlowClient:
+        def get(self, path: str, **_kwargs: object) -> dict[str, list[dict]]:
+            assert path == "/api/accounts"
+            time.sleep(0.3)
+            return {"items": []}
+
+    application = QApplication.instance() or QApplication([])
+    heartbeat: list[bool] = []
+    started = time.perf_counter()
+    view = AccountsView(SlowClient())
+    elapsed = time.perf_counter() - started
+    QTimer.singleShot(10, lambda: heartbeat.append(True))
+
+    _wait_until(lambda: bool(heartbeat), 100)
+
+    assert elapsed < 0.15
+    view.deleteLater()
+    application.processEvents()
+
+
+def test_background_loader_discards_stale_query_result(monkeypatch):
+    """连续查询乱序完成时只允许最新结果更新页面。"""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication
+
+    from app.ui.components.common.background_loader import BackgroundLoader
+
+    application = QApplication.instance() or QApplication([])
+    loader = BackgroundLoader()
+    results: list[str] = []
+    loader.loaded.connect(results.append)
+
+    def slow_old_query() -> str:
+        time.sleep(0.15)
+        return "old"
+
+    loader.load(slow_old_query)
+    loader.load(lambda: "new")
+    _wait_until(lambda: results == ["new"])
+    time.sleep(0.2)
+    application.processEvents()
+
+    assert results == ["new"]
+    loader.deleteLater()
+    application.processEvents()
+
+
+def test_background_task_survives_page_loader_deletion(monkeypatch):
+    """页面销毁时运行中的查询应安全结束，不能访问已释放的信号对象。"""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtCore import QThreadPool
+    from PySide6.QtWidgets import QApplication
+
+    from app.ui.components.common.background_loader import BackgroundLoader, _ACTIVE_TASKS
+
+    application = QApplication.instance() or QApplication([])
+    loader = BackgroundLoader()
+    loader.load(lambda: time.sleep(0.1))
+    loader.deleteLater()
+    application.processEvents()
+
+    assert QThreadPool.globalInstance().waitForDone(1000)
+    application.processEvents()
+    assert not _ACTIVE_TASKS
+
+
 def test_account_priority_change_refreshes_account_list(monkeypatch):
     """账号优先级保存后应重新查询列表，以应用最新排序。"""
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
@@ -235,8 +365,16 @@ def test_desktop_components_are_constructible(monkeypatch):
     fake_client = FakeClient()
     models_view = ModelsView(fake_client)
     models_view.type_filter.setCurrentText("anthropic")
+    _wait_until(
+        lambda: bool(fake_client.calls)
+        and fake_client.calls[-1] == ("/api/models", {"params": {"type": "anthropic"}})
+    )
     assert fake_client.calls[-1] == ("/api/models", {"params": {"type": "anthropic"}})
     statistics_view = StatisticsView(fake_client)
+    _wait_until(
+        lambda: bool(fake_client.calls)
+        and fake_client.calls[-1] == ("/api/usage/statistics", {})
+    )
     assert fake_client.calls[-1] == ("/api/usage/statistics", {})
     pagination = UsagePagination()
     clock = CurrentTimeLabel()
@@ -301,6 +439,7 @@ def test_settings_view_saves_explicit_upstream_proxy(tmp_path, monkeypatch):
     client = FakeClient()
     view = SettingsView(client)
 
+    _wait_until(lambda: view.proxy_url.text() == "http://127.0.0.1:7890")
     assert not view.proxy_enabled.isChecked()
     assert not view.proxy_url.isEnabled()
     view.proxy_enabled.setChecked(True)
@@ -342,6 +481,7 @@ def test_monitor_view_renders_accounts_and_refreshes_status(monkeypatch):
 
     application = QApplication.instance() or QApplication([])
     view = MonitorView(FakeClient())
+    _wait_until(lambda: view.rows.count() == 1)
     assert view.status.text() == "监控已关闭"
     assert view.rows.count() == 1
     row = view.rows.itemAt(0).layout()

@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QMessageBox, QPushButton, QVBoxLayout, QWidget
 
 from app.ui.client import ApiClient
+from app.ui.components.common.background_loader import BackgroundLoader
 from app.ui.components.models.model_form import ModelForm
 from app.ui.components.models.model_table import ModelTable
 
@@ -14,6 +15,9 @@ class ModelsView(QWidget):
         super().__init__(parent)
         self.client = client
         self.models: dict[str, dict] = {}
+        self.loader = BackgroundLoader(self)
+        self.loader.loaded.connect(self._apply_models)
+        self.loader.failed.connect(self._error)
         root = QVBoxLayout(self)
         root.setContentsMargins(20, 18, 20, 18)
         root.setSpacing(14)
@@ -45,16 +49,18 @@ class ModelsView(QWidget):
 
     def refresh(self) -> None:
         """重新读取模型目录并绘制表格。"""
-        try:
-            params: dict[str, str] = {}
-            model_type = self.type_filter.currentText()
-            if model_type != "全部类型":
-                params["type"] = model_type
-            items = self.client.get("/api/models", params=params)["items"]
-            self.models = {item["id"]: item for item in items}
-            self.table.set_models(items)
-        except Exception as exc:
-            self._error(exc)
+        params: dict[str, str] = {}
+        model_type = self.type_filter.currentText()
+        if model_type != "全部类型":
+            params["type"] = model_type
+        self.loader.load(lambda: self.client.get("/api/models", params=params))
+
+    def _apply_models(self, data: object) -> None:
+        """在主线程渲染后台查询返回的模型目录。"""
+        payload = data if isinstance(data, dict) else {}
+        items = payload.get("items", [])
+        self.models = {item["id"]: item for item in items}
+        self.table.set_models(items)
 
     def add(self) -> None:
         """新增模型后立即刷新目录。"""
