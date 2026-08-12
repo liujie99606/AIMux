@@ -8,6 +8,8 @@
   [`skills/aimux-backend/SKILL.md`](skills/aimux-backend/SKILL.md)。
 - 修改 SQLModel 表结构、字段/约束/索引，或需要转换、回填已有持久化数据时，额外阅读
   [`skills/aimux-database-migrations/SKILL.md`](skills/aimux-database-migrations/SKILL.md)，并同步维护 `migrations/versions/`。普通 DAO/Service 增删改查、查询、排序和分页不需要新增 migration。
+- 执行 Windows 打包、安装包生成、版本升级、正式发版、产物验证或排查发布脚本时，阅读
+  [`skills/aimux-windows-release/SKILL.md`](skills/aimux-windows-release/SKILL.md)。
 - 同时涉及多个范围时，对应 skill 都要阅读并遵守。
 
 ## 通用要求

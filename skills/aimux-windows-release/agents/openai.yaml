@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIMux Windows 发版"
+  short_description: "执行 AIMux Windows 测试、版本升级与安装包发布流程"
+  default_prompt: "Use $aimux-windows-release to prepare, build, verify, and report an AIMux Windows release."
