@@ -98,9 +98,9 @@ Anthropic 兼容接口：`/v1/messages`、`/v1/messages/count_tokens`、`/v1/mes
 |------|------|------|------|
 | `scripts/win_build.bat` | Windows | 双击运行，或终端执行 `.\scripts\win_build.bat` | `dist\AIMux\AIMux.exe` |
 | `scripts/win_build_clean.bat` | Windows | 双击运行全量构建 | `dist\AIMux\AIMux.exe` |
-| `scripts/win_release.bat` | Windows | 双击运行安装包发布 | `release\AIMux-Setup-<版本>.exe` |
+| `scripts/win_release.bat` | Windows | 双击运行安装包发布 | `release\AIMux-Windows-<架构>.exe` |
 | `scripts/mac_build.sh` | macOS | 终端执行 `chmod +x scripts/mac_build.sh && ./scripts/mac_build.sh` | `dist/AIMux/AIMux.app` |
 
 打包使用 PyInstaller 的 `--onedir` 模式。仅在 `assets/icons` 中缺少 PNG、ICO 或 ICNS 时自动生成图标，普通构建保留 PyInstaller 增量缓存；需要排查缓存问题时可双击 `win_build_clean.bat`，或执行 ` .\scripts\win_build.bat --clean`。Windows 打包前会检测 `dist\AIMux\AIMux.exe` 是否正在运行，若被占用会提示先从托盘退出。内置资源已通过 `sys._MEIPASS` 适配打包运行环境。用户数据（数据库、配置、明文上游密钥）仍存放在系统用户目录，与打包产物解耦。单独更新图标可运行 ` .\.venv\Scripts\python.exe scripts\generate_icon.py`。
 
-向其他 Windows 用户发布时，先安装 [Inno Setup 6](https://jrsoftware.org/isinfo.php)，或执行 `winget install --id JRSoftware.InnoSetup -e`，再双击 `scripts\win_release.bat`。脚本会执行全量 PyInstaller 构建，并输出单文件安装包 `release\AIMux-Setup-<版本>.exe`。安装器使用固定 AppId 覆盖升级，默认安装到当前用户的 `%LOCALAPPDATA%\Programs\AIMux`，不要求管理员权限；安装和卸载均不会删除 `%APPDATA%\aimux` 中的数据库与配置。
+向其他 Windows 用户发布时，先安装 [Inno Setup 6](https://jrsoftware.org/isinfo.php)，或执行 `winget install --id JRSoftware.InnoSetup -e`，再双击 `scripts\win_release.bat`。脚本会执行全量 PyInstaller 构建，并根据本机架构输出 `release\AIMux-Windows-x64.exe` 或 `release\AIMux-Windows-arm64.exe`。安装器使用固定 AppId 覆盖升级，默认安装到当前用户的 `%LOCALAPPDATA%\Programs\AIMux`，不要求管理员权限；安装和卸载均不会删除 `%APPDATA%\aimux` 中的数据库与配置。

@@ -18,8 +18,10 @@ description: AIMux GitHub Actions 跨平台构建规范。用户要求配置、�
 4. 需要立即构建时，点击 `Run workflow`，选择目标分支并确认运行。
 5. 查看运行状态；完成后从 Artifacts 下载：
 
-   - `AIMux-Windows-Installer`
-   - `AIMux-macOS-App`
+   - `AIMux-Windows-x64`
+   - `AIMux-Windows-arm64`
+   - `AIMux-macOS-x64`
+   - `AIMux-macOS-arm64`
 
 ## Tag 构建与 Release
 
@@ -34,8 +36,8 @@ git push origin v0.1.0
 
 ## 产物边界
 
-- Windows runner 使用 PyInstaller 和 Inno Setup，产出单文件 `AIMux-Setup-<版本>.exe`。
-- macOS runner 使用 `scripts/mac_build.sh`，产出 `AIMux-macOS.zip`。
+- Windows x64 与 ARM64 runner 分别使用 PyInstaller 和 Inno Setup，产出 `AIMux-Windows-x64.exe` 与 `AIMux-Windows-arm64.exe`。
+- macOS Apple Silicon 与 Intel runner 分别产出 `AIMux-macOS-arm64.zip` 与 `AIMux-macOS-x64.zip`。
 - `workflow_dispatch` 手动构建只上传 Artifact；`v*` 标签构建还会自动创建或更新 GitHub Release。
 - workflow 不包含 Apple 签名、公证或 Windows 代码签名。
 - 未签名产物可能触发 SmartScreen 或 Gatekeeper，不能将“构建成功”描述成“已获得系统信任”。

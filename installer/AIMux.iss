@@ -1,6 +1,14 @@
 #ifndef MyAppVersion
   #define MyAppVersion "0.1.0"
 #endif
+#ifndef MyAppArch
+  #define MyAppArch "x64"
+#endif
+#if MyAppArch == "arm64"
+  #define MyAppArchitecture "arm64"
+#else
+  #define MyAppArchitecture "x64compatible"
+#endif
 
 #define MyAppName "AIMux"
 #define MyAppPublisher "AIMux"
@@ -16,9 +24,10 @@ DefaultDirName={localappdata}\Programs\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
-ArchitecturesAllowed=x64compatible
+ArchitecturesAllowed={#MyAppArchitecture}
+ArchitecturesInstallIn64BitMode={#MyAppArchitecture}
 OutputDir=..\release
-OutputBaseFilename=AIMux-Setup-{#MyAppVersion}
+OutputBaseFilename=AIMux-Windows-{#MyAppArch}
 SetupIconFile=..\assets\icons\aimux.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma2

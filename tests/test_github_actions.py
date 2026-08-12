@@ -19,17 +19,19 @@ def test_cross_platform_workflow_builds_windows_and_macos_artifacts() -> None:
 
     assert "workflow_dispatch:" in workflow
     assert 'tags:\n      - "v*"' in workflow
-    assert "runs-on: windows-latest" in workflow
-    assert "runs-on: macos-14" in workflow
+    assert "runner: windows-latest" in workflow
+    assert "runner: windows-11-arm" in workflow
+    assert "runner: macos-15" in workflow
+    assert "runner: macos-15-intel" in workflow
     assert 'PYTHONUTF8: "1"' in workflow
-    assert "dist/AIMux.app AIMux-macOS.zip" in workflow
+    assert "dist/AIMux.app AIMux-macOS-${{ matrix.arch }}.zip" in workflow
     assert "uses: actions/checkout@v5" in workflow
     assert "uses: actions/setup-python@v6" in workflow
     assert "AIMUX_PYTHON: python3.13" in workflow
     assert "python scripts/release_installer.py" in workflow
     assert "ditto -c -k --sequesterRsrc --keepParent" in workflow
-    assert "AIMux-Windows-Installer" in workflow
-    assert "AIMux-macOS-App" in workflow
+    assert "AIMux-Windows-${{ matrix.arch }}" in workflow
+    assert "AIMux-macOS-${{ matrix.arch }}" in workflow
     assert "contents: write" in workflow
     assert "if: startsWith(github.ref, 'refs/tags/v')" in workflow
     assert "uses: actions/download-artifact@v5" in workflow

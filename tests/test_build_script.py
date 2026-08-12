@@ -94,7 +94,11 @@ def test_windows_release_installer_preserves_user_data_and_supports_upgrade() ->
     assert "DefaultDirName={localappdata}\\Programs\\{#MyAppName}" in installer
     assert "PrivilegesRequired=lowest" in installer
     assert 'Source: "..\\dist\\AIMux\\*"' in installer
-    assert "AIMux-Setup-{#MyAppVersion}" in installer
+    assert '#define MyAppArchitecture "arm64"' in installer
+    assert '#define MyAppArchitecture "x64compatible"' in installer
+    assert "ArchitecturesAllowed={#MyAppArchitecture}" in installer
+    assert "ArchitecturesInstallIn64BitMode={#MyAppArchitecture}" in installer
+    assert "AIMux-Windows-{#MyAppArch}" in installer
     assert "ChineseSimplified.isl" not in installer
     assert "%appdata%" not in installer.lower()
     assert "{userappdata}" not in installer.lower()
@@ -114,7 +118,16 @@ def test_windows_release_script_reads_project_version_and_uses_clean_build() -> 
 
 def test_release_installer_reads_project_version() -> None:
     """安装包名称应使用 pyproject.toml 中的统一版本。"""
-    assert release_installer.read_project_version() == "0.1.1"
+    assert release_installer.read_project_version() == "0.1.2"
+
+
+def test_release_installer_maps_supported_windows_architectures(monkeypatch) -> None:
+    """Windows 发布脚本应区分 x64 与 ARM64 原生产物。"""
+    monkeypatch.setattr(release_installer.platform, "machine", lambda: "AMD64")
+    assert release_installer.read_machine_architecture() == "x64"
+
+    monkeypatch.setattr(release_installer.platform, "machine", lambda: "ARM64")
+    assert release_installer.read_machine_architecture() == "arm64"
 
 
 def test_release_installer_finds_common_user_install(monkeypatch, tmp_path: Path) -> None:

@@ -11,8 +11,16 @@ permissions:
 
 jobs:
   build-windows:
-    name: Windows Installer
-    runs-on: windows-latest
+    name: Windows ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     env:
       PYTHONUTF8: "1"
@@ -35,13 +43,21 @@ jobs:
       - name: Upload Windows installer
         uses: actions/upload-artifact@v5
         with:
-          name: AIMux-Windows-Installer
-          path: release/AIMux-Setup-*.exe
+          name: AIMux-Windows-${{ matrix.arch }}
+          path: release/AIMux-Windows-${{ matrix.arch }}.exe
           if-no-files-found: error
 
   build-macos:
-    name: macOS App
-    runs-on: macos-14
+    name: macOS ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     env:
       PYTHONUTF8: "1"
@@ -58,12 +74,12 @@ jobs:
           ./scripts/mac_build.sh
       - name: Package macOS app
         run: |
-          ditto -c -k --sequesterRsrc --keepParent dist/AIMux.app AIMux-macOS.zip
+          ditto -c -k --sequesterRsrc --keepParent dist/AIMux.app AIMux-macOS-${{ matrix.arch }}.zip
       - name: Upload macOS app
         uses: actions/upload-artifact@v5
         with:
-          name: AIMux-macOS-App
-          path: AIMux-macOS.zip
+          name: AIMux-macOS-${{ matrix.arch }}
+          path: AIMux-macOS-${{ matrix.arch }}.zip
           if-no-files-found: error
 
   publish-release:

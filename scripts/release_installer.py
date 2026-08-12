@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import platform
 import shutil
 import subprocess
 import sys
@@ -14,6 +15,16 @@ def read_project_version() -> str:
     """从 pyproject.toml 读取唯一发布版本。"""
     content = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     return str(tomllib.loads(content)["project"]["version"])
+
+
+def read_machine_architecture() -> str:
+    """将当前 Windows 机器架构转换为发布产物使用的名称。"""
+    machine = platform.machine().lower()
+    if machine in {"amd64", "x86_64"}:
+        return "x64"
+    if machine in {"arm64", "aarch64"}:
+        return "arm64"
+    raise SystemExit(f"[AIMux] 不支持的 Windows 架构：{platform.machine()}")
 
 
 def find_inno_compiler() -> Path | None:
@@ -51,18 +62,20 @@ def main() -> None:
             "[AIMux] 请先执行：winget install --id JRSoftware.InnoSetup -e"
         )
     version = read_project_version()
-    print(f"[AIMux] 正在生成 {version} 单文件安装包 ...", flush=True)
+    architecture = read_machine_architecture()
+    print(f"[AIMux] 正在生成 {version} {architecture} 单文件安装包 ...", flush=True)
     subprocess.run(
         [
             str(compiler),
             "/Qp",
             f"/DMyAppVersion={version}",
+            f"/DMyAppArch={architecture}",
             str(ROOT / "installer" / "AIMux.iss"),
         ],
         cwd=ROOT,
         check=True,
     )
-    output = ROOT / "release" / f"AIMux-Setup-{version}.exe"
+    output = ROOT / "release" / f"AIMux-Windows-{architecture}.exe"
     if not output.is_file():
         raise SystemExit(f"[AIMux] 未找到预期安装包：{output}")
     print(f"[AIMux] 安装包：{output}", flush=True)

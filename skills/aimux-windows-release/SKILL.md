@@ -27,6 +27,6 @@ description: AIMux Windows 简化发版流程。用户要求发版、升级版�
    请双击 scripts\win_release.bat
    ```
 
-   该脚本会自动全量构建应用并生成 `release\AIMux-Setup-<版本>.exe`。
+   该脚本会自动全量构建应用，并根据本机架构生成 `release\AIMux-Windows-x64.exe` 或 `release\AIMux-Windows-arm64.exe`。
 
 不要自动执行 `win_release.bat`、`git commit`、`git push`、安装验证或上传发布物，除非用户另行明确要求。涉及数据库结构时，另遵守 `../aimux-database-migrations/SKILL.md`。
