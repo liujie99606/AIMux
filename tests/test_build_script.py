@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from scripts import build
+from scripts import release_installer
 
 
 def test_existing_icons_skip_regeneration(tmp_path: Path, monkeypatch) -> None:
@@ -75,3 +76,42 @@ def test_phase_log_mapping_covers_slow_build_steps() -> None:
     assert "Python 归档" in (build._phase_for_line("123 INFO: Building PYZ") or "")
     assert "可执行文件" in (build._phase_for_line("123 INFO: Building EXE") or "")
     assert "复制" in (build._phase_for_line("123 INFO: Building COLLECT") or "")
+
+
+def test_windows_release_installer_preserves_user_data_and_supports_upgrade() -> None:
+    """安装器应固定 AppId、按用户安装，且不能打包或删除用户数据目录。"""
+    installer = (build.ROOT / "installer" / "AIMux.iss").read_text(encoding="utf-8")
+
+    assert "AppId={#MyAppId}" in installer
+    assert "DefaultDirName={localappdata}\\Programs\\{#MyAppName}" in installer
+    assert "PrivilegesRequired=lowest" in installer
+    assert 'Source: "..\\dist\\AIMux\\*"' in installer
+    assert "AIMux-Setup-{#MyAppVersion}" in installer
+    assert "%appdata%" not in installer.lower()
+    assert "{userappdata}" not in installer.lower()
+
+
+def test_windows_release_script_reads_project_version_and_uses_clean_build() -> None:
+    """发布入口应先执行全量应用构建，再调用可测试的安装包脚本。"""
+    script = (build.ROOT / "scripts" / "win_release.bat").read_text(encoding="utf-8")
+
+    assert 'call "%~dp0win_build.bat" --clean' in script
+    assert '".venv\\Scripts\\python.exe" scripts\\release_installer.py' in script
+
+
+def test_release_installer_reads_project_version() -> None:
+    """安装包名称应使用 pyproject.toml 中的统一版本。"""
+    assert release_installer.read_project_version() == "0.1.0"
+
+
+def test_release_installer_finds_common_user_install(monkeypatch, tmp_path: Path) -> None:
+    """ISCC 不在 PATH 时应识别当前用户的 Inno Setup 默认位置。"""
+    compiler = tmp_path / "Programs" / "Inno Setup 6" / "ISCC.exe"
+    compiler.parent.mkdir(parents=True)
+    compiler.write_bytes(b"")
+    monkeypatch.setattr(release_installer.shutil, "which", lambda _: None)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setenv("ProgramFiles(x86)", str(tmp_path / "x86"))
+    monkeypatch.setenv("ProgramFiles", str(tmp_path / "x64"))
+
+    assert release_installer.find_inno_compiler() == compiler
