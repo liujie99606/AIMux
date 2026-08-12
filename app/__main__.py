@@ -62,14 +62,8 @@ def main() -> None:
     if args.server_only:
         thread.join()
         return
-    deadline = time.monotonic() + 8
-    while (not servers or not servers[0].started) and not errors and time.monotonic() < deadline:
-        time.sleep(0.05)
-    if errors:
-        raise RuntimeError(f"AIMux 服务启动失败，详情见 {data_dir() / 'startup-error.log'}") from errors[0]
-    if not servers or not servers[0].started:
-        raise RuntimeError(f"AIMux 服务未能启动: {address}")
-    from PySide6.QtWidgets import QApplication
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QApplication, QMessageBox
     import qdarktheme
     from app.ui.main_window import MainWindow
     application = QApplication([])
@@ -77,6 +71,29 @@ def main() -> None:
     qdarktheme.setup_theme("dark")
     application.setQuitOnLastWindowClosed(False)
     window = MainWindow(settings); window.show()
+
+    deadline = time.monotonic() + 8
+
+    def load_when_server_ready() -> None:
+        """窗口显示后等待后端就绪，再启动当前页面的数据加载。"""
+        if errors:
+            QMessageBox.critical(
+                window,
+                "AIMux 启动失败",
+                f"本地服务启动失败，详情见：\n{data_dir() / 'startup-error.log'}",
+            )
+            application.quit()
+            return
+        if not servers or not servers[0].started:
+            if time.monotonic() < deadline:
+                QTimer.singleShot(50, load_when_server_ready)
+                return
+            QMessageBox.critical(window, "AIMux 启动失败", f"本地服务未能启动：{address}")
+            application.quit()
+            return
+        window.load_current_page()
+
+    QTimer.singleShot(0, load_when_server_ready)
     application.exec()
     if servers:
         servers[0].should_exit = True

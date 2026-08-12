@@ -104,6 +104,56 @@ def test_main_window_constructs_github_link(monkeypatch):
     application.processEvents()
 
 
+def test_main_window_lazily_creates_only_selected_page(monkeypatch):
+    """主窗口启动时只创建当前页面，切换菜单后才创建目标页面。"""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication, QWidget
+    from PySide6.QtTest import QTest
+
+    from app.config import Settings
+    from app.ui import main_window
+
+    created: list[str] = []
+
+    def factory(name: str):
+        class EmptyView(QWidget):
+            """记录创建次数的页面占位。"""
+
+            def __init__(self, *_args: object) -> None:
+                super().__init__()
+                created.append(name)
+
+        return EmptyView
+
+    for view_name in (
+        "AccountsView",
+        "UsageView",
+        "StatisticsView",
+        "ModelsView",
+        "MonitorView",
+        "SettingsView",
+    ):
+        monkeypatch.setattr(main_window, view_name, factory(view_name))
+
+    application = QApplication.instance() or QApplication([])
+    window = main_window.MainWindow(Settings())
+    assert created == []
+    assert window._page_widgets == [None] * 6
+
+    window.load_current_page()
+    QTest.qWait(70)
+    application.processEvents()
+    assert created == ["AccountsView"]
+    assert window._page_widgets[0] is not None
+
+    window.navigation.setCurrentRow(3)
+    assert created == ["AccountsView", "ModelsView"]
+    assert window._page_widgets[3] is not None
+    window.tray.hide()
+    window.deleteLater()
+    application.processEvents()
+
+
 def test_account_priority_change_refreshes_account_list(monkeypatch):
     """账号优先级保存后应重新查询列表，以应用最新排序。"""
     monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")

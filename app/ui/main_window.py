@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt, QUrl
+from collections.abc import Callable
+
+from PySide6.QtCore import QTimer, QSize, Qt, QUrl
 from PySide6.QtGui import QAction, QCloseEvent, QDesktopServices, QIcon, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
@@ -62,6 +64,9 @@ class MainWindow(QMainWindow):
         self.navigation.setSpacing(2)
         self.navigation.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.content = QStackedWidget()
+        self._page_factories: list[Callable[[ApiClient], QWidget]] = []
+        self._page_widgets: list[QWidget | None] = []
+        self._server_ready = False
         self._build_content()
 
         sidebar = QFrame()
@@ -128,25 +133,54 @@ class MainWindow(QMainWindow):
 
     def _build_content(self) -> None:
         """构建各功能视图、导航项并接入内容栈。"""
-        self.content.addWidget(AccountsView(self.client))
-        self.content.addWidget(UsageView(self.client))
-        self.content.addWidget(StatisticsView(self.client))
-        self.content.addWidget(ModelsView(self.client))
-        self.content.addWidget(MonitorView(self.client))
-        self.content.addWidget(SettingsView(self.client))
-        self._add_navigation_item("账号管理", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView))
-        self._add_navigation_item("使用记录", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
-        self._add_navigation_item("数据统计", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView))
-        self._add_navigation_item("模型维护", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView))
-        self._add_navigation_item("监控", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView))
-        self._add_navigation_item("设置", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView))
-        self.navigation.currentRowChanged.connect(self._on_navigation_changed)
+        pages: list[tuple[str, QIcon, Callable[[ApiClient], QWidget]]] = [
+            ("账号管理", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogDetailedView), AccountsView),
+            ("使用记录", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView), UsageView),
+            ("数据统计", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView), StatisticsView),
+            ("模型维护", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView), ModelsView),
+            ("监控", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogInfoView), MonitorView),
+            ("设置", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView), SettingsView),
+        ]
+        self._page_factories = [factory for _, _, factory in pages]
+        self._page_widgets = [None] * len(pages)
+        for title, icon, _ in pages:
+            self.content.addWidget(self._loading_placeholder())
+            self._add_navigation_item(title, icon)
         self.navigation.setCurrentRow(0)
+        self.navigation.currentRowChanged.connect(self._on_navigation_changed)
+
+    @staticmethod
+    def _loading_placeholder() -> QWidget:
+        """创建页面首次加载前显示的轻量占位控件。"""
+        placeholder = QWidget()
+        layout = QVBoxLayout(placeholder)
+        label = QLabel("正在加载...")
+        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(label)
+        return placeholder
+
+    def load_current_page(self) -> None:
+        """在窗口显示后异步创建并加载当前页面。"""
+        self._server_ready = True
+        QTimer.singleShot(50, lambda: self._on_navigation_changed(self.navigation.currentRow()))
 
     def _on_navigation_changed(self, index: int) -> None:
         """切换页面并读取当前视图的最新数据。"""
+        if not 0 <= index < len(self._page_factories):
+            return
         self.content.setCurrentIndex(index)
-        view = self.content.widget(index)
+        if not self._server_ready:
+            return
+        view = self._page_widgets[index]
+        if view is None:
+            placeholder = self.content.widget(index)
+            view = self._page_factories[index](self.client)
+            self.content.removeWidget(placeholder)
+            placeholder.deleteLater()
+            self.content.insertWidget(index, view)
+            self._page_widgets[index] = view
+            self.content.setCurrentIndex(index)
+            return
         refresh = getattr(view, "refresh", None)
         if callable(refresh):
             refresh()
@@ -161,6 +195,8 @@ class MainWindow(QMainWindow):
         # 断开旧导航信号，避免重建过程中触发 setCurrentIndex。
         self.navigation.currentRowChanged.disconnect(self._on_navigation_changed)
         self.navigation.clear()
+        self._page_factories = []
+        self._page_widgets = []
         for index in range(self.content.count()):
             widget = self.content.widget(index)
             self.content.removeWidget(widget)
@@ -169,6 +205,8 @@ class MainWindow(QMainWindow):
         # 重建后恢复到原来所在页签。
         if 0 <= current < self.content.count():
             self.navigation.setCurrentRow(current)
+            if self._server_ready:
+                self._on_navigation_changed(current)
 
     def _add_navigation_item(self, title: str, icon: QIcon) -> None:
         """添加一个固定尺寸的左侧菜单项，并与内容栈索引保持一致。"""
