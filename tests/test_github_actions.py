@@ -36,6 +36,7 @@ def test_cross_platform_workflow_builds_windows_and_macos_artifacts() -> None:
     assert workflow.count("uses: actions/upload-artifact@v5") == 2
     assert "gh release create" in workflow
     assert "gh release upload" in workflow
+    assert "GH_REPO: ${{ github.repository }}" in workflow
 
 
 def test_macos_build_checks_app_bundle_output(monkeypatch, tmp_path: Path) -> None:
