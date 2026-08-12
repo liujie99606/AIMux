@@ -112,10 +112,12 @@ app/
 
 ## 数据库规范（app/db.py）
 
-- 全局单例 `_engine`；`configure_database(path)` 创建引擎、建表、播种默认模型。
+- 全局单例 `_engine`；`configure_database(path)` 必须先通过项目内 Alembic runner 升级到当前 head，再创建业务引擎和播种默认模型。
 - SQLite `connect_args={"check_same_thread": False}` 以适配 FastAPI 线程模型。
 - `get_session()` 为生成器依赖，请求结束自动关闭会话。
-- 启动自动 `SQLModel.metadata.create_all`，已有库升级时也会补建新表。
+- 禁止在业务启动中调用 `SQLModel.metadata.create_all()`、临时 `ALTER TABLE` 或 `_ensure_columns()` 隐式升级；数据库模型变化必须追加 Alembic revision。
+- 已发布 migration 只能追加，不能修改；全新库、当前无版本库、合法版本库的接管边界遵循 `docs/plan/数据库迁移升级规划.md`。
+- migration 或首次 stamp 写入已有数据库前必须使用 SQLite Backup API 创建一致性备份；失败时停止应用启动。
 
 ## 转发规范（app/utils/forwarders.py）
 

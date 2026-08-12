@@ -81,7 +81,7 @@ Anthropic 兼容接口：`/v1/messages`、`/v1/messages/count_tokens`、`/v1/mes
 
 数据目录由 `platformdirs` 获取：Windows 位于 `%APPDATA%\aimux`，macOS 位于 `~/Library/Application Support/aimux`。数据库和配置都在这个目录中；上游密钥以明文保存（仅本机使用，不加密）。
 
-启动 API 时会自动创建 `accounts`、`models`、`usage_records` 及索引。需要手动初始化空 SQLite 数据库时，可执行 [scripts/schema.sql](scripts/schema.sql)。
+启动 API 时会由内置 Alembic runner 自动将 SQLite 数据库升级到当前 revision。全新数据库会创建完整结构；首次接管的无版本数据库只有在严格符合当前基线时才会备份并标记版本，不符合时会停止启动并保留原库。
 
 ## 测试与打包
 

@@ -13,7 +13,7 @@ from app.service.monitor_scheduler import MonitorScheduler
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
-    """创建 API 应用；此处会初始化数据库并自动建表。"""
+    """创建 API 应用；数据库迁移成功后才初始化业务组件。"""
     settings = settings or load_settings()
     configure_database(settings.resolved_db_path)
     scheduler = MonitorScheduler(settings)

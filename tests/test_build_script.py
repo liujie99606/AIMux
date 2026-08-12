@@ -45,6 +45,7 @@ def test_pyinstaller_command_only_cleans_when_requested() -> None:
 
     assert "--clean" not in incremental
     assert "--clean" in clean
+    assert f"{build.MIGRATIONS}{build.os.pathsep}migrations" in incremental
     assert incremental[-1] == str(build.ROOT / "app" / "__main__.py")
 
 

@@ -1,59 +1,28 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Generator
+from typing import Any, Generator
 
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, create_engine
 
+from app.database_migrations import migrate_database
 from app.service.model_service import seed_defaults
 
 _engine = None
 
 
-def configure_database(path: Path | str):
-    """配置 SQLite 引擎，并确保当前模型对应的表与索引已创建。"""
+def configure_database(path: Path | str) -> Any:
+    """迁移 SQLite 数据库后配置引擎并播种默认模型。"""
     global _engine
-    db_path = Path(path)
+    db_path = Path(path).expanduser().resolve()
     db_path.parent.mkdir(parents=True, exist_ok=True)
+    migrate_database(db_path)
     _engine = create_engine(
         f"sqlite:///{db_path.as_posix()}", connect_args={"check_same_thread": False}
     )
-    SQLModel.metadata.create_all(_engine)
-    _ensure_columns(_engine)
-    # 已有数据库升级时同样会创建新表，并仅补齐缺失的默认模型。
     with Session(_engine) as session:
         seed_defaults(session)
     return _engine
-
-
-def _ensure_columns(engine) -> None:
-    """幂等补齐已有表缺失的列，兼容旧库升级时自动加列。"""
-    with engine.connect() as conn:
-        account_columns = {
-            row[1] for row in conn.exec_driver_sql("PRAGMA table_info(accounts)")
-        }
-        # 保留历史列名，但列内容已经是明文；兼容此前短暂使用 api_key 的版本。
-        if "api_key" in account_columns and "api_key_encrypted" not in account_columns:
-            conn.exec_driver_sql(
-                "ALTER TABLE accounts RENAME COLUMN api_key TO api_key_encrypted"
-            )
-            conn.commit()
-    additions = [
-        (
-            "accounts",
-            "multiplier",
-            "NUMERIC(4, 2) NOT NULL DEFAULT 0.10 CHECK (multiplier BETWEEN 0.01 AND 0.30)",
-        ),
-        ("usage_records", "reasoning_effort", "TEXT"),
-        ("usage_records", "cached_tokens", "INTEGER"),
-        ("models", "is_default", "INTEGER NOT NULL DEFAULT 0"),
-    ]
-    with engine.connect() as conn:
-        for table, column, definition in additions:
-            existing = {row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})")}
-            if column not in existing:
-                conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
-        conn.commit()
 
 
 def get_engine():

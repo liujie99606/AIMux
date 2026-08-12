@@ -10,6 +10,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
 ASSETS = ROOT / "assets"
+MIGRATIONS = ROOT / "migrations"
 ICON_DIR = ASSETS / "icons"
 REQUIRED_ICONS = tuple(ICON_DIR / name for name in ("aimux.png", "aimux.ico", "aimux.icns"))
 OUTPUT_EXECUTABLE = ROOT / "dist" / "AIMux" / "AIMux.exe"
@@ -91,6 +92,8 @@ def _pyinstaller_command(clean: bool) -> list[str]:
         str(icon),
         "--add-data",
         f"{ASSETS}{os.pathsep}assets",
+        "--add-data",
+        f"{MIGRATIONS}{os.pathsep}migrations",
     ]
     if clean:
         command.append("--clean")

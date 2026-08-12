@@ -61,6 +61,8 @@ def main() -> None:
     thread.start()
     if args.server_only:
         thread.join()
+        if errors:
+            raise SystemExit(1)
         return
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QApplication, QMessageBox
