@@ -154,4 +154,4 @@ class MonitorScheduler:
                     or candidate.multiplier >= current.multiplier
                 ):
                     continue
-                account_service.promote_lower_multiplier_account(session, candidate, current)
+                account_service.promote_lower_multiplier_account(session, candidate)

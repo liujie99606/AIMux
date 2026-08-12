@@ -99,7 +99,7 @@ async def test_monitor_scheduler_round_writes_success_and_adjusts_active_account
 
 @pytest.mark.asyncio
 async def test_monitor_round_promotes_successful_lower_multiplier_account(session, settings, monkeypatch):
-    """整轮成功后应按调度模型将更低倍率账号置 9，并把当前账号降 3。"""
+    """整轮成功后应按调度模型将更低倍率账号置为 9。"""
     current = add_account(
         session,
         name="当前调度",
@@ -118,9 +118,9 @@ async def test_monitor_round_promotes_successful_lower_multiplier_account(sessio
     session.expire_all()
     refreshed_current = account_dao.get(session, current.id)
     refreshed_cheaper = account_dao.get(session, cheaper.id)
-    assert refreshed_current is not None and refreshed_current.priority == 6
+    assert refreshed_current is not None and refreshed_current.priority == 9
     assert refreshed_cheaper is not None and refreshed_cheaper.priority == 9
-    # 对照账号必须沿用正式调度的“明确模型优先”规则，而非仅按优先级取值。
+    # 明确模型匹配仍优先于通配账号；本轮只提升候选，不降低当前账号。
     assert account_dao.pick_one(session, "gpt-5.5", "openai").id == current.id
 
 
@@ -171,10 +171,10 @@ async def test_monitor_round_rebalances_each_protocol_and_uses_stable_tie_breake
     await MonitorScheduler(settings).run_round()
 
     session.expire_all()
-    assert account_dao.get(session, openai_current.id).priority == 6
+    assert account_dao.get(session, openai_current.id).priority == 9
     assert account_dao.get(session, openai_lower.id).priority == 5
     assert account_dao.get(session, openai_higher.id).priority == 9
-    assert account_dao.get(session, anthropic_current.id).priority == 6
+    assert account_dao.get(session, anthropic_current.id).priority == 9
     assert account_dao.get(session, anthropic_lower.id).priority == 9
 
 

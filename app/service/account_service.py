@@ -138,11 +138,7 @@ def record_monitor_result(session: Session, account: Account, success: bool) -> 
     return account_dao.save(session, account)
 
 
-def promote_lower_multiplier_account(
-    session: Session, candidate: Account, current: Account
-) -> tuple[Account, Account]:
-    """将更低倍率的成功账号置为最高优先级，并将当前调度账号降三级。"""
-    current.priority = priority.after_multiplier_switch(current.priority)
+def promote_lower_multiplier_account(session: Session, candidate: Account) -> Account:
+    """将本轮成功的更低倍率账号置为最高优先级。"""
     candidate.priority = priority.super_priority()
-    account_dao.save_many(session, [current, candidate])
-    return candidate, current
+    return account_dao.save(session, candidate)

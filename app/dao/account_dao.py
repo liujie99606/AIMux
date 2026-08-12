@@ -94,15 +94,6 @@ def save(session: Session, account: Account) -> Account:
     return account
 
 
-def save_many(session: Session, accounts: list[Account]) -> None:
-    """在一次事务中保存多个账号变更。"""
-    updated_at = utc_now()
-    for account in accounts:
-        account.updated_at = updated_at
-        session.add(account)
-    session.commit()
-
-
 def mark_used(session: Session, account: Account) -> None:
     """记录一次账号命中，不参与后续调度排序。"""
     account.total_requests += 1
