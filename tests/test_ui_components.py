@@ -6,7 +6,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QPushButton
+from PySide6.QtWidgets import QApplication, QDialog, QPushButton
 
 from app.ui.components.accounts.account_form import AccountForm
 from app.ui.components.accounts.account_table import AccountTable
@@ -168,6 +168,29 @@ def test_account_form_does_not_carry_selected_models_to_another_type():
     assert form.selected_models() == []
     assert [form.models.item(index).text() for index in range(form.models.count())] == ["claude-sonnet-4-8"]
     application.processEvents()
+
+
+def test_account_form_keeps_dialog_open_until_all_required_fields_are_valid():
+    """保存时缺少任一必填字段应在当前表单提示，不能关闭弹窗。"""
+    application = QApplication.instance() or QApplication([])
+    form = AccountForm([{"name": "gpt-5.5", "type": "openai"}])
+
+    form.accept()
+
+    assert form.result() == QDialog.DialogCode.Rejected
+    assert not form.validation_message.isHidden()
+    assert "名称" in form.validation_message.text()
+    assert "测试默认模型" in form.validation_message.text()
+
+    form.name.setText("测试")
+    form.base_url.setText("https://example.com")
+    form.api_key.setText("key")
+    form.models.item(0).setCheckState(Qt.CheckState.Checked)
+    form.test_default_model.setCurrentIndex(1)
+    form.accept()
+
+    assert form.result() == QDialog.DialogCode.Accepted
+    form.deleteLater(); application.processEvents()
 
 
 def test_account_form_preserves_configured_test_model_when_catalog_no_longer_has_it():

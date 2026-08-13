@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QSpinBox,
     QLabel,
+    QWidget,
 )
 
 
@@ -70,13 +71,13 @@ class AccountForm(QDialog):
         self.tags = QLineEdit(", ".join(account.get("tags") or []) if account else "")
         self.notes = QPlainTextEdit((account.get("notes") or "") if account else "")
         form.addRow(self._required_label("名称"), self.name)
-        form.addRow("类型", self.type)
+        form.addRow(self._required_label("类型"), self.type)
         form.addRow(self._required_label("上游地址"), self.base_url)
-        form.addRow(self._required_label("API 密钥"), self.api_key)
-        form.addRow("优先级", self.priority)
-        form.addRow("倍率", self.multiplier)
-        form.addRow("支持模型", self.models)
-        form.addRow("测试默认模型", self.test_default_model)
+        form.addRow(self._required_label("API密钥"), self.api_key)
+        form.addRow(self._required_label("优先级"), self.priority)
+        form.addRow(self._required_label("倍率"), self.multiplier)
+        form.addRow(self._required_label("支持模型"), self.models)
+        form.addRow(self._required_label("测试默认模型"), self.test_default_model)
         form.addRow("标签", self.tags)
         form.addRow("备注", self.notes)
         buttons = QDialogButtonBox(
@@ -86,6 +87,11 @@ class AccountForm(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         form.addRow(buttons)
+        self.validation_message = QLabel()
+        self.validation_message.setStyleSheet("color: #f48771;")
+        self.validation_message.setWordWrap(True)
+        self.validation_message.hide()
+        form.addRow(self.validation_message)
         self.type.currentTextChanged.connect(self._load_models_for_type)
         self.models.itemChanged.connect(self._refresh_test_default_models)
         self._load_models_for_type(self.type.currentText())
@@ -96,6 +102,32 @@ class AccountForm(QDialog):
         label = QLabel(f'{text}<span style="color: red">*</span>')
         label.setTextFormat(Qt.TextFormat.RichText)
         return label
+
+    def accept(self) -> None:
+        """校验必填项，未通过时保留表单并显示当前缺失字段。"""
+        missing, first_field = self._missing_required_fields()
+        if missing:
+            self.validation_message.setText(f"请填写或选择：{'、'.join(missing)}")
+            self.validation_message.show()
+            first_field.setFocus()
+            return
+        self.validation_message.hide()
+        super().accept()
+
+    def _missing_required_fields(self) -> tuple[list[str], QWidget]:
+        """返回缺失必填字段及首个应获取焦点的输入控件。"""
+        checks: list[tuple[str, bool, QWidget]] = [
+            ("名称", bool(self.name.text().strip()), self.name),
+            ("类型", bool(self.type.currentText()), self.type),
+            ("上游地址", bool(self.base_url.text().strip()), self.base_url),
+            ("API密钥", bool(self.api_key.text().strip()), self.api_key),
+            ("优先级", self.priority.minimum() <= self.priority.value() <= self.priority.maximum(), self.priority),
+            ("倍率", self.multiplier.minimum() <= self.multiplier.value() <= self.multiplier.maximum(), self.multiplier),
+            ("支持模型", bool(self.selected_models()), self.models),
+            ("测试默认模型", self.test_default_model.currentData() is not None, self.test_default_model),
+        ]
+        missing = [(name, field) for name, valid, field in checks if not valid]
+        return [name for name, _ in missing], missing[0][1] if missing else self.name
 
     def _load_models_for_type(self, account_type: str) -> None:
         """刷新当前协议的模型清单，并保留原先已选的同类型模型。"""
