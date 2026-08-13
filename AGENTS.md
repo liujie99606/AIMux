@@ -24,7 +24,7 @@
   .\.venv\Scripts\python.exe -m pytest
   ```
 
-- 改动完成且测试通过后，按项目约定创建中文说明的本地 git commit，不推送远程。
+- 改动完成且测试通过后，默认保留工作区改动，不自动执行 `git commit` 或 `git push`；只有用户明确要求时才创建中文说明的本地 commit 或推送远程。
 
 ## 命令执行
 

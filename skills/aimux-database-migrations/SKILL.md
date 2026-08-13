@@ -72,4 +72,4 @@ description: AIMux Alembic 数据库迁移维护规范。修改 SQLModel 表结�
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-提交前运行 `git diff --check`，检查 revision 文件、模型和测试在同一提交中，并按项目规范创建中文本地 commit，不推送。
+提交前运行 `git diff --check`，检查 revision 文件、模型和测试在同一组改动中。默认不自动创建 commit 或推送；只有用户明确要求时，才按项目规范创建中文本地 commit 或推送。
