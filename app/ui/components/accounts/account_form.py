@@ -61,10 +61,11 @@ class AccountForm(QDialog):
         self.multiplier.setValue(
             float(account.get("multiplier", 0.10)) if account else 0.10
         )
-        self.test_default_model = QComboBox()
         self.models = QListWidget()
         self.models.setMaximumHeight(130)
         self.models.setToolTip("可多选；不选择表示该账号支持全部模型")
+        self.test_default_model = QComboBox()
+        self.test_default_model.setToolTip("仅可从已勾选的支持模型中选择")
         self.tags = QLineEdit(", ".join(account.get("tags") or []) if account else "")
         self.notes = QPlainTextEdit((account.get("notes") or "") if account else "")
         form.addRow("名称", self.name)
@@ -73,8 +74,8 @@ class AccountForm(QDialog):
         form.addRow("API 密钥", self.api_key)
         form.addRow("优先级", self.priority)
         form.addRow("倍率", self.multiplier)
-        form.addRow("测试默认模型", self.test_default_model)
         form.addRow("支持模型", self.models)
+        form.addRow("测试默认模型", self.test_default_model)
         form.addRow("标签", self.tags)
         form.addRow("备注", self.notes)
         buttons = QDialogButtonBox(
@@ -85,6 +86,7 @@ class AccountForm(QDialog):
         buttons.rejected.connect(self.reject)
         form.addRow(buttons)
         self.type.currentTextChanged.connect(self._load_models_for_type)
+        self.models.itemChanged.connect(self._refresh_test_default_models)
         self._load_models_for_type(self.type.currentText())
 
     def _load_models_for_type(self, account_type: str) -> None:
@@ -93,11 +95,11 @@ class AccountForm(QDialog):
             self._selected_by_type[self._loaded_type] = set(self.selected_models())
             self._test_default_by_type[self._loaded_type] = self.test_default_model.currentData() or ""
         self.models.clear()
-        self.test_default_model.clear()
-        self.test_default_model.addItem("使用模型维护默认值", None)
         names = list(self._models_by_type[account_type])
         selected = self._selected_by_type[account_type]
         test_default = self._test_default_by_type.get(account_type, "")
+        if test_default:
+            selected.add(test_default)
         # 已保存但后来从目录删除的模型仍可见，编辑时不会意外丢失配置。
         names.extend(name for name in (*selected, test_default) if name and name not in names)
         for name in sorted(names):
@@ -105,10 +107,23 @@ class AccountForm(QDialog):
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             item.setCheckState(Qt.CheckState.Checked if name in selected else Qt.CheckState.Unchecked)
             self.models.addItem(item)
-            self.test_default_model.addItem(name, name)
-        if test_default:
-            self.test_default_model.setCurrentIndex(self.test_default_model.findData(test_default))
+        self._refresh_test_default_models(test_default)
         self._loaded_type = account_type
+
+    def _refresh_test_default_models(self, preferred: str | None = None) -> None:
+        """让测试默认模型仅保留当前已勾选的支持模型。"""
+        current = preferred if isinstance(preferred, str) else self.test_default_model.currentData()
+        selected = sorted(self.selected_models())
+        self.test_default_model.blockSignals(True)
+        self.test_default_model.clear()
+        self.test_default_model.addItem("使用模型维护默认值", None)
+        for name in selected:
+            self.test_default_model.addItem(name, name)
+        index = self.test_default_model.findData(current)
+        self.test_default_model.setCurrentIndex(index if index >= 0 else 0)
+        self.test_default_model.blockSignals(False)
+        if self._loaded_type is not None:
+            self._test_default_by_type[self._loaded_type] = self.test_default_model.currentData() or ""
 
     def selected_models(self) -> list[str]:
         """返回用户勾选的模型；空列表表示不限模型。"""

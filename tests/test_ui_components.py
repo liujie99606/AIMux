@@ -4,6 +4,7 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QPushButton
 
@@ -136,14 +137,18 @@ def test_account_form_filters_checkable_models_when_type_changes():
     ])
     assert [form.models.item(index).text() for index in range(form.models.count())] == ["gpt-5.5"]
     assert form.multiplier.value() == 0.10
+    assert form.test_default_model.count() == 1
     assert form.test_default_model.currentData() is None
     form.name.setText("测试")
     form.base_url.setText("https://example.com")
     form.api_key.setText("key")
     form.multiplier.setValue(0.07)
+    form.models.item(0).setCheckState(Qt.CheckState.Checked)
     form.test_default_model.setCurrentIndex(1)
     assert form.payload(True)["multiplier"] == 0.07
     assert form.payload(True)["test_default_model"] == "gpt-5.5"
+    form.models.item(0).setCheckState(Qt.CheckState.Unchecked)
+    assert form.test_default_model.currentData() is None
     form.type.setCurrentText("anthropic")
     assert [form.models.item(index).text() for index in range(form.models.count())] == ["claude-sonnet-4-8"]
     application.processEvents()
@@ -172,6 +177,7 @@ def test_account_form_preserves_configured_test_model_when_catalog_no_longer_has
         [{"name": "gpt-current", "type": "openai"}],
         {"type": "openai", "test_default_model": "gpt-removed", "api_key": "key", "name": "账号", "base_url": "https://example.com"},
     )
+    assert form.selected_models() == ["gpt-removed"]
     assert form.test_default_model.currentData() == "gpt-removed"
     assert form.payload(True)["test_default_model"] == "gpt-removed"
     form.deleteLater(); application.processEvents()
