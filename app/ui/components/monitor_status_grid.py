@@ -23,12 +23,14 @@ class MonitorStatusGrid(QWidget):
         self._layout = QHBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(_CELL_SPACING)
+        self._layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self._cells: list[QLabel] = []
         for _ in range(_CELL_COUNT):
             cell = QLabel()
             cell.setFixedSize(_CELL_WIDTH, _CELL_HEIGHT)
             cell.setAlignment(Qt.AlignmentFlag.AlignCenter)
             cell.setStyleSheet("background: #59606b;")
+            # 固定状态格左对齐，避免父表格列变宽时把剩余空间分摊到格子之间。
             self._layout.addWidget(cell)
             self._cells.append(cell)
 
