@@ -484,11 +484,12 @@ def test_monitor_view_renders_accounts_and_refreshes_status(monkeypatch):
     _wait_until(lambda: view.table.rowCount() == 1)
     assert view.status.text() == "监控已关闭"
     assert view.table.item(0, 0).text() == "账号 A"
-    assert view.table.item(0, 2).text() == "gpt-test"
-    assert view.table.item(0, 4).text() == "0.2 s"
-    assert view.table.item(0, 5).text() == "成功"
-    assert view.table.columnCount() == 7
-    status_grid = view.table.cellWidget(0, 6)
+    assert view.table.item(0, 2).text() == "0.10"
+    assert view.table.item(0, 3).text() == "gpt-test"
+    assert view.table.item(0, 5).text() == "0.2 s"
+    assert view.table.item(0, 6).text() == "成功"
+    assert view.table.columnCount() == 8
+    status_grid = view.table.cellWidget(0, 7)
     assert status_grid is not None and status_grid.minimumWidth() == 750
     assert status_grid.layout().itemAt(29).widget().toolTip().startswith("检查时间：")
     view.deleteLater()

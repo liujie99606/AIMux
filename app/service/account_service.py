@@ -15,6 +15,30 @@ def _json(value: list[str] | None) -> str | None:
     return json.dumps(value, ensure_ascii=False) if value else None
 
 
+def _mappings(value: str | None) -> dict[str, str] | None:
+    """读取账号模型映射 JSON；历史坏数据按无映射处理。"""
+    if not value:
+        return None
+    try:
+        parsed = json.loads(value)
+    except (TypeError, json.JSONDecodeError):
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    result: dict[str, str] = {}
+    for source, target in parsed.items():
+        if isinstance(source, str) and isinstance(target, str) and source.strip() and target.strip():
+            result[source.strip()] = target.strip()
+    return result or None
+
+
+def _mappings_json(value: dict[str, str] | None) -> str | None:
+    """将模型映射规范化为可选 JSON 文本。"""
+    if not value:
+        return None
+    return json.dumps(value, ensure_ascii=False)
+
+
 def to_view(account: Account) -> dict:
     """转换为管理 API 可返回的账号视图；本地单机使用，密钥以明文返回便于编辑回显。"""
     return {
@@ -27,6 +51,7 @@ def to_view(account: Account) -> dict:
         "priority": account.priority,
         "multiplier": account.multiplier,
         "test_default_model": account.test_default_model,
+        "model_mappings": _mappings(account.model_mappings),
         "supported_models": json.loads(account.supported_models) if account.supported_models else None,
         "tags": json.loads(account.tags) if account.tags else None,
         "notes": account.notes,
@@ -54,6 +79,7 @@ def create_account(session: Session, payload: AccountCreate) -> Account:
             priority=payload.priority,
             multiplier=payload.multiplier,
             test_default_model=payload.test_default_model,
+            model_mappings=_mappings_json(payload.model_mappings),
             supported_models=_json(payload.supported_models),
             tags=_json(payload.tags),
             notes=payload.notes,
@@ -80,6 +106,8 @@ def update_account(session: Session, account: Account, payload: AccountUpdate) -
         account.api_key_encrypted = payload.api_key
     if "supported_models" in fields:
         account.supported_models = _json(payload.supported_models)
+    if "model_mappings" in fields:
+        account.model_mappings = _mappings_json(payload.model_mappings)
     if "tags" in fields:
         account.tags = _json(payload.tags)
     return account_dao.save(session, account)

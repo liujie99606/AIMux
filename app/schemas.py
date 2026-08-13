@@ -22,9 +22,16 @@ class AccountCreate(BaseModel):
         default=Decimal("0.10"), ge=Decimal("0.01"), le=Decimal("0.30")
     )
     test_default_model: str | None = Field(default=None, max_length=160)
+    model_mappings: dict[str, str] | None = None
     supported_models: list[str] | None = None
     tags: list[str] | None = None
     notes: str | None = None
+
+    @field_validator("model_mappings")
+    @classmethod
+    def normalize_model_mappings(cls, value: dict[str, str] | None) -> dict[str, str] | None:
+        """校验并规整客户端模型到上游模型的精确映射。"""
+        return _normalize_model_mappings(value)
 
     @field_validator("base_url")
     @classmethod
@@ -43,9 +50,16 @@ class AccountUpdate(BaseModel):
         default=None, ge=Decimal("0.01"), le=Decimal("0.30")
     )
     test_default_model: str | None = Field(default=None, max_length=160)
+    model_mappings: dict[str, str] | None = None
     supported_models: list[str] | None = None
     tags: list[str] | None = None
     notes: str | None = None
+
+    @field_validator("model_mappings")
+    @classmethod
+    def normalize_model_mappings(cls, value: dict[str, str] | None) -> dict[str, str] | None:
+        """校验并规整客户端模型到上游模型的精确映射。"""
+        return _normalize_model_mappings(value)
 
     @field_validator("base_url")
     @classmethod
@@ -63,6 +77,7 @@ class AccountView(BaseModel):
     priority: int
     multiplier: Decimal
     test_default_model: str | None
+    model_mappings: dict[str, str] | None
     supported_models: list[str] | None
     tags: list[str] | None
     notes: str | None
@@ -74,6 +89,24 @@ class AccountView(BaseModel):
     total_tokens: int
     created_at: str
     updated_at: str
+
+
+def _normalize_model_mappings(value: dict[str, str] | None) -> dict[str, str] | None:
+    """清理模型映射并拒绝空值、非字符串和无意义自映射。"""
+    if value is None:
+        return None
+    normalized: dict[str, str] = {}
+    for source, target in value.items():
+        if not isinstance(source, str) or not isinstance(target, str):
+            raise ValueError("模型映射的客户端模型和上游模型必须是字符串")
+        source = source.strip()
+        target = target.strip()
+        if not source or not target:
+            raise ValueError("模型映射的客户端模型和上游模型不能为空")
+        if source == target:
+            raise ValueError("模型映射的客户端模型和上游模型不能相同")
+        normalized[source] = target
+    return normalized or None
 
 
 class ModelCreate(BaseModel):
@@ -142,6 +175,7 @@ class MonitorAccountView(BaseModel):
     account_id: str
     account_name: str
     account_type: AccountType
+    multiplier: Decimal
     model: str | None = None
     records: list[MonitorRecordView]
 

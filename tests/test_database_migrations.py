@@ -30,66 +30,28 @@ def _current_revision(path: Path) -> str | None:
 
 
 def _create_unversioned_baseline(path: Path) -> None:
-    engine = create_engine(f"sqlite:///{path.as_posix()}")
-    SQLModel.metadata.create_all(engine)
-    engine.dispose()
+    _upgrade_to_baseline_revision(path)
+    with sqlite3.connect(path) as connection:
+        connection.execute("DROP TABLE alembic_version")
 
 
 def _upgrade_to_baseline_revision(path: Path) -> None:
     """创建仅停留在 001 的数据库，用于验证后续升级。"""
+    _upgrade_to_revision(path, BASELINE_REVISION)
+
+
+def _upgrade_to_revision(path: Path, revision: str) -> None:
+    """将测试数据库升级到指定迁移版本。"""
     config = Config()
     config.set_main_option("script_location", "migrations")
     config.set_main_option("sqlalchemy.url", f"sqlite:///{path.as_posix()}")
-    command.upgrade(config, BASELINE_REVISION)
+    command.upgrade(config, revision)
 
 
-def _make_accounts_table_match_legacy_column_addition(path: Path) -> None:
-    """把账号表改造成旧 _ensure_columns 添加倍率后的真实结构。"""
+def _add_post_baseline_columns(path: Path) -> None:
+    """为无版本基线数据库添加后续版本字段，模拟未接管的旧库。"""
     with sqlite3.connect(path) as connection:
-        connection.execute("ALTER TABLE accounts RENAME TO accounts_current")
-        connection.execute(
-            """
-            CREATE TABLE accounts (
-                id VARCHAR NOT NULL PRIMARY KEY,
-                name VARCHAR NOT NULL,
-                type VARCHAR NOT NULL,
-                base_url VARCHAR NOT NULL,
-                api_key_encrypted VARCHAR NOT NULL,
-                status VARCHAR NOT NULL,
-                priority INTEGER NOT NULL,
-                supported_models VARCHAR,
-                tags VARCHAR,
-                notes VARCHAR,
-                last_error_code VARCHAR,
-                last_error_message VARCHAR,
-                last_successful_test_model VARCHAR,
-                last_used_at VARCHAR,
-                total_requests INTEGER NOT NULL,
-                total_tokens INTEGER NOT NULL,
-                created_at VARCHAR NOT NULL,
-                updated_at VARCHAR NOT NULL,
-                multiplier NUMERIC(4, 2) NOT NULL DEFAULT 0.10,
-                CONSTRAINT ck_accounts_type CHECK (type IN ('openai', 'anthropic')),
-                CONSTRAINT ck_accounts_status CHECK (status IN ('active', 'disabled')),
-                CONSTRAINT ck_accounts_priority CHECK (priority BETWEEN 0 AND 9)
-            )
-            """
-        )
-        columns = [
-            column.name
-            for column in Account.__table__.columns
-            if column.name != "test_default_model"
-        ]
-        quoted = ", ".join(columns)
-        connection.execute(
-            f"INSERT INTO accounts ({quoted}) SELECT {quoted} FROM accounts_current"
-        )
-        connection.execute("DROP TABLE accounts_current")
-        connection.execute(
-            "CREATE INDEX idx_accounts_dispatch ON accounts (status, priority, id)"
-        )
-        for column in ("priority", "status", "type"):
-            connection.execute(f"CREATE INDEX ix_accounts_{column} ON accounts ({column})")
+        connection.execute("ALTER TABLE accounts ADD COLUMN test_default_model VARCHAR")
 
 
 def test_empty_database_upgrades_to_current_baseline(tmp_path: Path) -> None:
@@ -98,7 +60,7 @@ def test_empty_database_upgrades_to_current_baseline(tmp_path: Path) -> None:
 
     engine = configure_database(path)
 
-    assert _current_revision(path) == "002_add_account_test_default_model"
+    assert _current_revision(path) == "003_add_account_model_mappings"
     assert {"accounts", "models", "usage_records", "monitor_records"} <= set(
         inspect(engine).get_table_names()
     )
@@ -137,7 +99,7 @@ def test_unversioned_current_database_is_backed_up_and_stamped(tmp_path: Path) -
 
     configure_database(path)
 
-    assert _current_revision(path) == "002_add_account_test_default_model"
+    assert _current_revision(path) == "003_add_account_model_mappings"
     with sqlite3.connect(path) as connection:
         assert connection.execute(
             "SELECT api_key_encrypted FROM accounts WHERE id = 'account'"
@@ -148,36 +110,17 @@ def test_unversioned_current_database_is_backed_up_and_stamped(tmp_path: Path) -
         assert connection.execute("PRAGMA integrity_check").fetchone() == ("ok",)
 
 
-def test_known_legacy_column_addition_is_normalized_before_stamp(tmp_path: Path) -> None:
-    """唯一已知的旧补列结构应在备份后重建为精确 001，且数据不丢失。"""
-    path = tmp_path / "legacy-current.sqlite3"
+def test_unversioned_database_with_post_baseline_columns_is_rejected(tmp_path: Path) -> None:
+    """无版本数据库包含后续字段时必须拒绝，不能猜测其迁移历史。"""
+    path = tmp_path / "legacy-post-baseline.sqlite3"
     _create_unversioned_baseline(path)
-    with sqlite3.connect(path) as connection:
-        connection.execute(
-            "INSERT INTO accounts "
-            "(id, name, type, base_url, api_key_encrypted, status, priority, multiplier, "
-            "total_requests, total_tokens, created_at, updated_at) "
-            "VALUES ('account', '账号', 'openai', 'https://example.com', 'plain-key', "
-            "'active', 5, 0.10, 0, 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')"
-        )
-    _make_accounts_table_match_legacy_column_addition(path)
+    _add_post_baseline_columns(path)
 
-    migrated_engine = configure_database(path)
+    with pytest.raises(DatabaseMigrationError, match="不符合当前基线"):
+        configure_database(path)
 
-    expected_engine = create_engine("sqlite:///:memory:")
-    SQLModel.metadata.create_all(expected_engine)
-    try:
-        assert _schema_signature(migrated_engine, "accounts") == _schema_signature(
-            expected_engine, "accounts"
-        )
-    finally:
-        expected_engine.dispose()
-    with sqlite3.connect(path) as connection:
-        assert connection.execute(
-            "SELECT api_key_encrypted, multiplier FROM accounts WHERE id = 'account'"
-        ).fetchone() == ("plain-key", 0.1)
-    assert _current_revision(path) == "002_add_account_test_default_model"
-    assert len(list(tmp_path.glob("legacy-current.sqlite3.migration-*-unversioned.bak"))) == 1
+    assert _current_revision(path) is None
+    assert not list(tmp_path.glob("legacy-post-baseline.sqlite3.migration-*.bak"))
 
 
 def test_repeated_start_at_head_does_not_create_backup(tmp_path: Path) -> None:
@@ -187,11 +130,11 @@ def test_repeated_start_at_head_does_not_create_backup(tmp_path: Path) -> None:
 
     configure_database(path)
 
-    assert _current_revision(path) == "002_add_account_test_default_model"
+    assert _current_revision(path) == "003_add_account_model_mappings"
 
 
 def test_database_at_001_upgrades_and_preserves_accounts(tmp_path: Path) -> None:
-    """已发布的 001 数据库升级到 002 后保留账号并补空字段。"""
+    """已发布的 001 数据库升级到 003 后保留账号并补空字段。"""
     path = tmp_path / "baseline.sqlite3"
     _upgrade_to_baseline_revision(path)
     with sqlite3.connect(path) as connection:
@@ -205,12 +148,37 @@ def test_database_at_001_upgrades_and_preserves_accounts(tmp_path: Path) -> None
 
     configure_database(path)
 
-    assert _current_revision(path) == "002_add_account_test_default_model"
+    assert _current_revision(path) == "003_add_account_model_mappings"
     with sqlite3.connect(path) as connection:
         assert connection.execute(
-            "SELECT api_key_encrypted, test_default_model FROM accounts WHERE id = 'account'"
-        ).fetchone() == ("plain-key", None)
+            "SELECT api_key_encrypted, test_default_model, model_mappings "
+            "FROM accounts WHERE id = 'account'"
+        ).fetchone() == ("plain-key", None, None)
     assert list(tmp_path.glob("repeat.sqlite3.migration-*.bak")) == []
+
+
+def test_database_at_002_upgrades_and_preserves_accounts(tmp_path: Path) -> None:
+    """已发布的 002 数据库升级到 003 后保留账号和测试默认模型。"""
+    path = tmp_path / "version-002.sqlite3"
+    _upgrade_to_revision(path, "002_add_account_test_default_model")
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "INSERT INTO accounts "
+            "(id, name, type, base_url, api_key_encrypted, status, priority, multiplier, "
+            "test_default_model, total_requests, total_tokens, created_at, updated_at) "
+            "VALUES ('account', '账号', 'openai', 'https://example.com', 'plain-key', "
+            "'active', 5, 0.10, 'gpt-test', 0, 0, "
+            "'2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')"
+        )
+
+    configure_database(path)
+
+    assert _current_revision(path) == "003_add_account_model_mappings"
+    with sqlite3.connect(path) as connection:
+        assert connection.execute(
+            "SELECT api_key_encrypted, test_default_model, model_mappings "
+            "FROM accounts WHERE id = 'account'"
+        ).fetchone() == ("plain-key", "gpt-test", None)
 
 
 def test_incomplete_unversioned_database_is_rejected_without_stamp(tmp_path: Path) -> None:

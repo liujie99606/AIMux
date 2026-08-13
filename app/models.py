@@ -47,6 +47,7 @@ class Account(SQLModel, table=True):
     created_at: str = Field(default_factory=utc_now)
     updated_at: str = Field(default_factory=utc_now)
     test_default_model: Optional[str] = None
+    model_mappings: Optional[str] = None
 
 
 class CatalogModel(SQLModel, table=True):

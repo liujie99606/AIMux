@@ -19,6 +19,7 @@ def test_account_management_api_and_local_token(settings):
     created = client.post("/api/accounts", headers=headers, json={
         "name": "OpenAI", "type": "openai", "base_url": "https://api.example/v1/", "api_key": "sk-test", "supported_models": ["gpt-test"],
         "test_default_model": "gpt-test",
+        "model_mappings": {"gpt-test": "grok4.6"},
     })
     assert created.status_code == 200
     account = created.json()
@@ -26,6 +27,7 @@ def test_account_management_api_and_local_token(settings):
     assert account["api_key"] == "sk-test"
     assert account["multiplier"] == "0.10"
     assert account["test_default_model"] == "gpt-test"
+    assert account["model_mappings"] == {"gpt-test": "grok4.6"}
     updated = client.put(
         f"/api/accounts/{account['id']}",
         headers=headers,

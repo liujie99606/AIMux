@@ -18,6 +18,7 @@ class MonitorTable(DataTable):
     COLUMNS = [
         Column("账号", lambda row: row.get("account_name") or "-", width=150),
         Column("类型", lambda row: row.get("account_type") or "-", width=80),
+        Column("倍率", lambda row: f"{float(row.get('multiplier', 0.10)):.2f}", width=70),
         Column(
             "测试模型",
             lambda row: row.get("model") or row["_latest"].get("model") or "-",

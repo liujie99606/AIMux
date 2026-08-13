@@ -12,6 +12,7 @@ from app.dao import monitor_dao
 from app.dao import model_dao
 from app.models import Account, MonitorRecord, utc_now
 from app.service import account_service
+from app.service.model_mapping import resolve_upstream_model
 from app.utils import forwarders
 
 _MAX_ERROR_LENGTH = 4096
@@ -104,7 +105,8 @@ def build_ping_request(account: Account, model: str) -> tuple[str, dict]:
 
 async def send_ping(account: Account, model: str, settings: Settings) -> httpx.Response:
     """发送账号测试和监控共用的最小请求。"""
-    endpoint, body = build_ping_request(account, model)
+    upstream_model = resolve_upstream_model(account, model)
+    endpoint, body = build_ping_request(account, upstream_model or model)
     return await forwarders.post(account, endpoint, body, settings)
 
 

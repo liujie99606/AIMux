@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import re
 import sqlite3
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -10,12 +11,10 @@ from typing import Any
 from alembic import command
 from alembic.config import Config
 from alembic.migration import MigrationContext
-from alembic.operations import Operations
 from alembic.script import ScriptDirectory
 from filelock import FileLock, Timeout
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.engine import Engine
-from sqlmodel import SQLModel
 
 from app.models import Account, CatalogModel, MonitorRecord, UsageRecord  # noqa: F401
 from app.utils.resources import resource_path
@@ -94,61 +93,26 @@ def _schema_signature(engine: Engine, table: str) -> dict[str, Any]:
     }
 
 
-def _type_affinity(value: str) -> str:
-    """按 SQLite 类型亲和性归一 VARCHAR/TEXT 等等价声明。"""
-    upper = value.upper()
-    if "INT" in upper:
-        return "INTEGER"
-    if any(token in upper for token in ("CHAR", "CLOB", "TEXT")):
-        return "TEXT"
-    if any(token in upper for token in ("REAL", "FLOA", "DOUB")):
-        return "REAL"
-    if "BLOB" in upper or not upper:
-        return "BLOB"
-    return "NUMERIC"
+def _baseline_schema_signatures() -> dict[str, dict[str, Any]]:
+    """从不可变的 001 migration 生成无版本数据库的唯一合法结构签名。"""
+    with tempfile.TemporaryDirectory(prefix="aimux-baseline-") as directory:
+        baseline_path = Path(directory) / "baseline.sqlite3"
+        command.upgrade(_alembic_config(baseline_path), BASELINE_REVISION)
+        engine = create_engine(_sqlite_url(baseline_path))
+        try:
+            return {
+                table: _schema_signature(engine, table)
+                for table in sorted(BUSINESS_TABLES)
+            }
+        finally:
+            engine.dispose()
 
 
-def _is_supported_legacy_signature(actual: dict[str, Any], expected: dict[str, Any]) -> bool:
-    """识别旧补列机制产生、可确定性规范化的当前数据库结构。"""
-    actual_columns = {
-        name: (_type_affinity(type_name), nullable)
-        for name, type_name, nullable, _ in actual["columns"]
-    }
-    expected_columns = {
-        name: (_type_affinity(type_name), nullable)
-        for name, type_name, nullable, _ in expected["columns"]
-    }
-    actual_defaults = {name: default for name, _, _, default in actual["columns"]}
-    expected_defaults = {name: default for name, _, _, default in expected["columns"]}
-    allowed_legacy_defaults = {"multiplier": "0.10", "is_default": "0"}
-    defaults_match = all(
-        actual_defaults[name] == expected_default
-        or (
-            not expected_default
-            and actual_defaults[name] == allowed_legacy_defaults.get(name)
-        )
-        for name, expected_default in expected_defaults.items()
-    )
-    expected_checks = expected["checks"]
-    allowed_checks = expected_checks - {_normalize_sql("multiplier BETWEEN 0.01 AND 0.30")}
-    return (
-        actual_columns == expected_columns
-        and defaults_match
-        and actual["primary_key"] == expected["primary_key"]
-        and actual["unique_constraints"] == expected["unique_constraints"]
-        and actual["indexes"] == expected["indexes"]
-        and actual["checks"] in (expected_checks, allowed_checks)
-    )
-
-
-def _validate_unversioned_baseline(path: Path) -> bool:
-    """验证无版本数据库，返回是否需要规范化旧补列结构。"""
+def _validate_unversioned_baseline(path: Path) -> None:
+    """严格验证无版本数据库是否精确符合不可变的 001 基线。"""
     _integrity_check(path)
     actual_engine = create_engine(_sqlite_url(path))
-    expected_engine = create_engine("sqlite:///:memory:")
-    needs_normalization = False
     try:
-        SQLModel.metadata.create_all(expected_engine)
         actual_tables = set(inspect(actual_engine).get_table_names())
         unexpected = actual_tables - BUSINESS_TABLES
         missing = BUSINESS_TABLES - actual_tables
@@ -157,30 +121,13 @@ def _validate_unversioned_baseline(path: Path) -> bool:
                 "无版本数据库不符合当前基线："
                 f"缺少表 {sorted(missing)}，额外表 {sorted(unexpected)}"
             )
+        expected_signatures = _baseline_schema_signatures()
         for table in sorted(BUSINESS_TABLES):
             actual = _schema_signature(actual_engine, table)
-            expected = _schema_signature(expected_engine, table)
-            if actual == expected:
-                continue
-            if table == "accounts" and not any(
-                column[0] == "test_default_model" for column in actual["columns"]
-            ):
-                expected_without_test_model = dict(expected)
-                expected_without_test_model["columns"] = tuple(
-                    column
-                    for column in expected["columns"]
-                    if column[0] != "test_default_model"
-                )
-                if actual == expected_without_test_model:
-                    continue
-                if _is_supported_legacy_signature(actual, expected_without_test_model):
-                    needs_normalization = True
-                    continue
-            if not _is_supported_legacy_signature(actual, expected):
+            if actual != expected_signatures[table]:
                 raise DatabaseMigrationError(
                     f"无版本数据库不符合当前基线：表 {table} 的列、约束或索引不一致"
                 )
-            needs_normalization = True
         with sqlite3.connect(path) as connection:
             invalid_key_count = connection.execute(
                 "SELECT COUNT(*) FROM accounts "
@@ -197,32 +144,8 @@ def _validate_unversioned_baseline(path: Path) -> bool:
             ).fetchone()[0]
         if invalid_multiplier_count:
             raise DatabaseMigrationError("无版本数据库包含超出 0.01 至 0.30 的账号倍率")
-        return needs_normalization
     finally:
         actual_engine.dispose()
-        expected_engine.dispose()
-
-
-def _normalize_legacy_baseline(path: Path) -> None:
-    """以 SQLite batch 重建受支持旧补列结构并保留全部业务数据。"""
-    engine = create_engine(_sqlite_url(path))
-    try:
-        with engine.begin() as connection:
-            operations = Operations(MigrationContext.configure(connection))
-            for table_name in sorted(BUSINESS_TABLES):
-                with operations.batch_alter_table(
-                    table_name,
-                    recreate="always",
-                    copy_from=SQLModel.metadata.tables[table_name],
-                ):
-                    pass
-            for table_name in sorted(BUSINESS_TABLES):
-                for index in SQLModel.metadata.tables[table_name].indexes:
-                    index.create(bind=connection, checkfirst=True)
-    finally:
-        engine.dispose()
-    if _validate_unversioned_baseline(path):
-        raise DatabaseMigrationError("无版本数据库规范化后仍未达到当前基线")
 
 
 def _backup_database(path: Path, revision: str) -> Path:
@@ -303,27 +226,10 @@ def migrate_database(path: Path) -> None:
             head = script.get_current_head()
             _logger.info("数据库迁移检查：path=%s current=%s head=%s", path, current, head)
             if current is None and user_tables:
-                needs_normalization = _validate_unversioned_baseline(path)
+                _validate_unversioned_baseline(path)
                 backup = _backup_database(path, "unversioned")
                 _logger.info("已创建无版本数据库迁移备份：%s", backup)
-                if needs_normalization:
-                    with sqlite3.connect(path) as connection:
-                        account_columns = {
-                            row[1] for row in connection.execute("PRAGMA table_info(accounts)")
-                        }
-                        if "test_default_model" not in account_columns:
-                            connection.execute(
-                                "ALTER TABLE accounts ADD COLUMN test_default_model VARCHAR"
-                            )
-                    _normalize_legacy_baseline(path)
-                # 无版本库按当前完整结构验证，确认后直接标记当前 head，
-                # 避免已含后续字段的库重复执行历史 add-column migration。
-                with sqlite3.connect(path) as connection:
-                    has_test_default_model = any(
-                        column[1] == "test_default_model"
-                        for column in connection.execute("PRAGMA table_info(accounts)")
-                    )
-                command.stamp(config, head if has_test_default_model else BASELINE_REVISION)
+                command.stamp(config, BASELINE_REVISION)
             elif current is not None:
                 head = _validate_versioned_revision(config, current)
                 if current != head:

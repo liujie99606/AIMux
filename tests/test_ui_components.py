@@ -6,12 +6,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QDialog, QPushButton
+from PySide6.QtWidgets import QApplication, QComboBox, QDialog, QPushButton
 
 from app.ui.components.accounts.account_form import AccountForm
 from app.ui.components.accounts.account_table import AccountTable
 from app.ui.components.accounts.account_test_dialog import AccountTestDialog
 from app.ui.components.accounts.batch_toolbar import BatchToolbar
+from app.ui.components.monitor_table import MonitorTable
 from app.ui.components.statistics_cards import TokenStatisticsCards
 from app.ui.components.account_token_statistics_table import AccountTokenStatisticsTable
 from app.ui.components.usage.summary_card import SummaryCards
@@ -193,6 +194,59 @@ def test_account_form_keeps_dialog_open_until_all_required_fields_are_valid():
     form.deleteLater(); application.processEvents()
 
 
+def test_account_form_edits_and_validates_model_mappings():
+    """模型映射可回显、删除，且重复客户端模型保存时不能关闭表单。"""
+    application = QApplication.instance() or QApplication([])
+    form = AccountForm(
+        [{"name": "gpt-5.5", "type": "openai"}],
+        {
+            "type": "openai",
+            "name": "测试",
+            "base_url": "https://example.com",
+            "api_key": "key",
+            "supported_models": ["gpt-5.5"],
+            "test_default_model": "gpt-5.5",
+            "model_mappings": {"gpt-5.5": "grok4.6"},
+        },
+    )
+    assert form.model_mappings() == {"gpt-5.5": "grok4.6"}
+
+    form._add_mapping_row("gpt-5.5", "another-model")
+    form.accept()
+
+    assert form.result() == QDialog.DialogCode.Rejected
+    assert "重复" in form.validation_message.text()
+    form.deleteLater(); application.processEvents()
+
+
+def test_account_form_model_mapping_uses_supported_and_catalog_dropdowns():
+    """模型映射客户端端只取支持模型，上游端取当前协议模型目录。"""
+    application = QApplication.instance() or QApplication([])
+    form = AccountForm(
+        [
+            {"name": "gpt-5.5", "type": "openai"},
+            {"name": "grok4.6", "type": "openai"},
+            {"name": "claude-sonnet-4-8", "type": "anthropic"},
+        ],
+        {
+            "type": "openai",
+            "supported_models": ["gpt-5.5"],
+            "model_mappings": {"gpt-5.5": "grok4.6"},
+        },
+    )
+    source = form.model_mappings_table.cellWidget(0, 0)
+    target = form.model_mappings_table.cellWidget(0, 1)
+    assert isinstance(source, QComboBox)
+    assert isinstance(target, QComboBox)
+    assert [source.itemData(index) for index in range(source.count())] == [None, "gpt-5.5"]
+    assert [target.itemData(index) for index in range(target.count())] == [None, "gpt-5.5", "grok4.6"]
+    assert form.model_mappings_table.minimumWidth() == 700
+    assert form.model_mappings_table.minimumHeight() >= 120
+    assert [form.model_mappings_table.columnWidth(index) for index in range(3)] == [300, 300, 80]
+    assert form.model_mappings_table.verticalHeader().defaultSectionSize() == 38
+    form.deleteLater(); application.processEvents()
+
+
 def test_account_form_preserves_configured_test_model_when_catalog_no_longer_has_it():
     """编辑账号时，已保存的测试默认模型不能因目录删除而被意外清空。"""
     application = QApplication.instance() or QApplication([])
@@ -204,6 +258,24 @@ def test_account_form_preserves_configured_test_model_when_catalog_no_longer_has
     assert form.test_default_model.currentData() == "gpt-removed"
     assert form.payload(True)["test_default_model"] == "gpt-removed"
     form.deleteLater(); application.processEvents()
+
+
+def test_monitor_table_displays_account_multiplier():
+    """监控表格应在类型后展示账号倍率。"""
+    application = QApplication.instance() or QApplication([])
+    table = MonitorTable()
+    table.set_records([
+        {
+            "account_name": "账号一",
+            "account_type": "openai",
+            "multiplier": 0.08,
+            "records": [],
+        }
+    ])
+
+    assert table.horizontalHeaderItem(2).text() == "倍率"
+    assert table.item(0, 2).text() == "0.08"
+    table.deleteLater(); application.processEvents()
 
 
 def test_usage_formatting_and_failed_result_color():

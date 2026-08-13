@@ -16,6 +16,7 @@ from app.config import Settings
 from app.dao import account_dao
 from app.models import Account, UsageRecord, utc_now
 from app.service import account_service, usage_service
+from app.service.model_mapping import resolve_upstream_model
 from app.utils import forwarders
 from app.utils.sse import SseUsageParser
 from app.utils.tokens import extract_reasoning_effort, extract_usage
@@ -144,9 +145,13 @@ async def forward_non_stream(
         attempt_started_at = utc_now()
         last_account = account
         account_dao.mark_used(session, account)
+        attempt_body = dict(body)
+        upstream_model = resolve_upstream_model(account, model)
+        if upstream_model is not None:
+            attempt_body["model"] = upstream_model
         try:
             kwargs = {"extra_headers": upstream_headers} if upstream_headers else {}
-            response = await forwarders.post(account, endpoint, body, settings, **kwargs)
+            response = await forwarders.post(account, endpoint, attempt_body, settings, **kwargs)
         except Exception as exc:
             last_error = _exception_error(exc)
             account_service.record_request_failure(session, account, last_error.code, last_error.message)
@@ -226,9 +231,13 @@ async def forward_stream(
         attempt_started_at = utc_now()
         last_account = account
         account_dao.mark_used(session, account)
+        attempt_body = dict(body)
+        upstream_model = resolve_upstream_model(account, model)
+        if upstream_model is not None:
+            attempt_body["model"] = upstream_model
         try:
             kwargs = {"extra_headers": upstream_headers} if upstream_headers else {}
-            candidate = await forwarders.open_stream(account, endpoint, body, settings, **kwargs)
+            candidate = await forwarders.open_stream(account, endpoint, attempt_body, settings, **kwargs)
         except Exception as exc:
             last_error = _exception_error(exc)
             account_service.record_request_failure(session, account, last_error.code, last_error.message)

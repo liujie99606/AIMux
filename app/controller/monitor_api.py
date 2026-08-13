@@ -23,6 +23,7 @@ def records(request: Request, limit: int = 30, session: Session = Depends(get_se
                 "account_id": account.id,
                 "account_name": account.name,
                 "account_type": account.type,
+                "multiplier": account.multiplier,
                 "model": monitor_service.test_model(session, account),
                 "records": [monitor_service.to_view(item) for item in grouped.get(account.id, [])],
             }

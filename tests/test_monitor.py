@@ -72,6 +72,24 @@ async def test_ping_uses_protocol_specific_minimal_request_without_mutating_acco
 
 
 @pytest.mark.asyncio
+async def test_ping_uses_account_model_mapping(session, settings, monkeypatch):
+    """账号测试和监控 ping 应将逻辑模型映射为当前账号的上游模型。"""
+    account = add_account(session, name="映射账号")
+    account_service.update_account(
+        session, account, AccountUpdate(model_mappings={"gpt-test": "grok4.6"})
+    )
+    bodies: list[dict] = []
+
+    async def fake_post(current, endpoint, body, passed_settings, **kwargs):
+        bodies.append(body)
+        return httpx.Response(200, json={"id": "ok"})
+
+    monkeypatch.setattr("app.service.monitor_service.forwarders.post", fake_post)
+    assert (await ping_account(account, "gpt-test", settings)).success
+    assert bodies[0]["model"] == "grok4.6"
+
+
+@pytest.mark.asyncio
 async def test_monitor_scheduler_round_writes_success_and_adjusts_active_account_priority(session, settings, monkeypatch):
     """一轮监控只检查启用账号，优先级 7 的成功结果保持不变。"""
     account = add_account(session)
@@ -277,6 +295,7 @@ def test_monitor_api_filters_disabled_accounts_and_limits_each_account(settings)
     assert response.status_code == 200
     payload = response.json()
     assert [item["account_name"] for item in payload["items"]] == ["启用"]
+    assert payload["items"][0]["multiplier"] == "0.10"
     records = payload["items"][0]["records"]
     assert len(records) == 30
     assert records[0]["checked_at"] == "2026-08-01T00:05:00Z"

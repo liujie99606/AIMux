@@ -9,12 +9,16 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QDoubleSpinBox,
     QFormLayout,
+    QHeaderView,
+    QHBoxLayout,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
     QPlainTextEdit,
+    QPushButton,
     QSpinBox,
     QLabel,
+    QTableWidget,
     QWidget,
 )
 
@@ -68,6 +72,27 @@ class AccountForm(QDialog):
         self.models.setToolTip("可多选；不选择表示该账号支持全部模型")
         self.test_default_model = QComboBox()
         self.test_default_model.setToolTip("仅可从已勾选的支持模型中选择")
+        self.model_mappings_table = QTableWidget(0, 3)
+        self.model_mappings_table.setHorizontalHeaderLabels(["客户端模型", "上游模型", ""])
+        self.model_mappings_table.setMinimumWidth(700)
+        self.model_mappings_table.setMinimumHeight(124)
+        self.model_mappings_table.setMaximumHeight(180)
+        header = self.model_mappings_table.horizontalHeader()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
+        self.model_mappings_table.setColumnWidth(0, 300)
+        self.model_mappings_table.setColumnWidth(1, 300)
+        self.model_mappings_table.setColumnWidth(2, 80)
+        self.model_mappings_table.verticalHeader().setDefaultSectionSize(38)
+        mapping_tools = QWidget()
+        mapping_tools_layout = QHBoxLayout(mapping_tools)
+        mapping_tools_layout.setContentsMargins(0, 0, 0, 0)
+        add_mapping = QPushButton("新增映射")
+        add_mapping.clicked.connect(lambda: self._add_mapping_row())
+        mapping_tools_layout.addWidget(add_mapping)
+        mapping_tools_layout.addStretch()
         self.tags = QLineEdit(", ".join(account.get("tags") or []) if account else "")
         self.notes = QPlainTextEdit((account.get("notes") or "") if account else "")
         form.addRow(self._required_label("名称"), self.name)
@@ -78,6 +103,8 @@ class AccountForm(QDialog):
         form.addRow(self._required_label("倍率"), self.multiplier)
         form.addRow(self._required_label("支持模型"), self.models)
         form.addRow(self._required_label("测试默认模型"), self.test_default_model)
+        form.addRow("模型映射", self.model_mappings_table)
+        form.addRow("", mapping_tools)
         form.addRow("标签", self.tags)
         form.addRow("备注", self.notes)
         buttons = QDialogButtonBox(
@@ -95,6 +122,8 @@ class AccountForm(QDialog):
         self.type.currentTextChanged.connect(self._load_models_for_type)
         self.models.itemChanged.connect(self._refresh_test_default_models)
         self._load_models_for_type(self.type.currentText())
+        for source, target in (account.get("model_mappings") or {}).items() if account else []:
+            self._add_mapping_row(source, target)
 
     @staticmethod
     def _required_label(text: str) -> QLabel:
@@ -110,6 +139,12 @@ class AccountForm(QDialog):
             self.validation_message.setText(f"请填写或选择：{'、'.join(missing)}")
             self.validation_message.show()
             first_field.setFocus()
+            return
+        try:
+            self.model_mappings()
+        except ValueError as exc:
+            self.validation_message.setText(str(exc))
+            self.validation_message.show()
             return
         self.validation_message.hide()
         super().accept()
@@ -162,6 +197,7 @@ class AccountForm(QDialog):
         index = self.test_default_model.findData(current)
         self.test_default_model.setCurrentIndex(index if index >= 0 else 0)
         self.test_default_model.blockSignals(False)
+        self._refresh_mapping_combos()
         if self._loaded_type is not None:
             self._test_default_by_type[self._loaded_type] = self.test_default_model.currentData() or ""
 
@@ -172,6 +208,114 @@ class AccountForm(QDialog):
             for index in range(self.models.count())
             if self.models.item(index).checkState() == Qt.CheckState.Checked
         ]
+
+    def _add_mapping_row(self, source: str = "", target: str = "") -> None:
+        """新增一行客户端模型到上游模型的映射。"""
+        row = self.model_mappings_table.rowCount()
+        self.model_mappings_table.insertRow(row)
+        source_editor = self._mapping_combo(
+            self._selected_models_for_mapping(), source, "选择客户端模型"
+        )
+        target_editor = self._mapping_combo(
+            self._models_by_type[self.type.currentText()], target, "选择上游模型"
+        )
+        remove = QPushButton("删除")
+        remove.clicked.connect(self._remove_mapping_row)
+        self.model_mappings_table.setCellWidget(row, 0, source_editor)
+        self.model_mappings_table.setCellWidget(row, 1, target_editor)
+        self.model_mappings_table.setCellWidget(row, 2, remove)
+
+    @staticmethod
+    def _mapping_combo(options: list[str], current: str, placeholder: str) -> QComboBox:
+        """创建模型映射下拉框，并保留不在目录中的历史值。"""
+        combo = QComboBox()
+        combo.addItem(placeholder, None)
+        values = list(dict.fromkeys(options))
+        preserve_unlisted = bool(current and current not in values)
+        if current and current not in values:
+            values.append(current)
+        for value in sorted(values):
+            combo.addItem(value, value)
+        combo.setProperty("preserve_unlisted", preserve_unlisted)
+        if current:
+            index = combo.findData(current)
+            combo.setCurrentIndex(index if index >= 0 else 0)
+        return combo
+
+    def _selected_models_for_mapping(self) -> list[str]:
+        """返回当前已勾选的客户端模型候选。"""
+        return sorted(self.selected_models())
+
+    def _refresh_mapping_combos(self) -> None:
+        """按当前支持模型和协议类型刷新所有映射下拉候选。"""
+        if not hasattr(self, "model_mappings_table"):
+            return
+        source_options = self._selected_models_for_mapping()
+        target_options = sorted(self._models_by_type[self.type.currentText()])
+        for row in range(self.model_mappings_table.rowCount()):
+            source_combo = self.model_mappings_table.cellWidget(row, 0)
+            target_combo = self.model_mappings_table.cellWidget(row, 1)
+            if isinstance(source_combo, QComboBox):
+                current = source_combo.currentData() or source_combo.currentText()
+                self._replace_mapping_combo_options(
+                    source_combo, source_options, current, "选择客户端模型", preserve_unlisted=False
+                )
+            if isinstance(target_combo, QComboBox):
+                current = target_combo.currentData() or target_combo.currentText()
+                self._replace_mapping_combo_options(
+                    target_combo, target_options, current, "选择上游模型", preserve_unlisted=True
+                )
+
+    @staticmethod
+    def _replace_mapping_combo_options(
+        combo: QComboBox,
+        options: list[str],
+        current: str,
+        placeholder: str,
+        *,
+        preserve_unlisted: bool,
+    ) -> None:
+        """替换映射候选并尽量恢复当前值。"""
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItem(placeholder, None)
+        values = list(dict.fromkeys(options))
+        keep_unlisted = preserve_unlisted and bool(combo.property("preserve_unlisted"))
+        if current and current not in values and keep_unlisted:
+            values.append(current)
+        for value in sorted(values):
+            combo.addItem(value, value)
+        index = combo.findData(current) if current else -1
+        combo.setCurrentIndex(index if index >= 0 else 0)
+        combo.setProperty("preserve_unlisted", keep_unlisted and current not in options)
+        combo.blockSignals(False)
+
+    def _remove_mapping_row(self) -> None:
+        """删除点击按钮所在的模型映射行。"""
+        button = self.sender()
+        for row in range(self.model_mappings_table.rowCount()):
+            if self.model_mappings_table.cellWidget(row, 2) is button:
+                self.model_mappings_table.removeRow(row)
+                return
+
+    def model_mappings(self) -> dict[str, str] | None:
+        """读取并校验表单中的模型映射行。"""
+        mappings: dict[str, str] = {}
+        for row in range(self.model_mappings_table.rowCount()):
+            source_editor = self.model_mappings_table.cellWidget(row, 0)
+            target_editor = self.model_mappings_table.cellWidget(row, 1)
+            source = source_editor.currentData() if isinstance(source_editor, QComboBox) else ""
+            target = target_editor.currentData() if isinstance(target_editor, QComboBox) else ""
+            source = source.strip() if isinstance(source, str) else ""
+            target = target.strip() if isinstance(target, str) else ""
+            if not source or not target:
+                raise ValueError(f"模型映射第 {row + 1} 行的客户端模型和上游模型不能为空")
+            if source in mappings:
+                raise ValueError(f"模型映射中客户端模型重复：{source}")
+            if source == target:
+                raise ValueError(f"模型映射第 {row + 1} 行的两个模型不能相同")
+            mappings[source] = target
+        return mappings or None
 
     def payload(self, creating: bool) -> dict:
         """校验输入并构造账号管理 API 所需的 JSON。"""
@@ -184,6 +328,7 @@ class AccountForm(QDialog):
             "priority": self.priority.value(),
             "multiplier": self.multiplier.value(),
             "test_default_model": self.test_default_model.currentData(),
+            "model_mappings": self.model_mappings(),
             "supported_models": self.selected_models() or None,
             "tags": split(self.tags.text()),
             "notes": self.notes.toPlainText().strip() or None,

@@ -36,6 +36,7 @@ description: AIMux Alembic 数据库迁移维护规范。修改 SQLModel 表结�
 6. 已提交或发布的 revision 不得修改、删除、重命名或重排，只能追加新 revision 修正。
 7. 不在 migration 中写入 API 密钥、业务正文、机器路径或环境特定数据。
 8. 默认模型等幂等业务初始化继续由 service 负责，不写死在 schema migration 中。
+9. `app/database_migrations.py` 只负责固定的 Alembic runner、revision 校验、备份和基线接管；后续新增字段、索引或约束不得通过修改该文件适配。新增数据库结构只修改 SQLModel、追加 migration，并补充对应迁移测试。
 
 ## 实施顺序
 
@@ -45,6 +46,12 @@ description: AIMux Alembic 数据库迁移维护规范。修改 SQLModel 表结�
 4. 禁止用 `create_all()`、`ALTER TABLE`、`_ensure_columns()` 或启动时临时 DDL 代替 revision。
 5. 新增 migration 后确认 `scripts/build.py` 仍会打包整个 `migrations/`，通常无需逐文件修改构建配置。
 6. 更新数据库规划、架构或发布说明中受影响的兼容边界。
+
+## 基线接管规则
+
+- 没有 `alembic_version` 的历史数据库只允许精确符合不可变的 `001_current_baseline`；校验通过后备份、`stamp 001`，再由 Alembic 执行后续 revision。
+- 无版本数据库如果已经包含 `002` 或更高版本字段，或结构存在其他差异，必须拒绝启动，不能在 `database_migrations.py` 中增加字段白名单、临时 `ALTER TABLE` 或猜测其迁移历史。
+- 已有合法 revision 的数据库统一执行 `upgrade head`。因此以后新增字段时，正常改动范围是 `models.py`、新的 `migrations/versions/<next_revision>.py`、业务代码和测试；不修改 `app/database_migrations.py`。
 
 ## 数据迁移安全
 
