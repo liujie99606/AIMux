@@ -108,8 +108,10 @@ def _pyinstaller_command(clean: bool) -> list[str]:
         str(icon),
         "--add-data",
         f"{ASSETS}{os.pathsep}assets",
-        "--add-data",
-        f"{MIGRATIONS}{os.pathsep}migrations",
+            "--add-data",
+            f"{MIGRATIONS}{os.pathsep}migrations",
+            "--add-data",
+            f"{ROOT / 'pyproject.toml'}{os.pathsep}.",
     ]
     if clean:
         command.append("--clean")

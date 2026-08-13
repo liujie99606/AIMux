@@ -10,6 +10,7 @@ from app.controller import account_api, anthropic_api, model_api, monitor_api, o
 from app.controller.dependencies import verify_local_token
 from app.db import configure_database
 from app.service.monitor_scheduler import MonitorScheduler
+from app.utils.version import project_version
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -26,7 +27,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         finally:
             await scheduler.stop()
 
-    app = FastAPI(title="AIMux", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="AIMux", version=project_version(), lifespan=lifespan)
     app.state.settings = settings
     app.state.monitor_scheduler = scheduler
     app.add_middleware(

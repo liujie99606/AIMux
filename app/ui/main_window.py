@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 from app.config import Settings
 from app.ui.client import ApiClient, local_api_base_url
 from app.ui.components.common.current_time_label import CurrentTimeLabel
+from app.ui.components.update_dialog import UpdateDialog
 from app.ui.views.accounts_view import AccountsView
 from app.ui.views.models_view import ModelsView
 from app.ui.views.monitor_view import MonitorView
@@ -32,6 +33,7 @@ from app.ui.views.settings_view import SettingsView
 from app.ui.views.statistics_view import StatisticsView
 from app.ui.views.usage_view import UsageView
 from app.utils.resources import resource_path
+from app.utils.version import project_version
 
 _GITHUB_URL = "https://github.com/liujie99606/AIMux.git"
 
@@ -89,6 +91,14 @@ class MainWindow(QMainWindow):
         self.github_button.setAccessibleName("打开 AIMux GitHub 地址")
         self.github_button.clicked.connect(self.open_github)
         sidebar_layout.addWidget(self.github_button)
+        self.version_label = QLabel(f"版本 v{project_version()}")
+        self.version_label.setObjectName("appVersion")
+        self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sidebar_layout.addWidget(self.version_label)
+        self.update_button = QPushButton("检查更新")
+        self.update_button.setObjectName("updateLink")
+        self.update_button.clicked.connect(self.check_for_updates)
+        sidebar_layout.addWidget(self.update_button)
         root = QWidget()
         layout = QHBoxLayout(root)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -100,6 +110,7 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(
             "QFrame#sidebar { background: #1e2128; border-right: 1px solid #2d3139; }"
             "QLabel#brand { color: #e8eaed; font-size: 16px; font-weight: 600; padding: 6px 0; }"
+            "QLabel#appVersion { color: #8b909a; font-size: 12px; padding: 2px 0; }"
             "QLabel#sidebarClock { color: #8b909a; font-size: 13px; padding: 2px 0 4px; }"
             "QLabel#pageTitle { color: #e8eaed; font-size: 20px; font-weight: 600; }"
             "QLabel#statisticsGroupTitle { color: #c5c8ce; font-size: 15px; font-weight: 600; }"
@@ -109,6 +120,8 @@ class MainWindow(QMainWindow):
             "QListWidget#navigation::item:hover { background: #2d3139; }"
             "QPushButton#githubLink { color: #c5c8ce; text-align: left; padding: 9px 12px; }"
             "QPushButton#githubLink:hover { background: #2d3139; }"
+            "QPushButton#updateLink { color: #8b909a; text-align: center; padding: 5px; }"
+            "QPushButton#updateLink:hover { color: #ffffff; background: #2d3139; }"
             # 统计卡片样式。
             "QFrame#statCard { background: #1e2128; border: 1px solid #2d3139; border-radius: 8px; }"
             "QLabel#statTitle { color: #8b909a; font-size: 12px; }"
@@ -243,6 +256,10 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "打开 GitHub", f"将使用默认浏览器打开：\n{_GITHUB_URL}")
         if not QDesktopServices.openUrl(QUrl(_GITHUB_URL)):
             QMessageBox.warning(self, "打开失败", f"无法打开 GitHub 地址：\n{_GITHUB_URL}")
+
+    def check_for_updates(self) -> None:
+        """打开非阻塞更新检查和下载对话框。"""
+        UpdateDialog(self).exec()
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self._closing:
