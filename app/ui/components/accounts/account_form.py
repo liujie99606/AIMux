@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QPlainTextEdit,
     QSpinBox,
+    QLabel,
 )
 
 
@@ -68,17 +69,10 @@ class AccountForm(QDialog):
         self.test_default_model.setToolTip("仅可从已勾选的支持模型中选择")
         self.tags = QLineEdit(", ".join(account.get("tags") or []) if account else "")
         self.notes = QPlainTextEdit((account.get("notes") or "") if account else "")
-        self.name_label = QLabel("名称")
-        self.name_label.setStyleSheet("color: red")
-        form.addRow(self.name_label, self.name)
-        self.type_label = QLabel("类型")
-        form.addRow(self.type_label, self.type)
-        self.base_url_label = QLabel("上游地址")
-        self.base_url_label.setStyleSheet("color: red")
-        form.addRow(self.base_url_label, self.base_url)
-        self.api_key_label = QLabel("API 密钥")
-        self.api_key_label.setStyleSheet("color: red")
-        form.addRow(self.api_key_label, self.api_key)
+        form.addRow(self._required_label("名称"), self.name)
+        form.addRow("类型", self.type)
+        form.addRow(self._required_label("上游地址"), self.base_url)
+        form.addRow(self._required_label("API 密钥"), self.api_key)
         form.addRow("优先级", self.priority)
         form.addRow("倍率", self.multiplier)
         form.addRow("支持模型", self.models)
@@ -95,6 +89,13 @@ class AccountForm(QDialog):
         self.type.currentTextChanged.connect(self._load_models_for_type)
         self.models.itemChanged.connect(self._refresh_test_default_models)
         self._load_models_for_type(self.type.currentText())
+
+    @staticmethod
+    def _required_label(text: str) -> QLabel:
+        """创建仅将必填星号标为红色的字段标签。"""
+        label = QLabel(f'{text}<span style="color: red">*</span>')
+        label.setTextFormat(Qt.TextFormat.RichText)
+        return label
 
     def _load_models_for_type(self, account_type: str) -> None:
         """刷新当前协议的模型清单，并保留原先已选的同类型模型。"""
