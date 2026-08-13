@@ -283,6 +283,22 @@ def test_monitor_api_filters_disabled_accounts_and_limits_each_account(settings)
     assert records[-1]["checked_at"] == "2026-08-01T00:34:00Z"
 
 
+@pytest.mark.asyncio
+async def test_monitor_uses_account_test_default_model_before_protocol_default(session, settings, monkeypatch):
+    """监控应优先使用账号配置的测试默认模型。"""
+    account = add_account(session)
+    account_service.update_account(session, account, AccountUpdate(test_default_model="gpt-account"))
+    models: list[str] = []
+
+    async def fake_ping(current, model, passed_settings):
+        models.append(model)
+        return MonitorResult(model, 10, True, 200)
+
+    monkeypatch.setattr("app.service.monitor_scheduler.monitor_service.ping_account", fake_ping)
+    await MonitorScheduler(settings).run_round()
+    assert models == ["gpt-account"]
+
+
 def test_monitor_settings_default_and_environment_override(tmp_path, monkeypatch):
     """监控开关默认为开启，并支持环境变量覆盖。"""
     monkeypatch.setenv("AIMUX_DATA_DIR", str(tmp_path / "data"))

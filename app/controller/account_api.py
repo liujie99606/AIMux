@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import json
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
@@ -54,13 +52,14 @@ def remove(account_id: str, session: Session = Depends(get_session)):
 
 async def _test_one(session: Session, account_id: str, model: str | None, settings: Settings) -> dict:
     account = _account(session, account_id)
-    chosen_model = model
-    if not chosen_model and account.supported_models:
-        try:
-            chosen_model = json.loads(account.supported_models)[0]
-        except (ValueError, IndexError):
-            chosen_model = None
-    chosen_model = chosen_model or ("claude-3-5-haiku-latest" if account.type == "anthropic" else "gpt-4o-mini")
+    chosen_model = monitor_service.test_model(session, account, model)
+    if chosen_model is None:
+        return TestResult(
+            account_id=account.id,
+            success=False,
+            error_code="test_model_unavailable",
+            error_message="该协议尚未配置测试默认模型",
+        ).model_dump()
     try:
         response = await monitor_service.send_ping(account, chosen_model, settings)
     except Exception as exc:

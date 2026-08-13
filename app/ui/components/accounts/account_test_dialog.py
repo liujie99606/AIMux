@@ -25,7 +25,7 @@ class AccountTestWorker(QThread):
     request_failed = Signal(str, str, str)
     progress_changed = Signal(int, int, str)
 
-    def __init__(self, client: ApiClient, accounts: list[dict], model: str) -> None:
+    def __init__(self, client: ApiClient, accounts: list[dict], model: str | None) -> None:
         super().__init__()
         self.client = client
         self.accounts = accounts
@@ -66,7 +66,21 @@ class AccountTestDialog(QDialog):
         selector = QHBoxLayout()
         selector.addWidget(QLabel("选择测试模型"))
         self.model = QComboBox()
-        self.model.addItems([item["name"] for item in models])
+        configured_defaults = {
+            str(item["test_default_model"])
+            for item in self.accounts
+            if item.get("test_default_model")
+        }
+        if configured_defaults:
+            self.model.addItem("使用账号默认模型", None)
+            for item in models:
+                self.model.addItem(item["name"], item["name"])
+            self.model.setCurrentIndex(0)
+        else:
+            for item in models:
+                self.model.addItem(item["name"], item["name"])
+            if self.model.count():
+                self.model.setCurrentIndex(0)
         selector.addWidget(self.model)
         selector.addSpacing(16)
         selector.addWidget(QLabel("测试请求形态"))
@@ -106,9 +120,12 @@ class AccountTestDialog(QDialog):
         """根据账号类型显示对应的请求形态名称。"""
         return "Messages" if self.account["type"] == "anthropic" else "Chat Completions"
 
-    def _request_body(self, model: str) -> dict:
+    def _request_body(self, model: str | None) -> dict:
         """构造与后端 _test_one 一致的最小测试请求体。"""
-        return {"model": model, "max_tokens": 1, "messages": [{"role": "user", "content": "ping"}]}
+        body = {"max_tokens": 1, "messages": [{"role": "user", "content": "ping"}]}
+        if model:
+            body["model"] = model
+        return body
 
     def _append_html(self, html: str) -> None:
         """追加一行 HTML 到日志区。"""
@@ -120,7 +137,7 @@ class AccountTestDialog(QDialog):
         self._append_html(escaped)
 
     def _run_test(self) -> None:
-        model_name = self.model.currentText()
+        model_name = self.model.currentData()
         body = self._request_body(model_name)
         self.log.clear()
         self.test_btn.setEnabled(False)

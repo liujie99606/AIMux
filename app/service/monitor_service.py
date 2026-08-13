@@ -36,6 +36,11 @@ def default_model(session: Session, account_type: str) -> str | None:
     return models[0].name if models else None
 
 
+def test_model(session: Session, account: Account, requested_model: str | None = None) -> str | None:
+    """按手动指定、账号默认、协议默认的顺序确定测试或监控模型。"""
+    return requested_model or account.test_default_model or default_model(session, account.type)
+
+
 def _error_message(response: httpx.Response) -> str:
     """截断上游错误正文，避免监控记录保存完整响应。"""
     return response.content[:_MAX_ERROR_LENGTH].decode("utf-8", errors="replace")

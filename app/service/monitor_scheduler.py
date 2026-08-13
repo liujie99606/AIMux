@@ -93,7 +93,7 @@ class MonitorScheduler:
         with Session(get_engine()) as session:
             accounts, _ = account_dao.list_accounts(session, limit=10_000, status="active")
             targets = [
-                (account, monitor_service.default_model(session, account.type))
+                (account, monitor_service.test_model(session, account))
                 for account in accounts
             ]
         semaphore = asyncio.Semaphore(_MAX_CONCURRENCY)

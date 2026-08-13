@@ -21,6 +21,7 @@ class AccountCreate(BaseModel):
     multiplier: Decimal = Field(
         default=Decimal("0.10"), ge=Decimal("0.01"), le=Decimal("0.30")
     )
+    test_default_model: str | None = Field(default=None, max_length=160)
     supported_models: list[str] | None = None
     tags: list[str] | None = None
     notes: str | None = None
@@ -41,6 +42,7 @@ class AccountUpdate(BaseModel):
     multiplier: Decimal | None = Field(
         default=None, ge=Decimal("0.01"), le=Decimal("0.30")
     )
+    test_default_model: str | None = Field(default=None, max_length=160)
     supported_models: list[str] | None = None
     tags: list[str] | None = None
     notes: str | None = None
@@ -60,6 +62,7 @@ class AccountView(BaseModel):
     status: AccountStatus
     priority: int
     multiplier: Decimal
+    test_default_model: str | None
     supported_models: list[str] | None
     tags: list[str] | None
     notes: str | None

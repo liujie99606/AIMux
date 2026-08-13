@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 from alembic.migration import MigrationContext
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine, inspect
 from sqlmodel import SQLModel
 
@@ -31,6 +33,14 @@ def _create_unversioned_baseline(path: Path) -> None:
     engine = create_engine(f"sqlite:///{path.as_posix()}")
     SQLModel.metadata.create_all(engine)
     engine.dispose()
+
+
+def _upgrade_to_baseline_revision(path: Path) -> None:
+    """创建仅停留在 001 的数据库，用于验证后续升级。"""
+    config = Config()
+    config.set_main_option("script_location", "migrations")
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{path.as_posix()}")
+    command.upgrade(config, BASELINE_REVISION)
 
 
 def _make_accounts_table_match_legacy_column_addition(path: Path) -> None:
@@ -65,7 +75,11 @@ def _make_accounts_table_match_legacy_column_addition(path: Path) -> None:
             )
             """
         )
-        columns = [column.name for column in Account.__table__.columns]
+        columns = [
+            column.name
+            for column in Account.__table__.columns
+            if column.name != "test_default_model"
+        ]
         quoted = ", ".join(columns)
         connection.execute(
             f"INSERT INTO accounts ({quoted}) SELECT {quoted} FROM accounts_current"
@@ -79,19 +93,19 @@ def _make_accounts_table_match_legacy_column_addition(path: Path) -> None:
 
 
 def test_empty_database_upgrades_to_current_baseline(tmp_path: Path) -> None:
-    """全新数据库应由 Alembic 001 创建完整结构。"""
+    """全新数据库应由 Alembic 创建完整当前结构。"""
     path = tmp_path / "new.sqlite3"
 
     engine = configure_database(path)
 
-    assert _current_revision(path) == BASELINE_REVISION
+    assert _current_revision(path) == "002_add_account_test_default_model"
     assert {"accounts", "models", "usage_records", "monitor_records"} <= set(
         inspect(engine).get_table_names()
     )
 
 
 def test_alembic_head_schema_matches_sqlmodel_metadata(tmp_path: Path) -> None:
-    """001 固定基线必须与当前 SQLModel 表、列、约束和索引保持一致。"""
+    """Alembic head 必须与当前 SQLModel 表、列、约束和索引保持一致。"""
     path = tmp_path / "head.sqlite3"
     migrated_engine = configure_database(path)
     metadata_engine = create_engine("sqlite:///:memory:")
@@ -123,7 +137,7 @@ def test_unversioned_current_database_is_backed_up_and_stamped(tmp_path: Path) -
 
     configure_database(path)
 
-    assert _current_revision(path) == BASELINE_REVISION
+    assert _current_revision(path) == "002_add_account_test_default_model"
     with sqlite3.connect(path) as connection:
         assert connection.execute(
             "SELECT api_key_encrypted FROM accounts WHERE id = 'account'"
@@ -162,7 +176,7 @@ def test_known_legacy_column_addition_is_normalized_before_stamp(tmp_path: Path)
         assert connection.execute(
             "SELECT api_key_encrypted, multiplier FROM accounts WHERE id = 'account'"
         ).fetchone() == ("plain-key", 0.1)
-    assert _current_revision(path) == BASELINE_REVISION
+    assert _current_revision(path) == "002_add_account_test_default_model"
     assert len(list(tmp_path.glob("legacy-current.sqlite3.migration-*-unversioned.bak"))) == 1
 
 
@@ -173,7 +187,29 @@ def test_repeated_start_at_head_does_not_create_backup(tmp_path: Path) -> None:
 
     configure_database(path)
 
-    assert _current_revision(path) == BASELINE_REVISION
+    assert _current_revision(path) == "002_add_account_test_default_model"
+
+
+def test_database_at_001_upgrades_and_preserves_accounts(tmp_path: Path) -> None:
+    """已发布的 001 数据库升级到 002 后保留账号并补空字段。"""
+    path = tmp_path / "baseline.sqlite3"
+    _upgrade_to_baseline_revision(path)
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "INSERT INTO accounts "
+            "(id, name, type, base_url, api_key_encrypted, status, priority, multiplier, "
+            "total_requests, total_tokens, created_at, updated_at) "
+            "VALUES ('account', '账号', 'openai', 'https://example.com', 'plain-key', "
+            "'active', 5, 0.10, 0, 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')"
+        )
+
+    configure_database(path)
+
+    assert _current_revision(path) == "002_add_account_test_default_model"
+    with sqlite3.connect(path) as connection:
+        assert connection.execute(
+            "SELECT api_key_encrypted, test_default_model FROM accounts WHERE id = 'account'"
+        ).fetchone() == ("plain-key", None)
     assert list(tmp_path.glob("repeat.sqlite3.migration-*.bak")) == []
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
+import pytest
 from sqlmodel import Session
 
 from app.db import get_engine
@@ -17,18 +18,21 @@ def test_account_management_api_and_local_token(settings):
     headers = {"Authorization": "Bearer local-secret"}
     created = client.post("/api/accounts", headers=headers, json={
         "name": "OpenAI", "type": "openai", "base_url": "https://api.example/v1/", "api_key": "sk-test", "supported_models": ["gpt-test"],
+        "test_default_model": "gpt-test",
     })
     assert created.status_code == 200
     account = created.json()
     assert account["base_url"] == "https://api.example/v1"
     assert account["api_key"] == "sk-test"
     assert account["multiplier"] == "0.10"
+    assert account["test_default_model"] == "gpt-test"
     updated = client.put(
         f"/api/accounts/{account['id']}",
         headers=headers,
-        json={"multiplier": 0.07},
+        json={"multiplier": 0.07, "test_default_model": None},
     )
     assert updated.status_code == 200 and updated.json()["multiplier"] == "0.07"
+    assert updated.json()["test_default_model"] is None
     assert client.put(
         f"/api/accounts/{account['id']}",
         headers=headers,
@@ -60,6 +64,36 @@ def test_settings_persists_launch_at_login_without_external_side_effects(setting
     assert response.json()["upstream_proxy_enabled"] is True
     assert response.json()["upstream_proxy_url"] == "http://127.0.0.1:7890"
     assert client.get("/api/settings").json()["request_retry_attempts"] == 8
+
+
+@pytest.mark.asyncio
+async def test_account_test_model_prefers_account_default_then_manual_override(settings, monkeypatch):
+    """账号测试无手动模型时使用账号默认模型，显式模型仍可覆盖。"""
+    import httpx
+
+    calls: list[str] = []
+
+    async def fake_ping(account, model, passed_settings):
+        calls.append(model)
+        return httpx.Response(200, json={"id": "ok"})
+
+    monkeypatch.setattr("app.controller.account_api.monitor_service.send_ping", fake_ping)
+    client = TestClient(create_app(settings))
+    account = client.post(
+        "/api/accounts",
+        json={
+            "name": "测试账号",
+            "base_url": "https://api.example/v1",
+            "api_key": "key",
+            "test_default_model": "gpt-account",
+        },
+    ).json()
+
+    assert client.post(f"/api/accounts/{account['id']}/test", json={}).json()["model"] == "gpt-account"
+    assert client.post(
+        f"/api/accounts/{account['id']}/test", json={"model": "gpt-manual"}
+    ).json()["model"] == "gpt-manual"
+    assert calls == ["gpt-account", "gpt-manual"]
 
 
 def test_compatibility_routes_select_protocol_and_models(settings, monkeypatch):

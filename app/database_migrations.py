@@ -162,6 +162,20 @@ def _validate_unversioned_baseline(path: Path) -> bool:
             expected = _schema_signature(expected_engine, table)
             if actual == expected:
                 continue
+            if table == "accounts" and not any(
+                column[0] == "test_default_model" for column in actual["columns"]
+            ):
+                expected_without_test_model = dict(expected)
+                expected_without_test_model["columns"] = tuple(
+                    column
+                    for column in expected["columns"]
+                    if column[0] != "test_default_model"
+                )
+                if actual == expected_without_test_model:
+                    continue
+                if _is_supported_legacy_signature(actual, expected_without_test_model):
+                    needs_normalization = True
+                    continue
             if not _is_supported_legacy_signature(actual, expected):
                 raise DatabaseMigrationError(
                     f"无版本数据库不符合当前基线：表 {table} 的列、约束或索引不一致"
@@ -293,8 +307,23 @@ def migrate_database(path: Path) -> None:
                 backup = _backup_database(path, "unversioned")
                 _logger.info("已创建无版本数据库迁移备份：%s", backup)
                 if needs_normalization:
+                    with sqlite3.connect(path) as connection:
+                        account_columns = {
+                            row[1] for row in connection.execute("PRAGMA table_info(accounts)")
+                        }
+                        if "test_default_model" not in account_columns:
+                            connection.execute(
+                                "ALTER TABLE accounts ADD COLUMN test_default_model VARCHAR"
+                            )
                     _normalize_legacy_baseline(path)
-                command.stamp(config, BASELINE_REVISION)
+                # 无版本库按当前完整结构验证，确认后直接标记当前 head，
+                # 避免已含后续字段的库重复执行历史 add-column migration。
+                with sqlite3.connect(path) as connection:
+                    has_test_default_model = any(
+                        column[1] == "test_default_model"
+                        for column in connection.execute("PRAGMA table_info(accounts)")
+                    )
+                command.stamp(config, head if has_test_default_model else BASELINE_REVISION)
             elif current is not None:
                 head = _validate_versioned_revision(config, current)
                 if current != head:

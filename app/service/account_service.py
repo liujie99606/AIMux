@@ -26,6 +26,7 @@ def to_view(account: Account) -> dict:
         "status": account.status,
         "priority": account.priority,
         "multiplier": account.multiplier,
+        "test_default_model": account.test_default_model,
         "supported_models": json.loads(account.supported_models) if account.supported_models else None,
         "tags": json.loads(account.tags) if account.tags else None,
         "notes": account.notes,
@@ -52,6 +53,7 @@ def create_account(session: Session, payload: AccountCreate) -> Account:
             status=payload.status,
             priority=payload.priority,
             multiplier=payload.multiplier,
+            test_default_model=payload.test_default_model,
             supported_models=_json(payload.supported_models),
             tags=_json(payload.tags),
             notes=payload.notes,
@@ -62,7 +64,16 @@ def create_account(session: Session, payload: AccountCreate) -> Account:
 def update_account(session: Session, account: Account, payload: AccountUpdate) -> Account:
     """仅更新请求中明确提供的账号字段。"""
     fields = payload.model_fields_set
-    for field in ("name", "type", "base_url", "status", "priority", "multiplier", "notes"):
+    for field in (
+        "name",
+        "type",
+        "base_url",
+        "status",
+        "priority",
+        "multiplier",
+        "test_default_model",
+        "notes",
+    ):
         if field in fields:
             setattr(account, field, getattr(payload, field))
     if "api_key" in fields and payload.api_key:

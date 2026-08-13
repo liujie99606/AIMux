@@ -32,8 +32,11 @@ class AccountForm(QDialog):
         self.setWindowTitle("编辑账号" if account and not copy else "新增账号")
         self.setMinimumWidth(920)
         self._selected_by_type: dict[str, set[str]] = defaultdict(set)
+        self._test_default_by_type: dict[str, str] = {}
         if account:
             self._selected_by_type[account["type"]] = set(account.get("supported_models") or [])
+            if account.get("test_default_model"):
+                self._test_default_by_type[account["type"]] = account["test_default_model"]
         self._loaded_type: str | None = None
         self._models_by_type: dict[str, list[str]] = defaultdict(list)
         for model in model_catalog:
@@ -58,6 +61,7 @@ class AccountForm(QDialog):
         self.multiplier.setValue(
             float(account.get("multiplier", 0.10)) if account else 0.10
         )
+        self.test_default_model = QComboBox()
         self.models = QListWidget()
         self.models.setMaximumHeight(130)
         self.models.setToolTip("可多选；不选择表示该账号支持全部模型")
@@ -69,6 +73,7 @@ class AccountForm(QDialog):
         form.addRow("API 密钥", self.api_key)
         form.addRow("优先级", self.priority)
         form.addRow("倍率", self.multiplier)
+        form.addRow("测试默认模型", self.test_default_model)
         form.addRow("支持模型", self.models)
         form.addRow("标签", self.tags)
         form.addRow("备注", self.notes)
@@ -86,16 +91,23 @@ class AccountForm(QDialog):
         """刷新当前协议的模型清单，并保留原先已选的同类型模型。"""
         if self._loaded_type is not None:
             self._selected_by_type[self._loaded_type] = set(self.selected_models())
+            self._test_default_by_type[self._loaded_type] = self.test_default_model.currentData() or ""
         self.models.clear()
+        self.test_default_model.clear()
+        self.test_default_model.addItem("使用模型维护默认值", None)
         names = list(self._models_by_type[account_type])
         selected = self._selected_by_type[account_type]
+        test_default = self._test_default_by_type.get(account_type, "")
         # 已保存但后来从目录删除的模型仍可见，编辑时不会意外丢失配置。
-        names.extend(name for name in selected if name not in names)
+        names.extend(name for name in (*selected, test_default) if name and name not in names)
         for name in sorted(names):
             item = QListWidgetItem(name)
             item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             item.setCheckState(Qt.CheckState.Checked if name in selected else Qt.CheckState.Unchecked)
             self.models.addItem(item)
+            self.test_default_model.addItem(name, name)
+        if test_default:
+            self.test_default_model.setCurrentIndex(self.test_default_model.findData(test_default))
         self._loaded_type = account_type
 
     def selected_models(self) -> list[str]:
@@ -116,6 +128,7 @@ class AccountForm(QDialog):
             "api_key": self.api_key.text().strip(),
             "priority": self.priority.value(),
             "multiplier": self.multiplier.value(),
+            "test_default_model": self.test_default_model.currentData(),
             "supported_models": self.selected_models() or None,
             "tags": split(self.tags.text()),
             "notes": self.notes.toPlainText().strip() or None,

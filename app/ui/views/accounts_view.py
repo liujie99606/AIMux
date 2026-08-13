@@ -133,9 +133,6 @@ class AccountsView(QWidget):
         """在集成弹窗中选择模型、显示测试请求与响应详情。"""
         try:
             models = self._models(self.accounts[account_id]["type"])
-            if not models:
-                QMessageBox.information(self, "测试账号", "该类型尚未维护模型，请先在模型维护页新增")
-                return
             dialog = AccountTestDialog(self.client, self.accounts[account_id], models, self)
             dialog.exec()
             self.refresh()
@@ -155,9 +152,6 @@ class AccountsView(QWidget):
         try:
             account_type = account_types.pop()
             models = self._models(account_type)
-            if not models:
-                QMessageBox.information(self, "批量测试", "该类型尚未维护模型，请先在模型维护页新增")
-                return
             dialog = AccountTestDialog(
                 self.client, [self.accounts[account_id] for account_id in ids], models, self
             )

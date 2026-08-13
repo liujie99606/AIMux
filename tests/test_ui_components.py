@@ -136,11 +136,14 @@ def test_account_form_filters_checkable_models_when_type_changes():
     ])
     assert [form.models.item(index).text() for index in range(form.models.count())] == ["gpt-5.5"]
     assert form.multiplier.value() == 0.10
+    assert form.test_default_model.currentData() is None
     form.name.setText("测试")
     form.base_url.setText("https://example.com")
     form.api_key.setText("key")
     form.multiplier.setValue(0.07)
+    form.test_default_model.setCurrentIndex(1)
     assert form.payload(True)["multiplier"] == 0.07
+    assert form.payload(True)["test_default_model"] == "gpt-5.5"
     form.type.setCurrentText("anthropic")
     assert [form.models.item(index).text() for index in range(form.models.count())] == ["claude-sonnet-4-8"]
     application.processEvents()
@@ -160,6 +163,18 @@ def test_account_form_does_not_carry_selected_models_to_another_type():
     assert form.selected_models() == []
     assert [form.models.item(index).text() for index in range(form.models.count())] == ["claude-sonnet-4-8"]
     application.processEvents()
+
+
+def test_account_form_preserves_configured_test_model_when_catalog_no_longer_has_it():
+    """编辑账号时，已保存的测试默认模型不能因目录删除而被意外清空。"""
+    application = QApplication.instance() or QApplication([])
+    form = AccountForm(
+        [{"name": "gpt-current", "type": "openai"}],
+        {"type": "openai", "test_default_model": "gpt-removed", "api_key": "key", "name": "账号", "base_url": "https://example.com"},
+    )
+    assert form.test_default_model.currentData() == "gpt-removed"
+    assert form.payload(True)["test_default_model"] == "gpt-removed"
+    form.deleteLater(); application.processEvents()
 
 
 def test_usage_formatting_and_failed_result_color():
