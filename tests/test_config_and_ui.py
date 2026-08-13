@@ -485,6 +485,7 @@ def test_monitor_view_renders_accounts_and_refreshes_status(monkeypatch):
     assert view.status.text() == "监控已关闭"
     assert view.table.item(0, 0).text() == "账号 A"
     assert view.table.item(0, 2).text() == "gpt-test"
+    assert view.table.item(0, 4).text() == "0.2 s"
     assert view.table.item(0, 5).text() == "成功"
     assert view.table.columnCount() == 7
     status_grid = view.table.cellWidget(0, 6)

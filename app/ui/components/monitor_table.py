@@ -24,7 +24,7 @@ class MonitorTable(DataTable):
             width=160,
         ),
         Column("最近检查", lambda row: format_time(row["_latest"].get("checked_at")), width=165),
-        Column("耗时", lambda row: format_duration_ms(row["_latest"].get("duration_ms")), width=75),
+        Column("平均耗时", lambda row: format_duration_ms(row["_average_duration_ms"]), width=85),
         Column("结果", lambda row: row["_result"], width=75, color=lambda row: row["_result_color"]),
         Column("最近30次检测记录", lambda row: row["_status_grid"], widget=True, stretch=True),
     ]
@@ -51,9 +51,16 @@ class MonitorTable(DataTable):
             result_color = QColor(_SUCCESS_COLOR if success else _FAILURE_COLOR)
         prepared = dict(account)
         prepared["_latest"] = latest
+        prepared["_average_duration_ms"] = MonitorTable._average_duration_ms(records)
         prepared["_result"] = result
         prepared["_result_color"] = result_color
         status_grid = MonitorStatusGrid()
         status_grid.set_records(records)
         prepared["_status_grid"] = status_grid
         return prepared
+
+    @staticmethod
+    def _average_duration_ms(records: list[dict]) -> float | None:
+        """计算当前最近三十次记录中有耗时数据的平均值。"""
+        durations = [record["duration_ms"] for record in records if record.get("duration_ms") is not None]
+        return sum(durations) / len(durations) if durations else None
