@@ -481,12 +481,13 @@ def test_monitor_view_renders_accounts_and_refreshes_status(monkeypatch):
 
     application = QApplication.instance() or QApplication([])
     view = MonitorView(FakeClient())
-    _wait_until(lambda: view.rows.count() == 1)
+    _wait_until(lambda: view.table.rowCount() == 1)
     assert view.status.text() == "监控已关闭"
-    assert view.rows.count() == 1
-    row = view.rows.itemAt(0).layout()
-    assert row is not None and row.itemAt(0).widget().text() == "账号 A"
-    assert [row.itemAt(index).widget().width() for index in range(5)] == [160, 80, 180, 170, 80]
-    assert row.itemAt(5).widget().minimumWidth() == 567
+    assert view.table.item(0, 0).text() == "账号 A"
+    assert view.table.item(0, 2).text() == "gpt-test"
+    assert view.table.item(0, 5).text() == "成功"
+    assert view.table.columnCount() == 36
+    assert view.table.columnWidth(35) == 25
+    assert view.table.item(0, 35).toolTip().startswith("检查时间：")
     view.deleteLater()
     application.processEvents()
