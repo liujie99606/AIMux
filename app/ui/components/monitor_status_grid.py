@@ -6,8 +6,8 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QSizePolicy, QWidget
 from app.ui.formatting import format_duration_ms, format_time
 
 _CELL_COUNT = 30
-_CELL_WIDTH = 16
-_CELL_HEIGHT = 22
+_CELL_WIDTH = 28
+_CELL_HEIGHT = 28
 _CELL_SPACING = 0
 _GRID_MIN_WIDTH = _CELL_COUNT * _CELL_WIDTH + (_CELL_COUNT - 1) * _CELL_SPACING
 

@@ -31,7 +31,7 @@ class MonitorTable(DataTable):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
-        self.verticalHeader().setDefaultSectionSize(34)
+        self.verticalHeader().setDefaultSectionSize(38)
         self.verticalHeader().setVisible(False)
 
     def set_records(self, accounts: list[dict]) -> None:
