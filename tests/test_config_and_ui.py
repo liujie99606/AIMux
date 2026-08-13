@@ -488,7 +488,7 @@ def test_monitor_view_renders_accounts_and_refreshes_status(monkeypatch):
     assert view.table.item(0, 5).text() == "成功"
     assert view.table.columnCount() == 7
     status_grid = view.table.cellWidget(0, 6)
-    assert status_grid is not None and status_grid.minimumWidth() == 567
+    assert status_grid is not None and status_grid.minimumWidth() == 480
     assert status_grid.layout().itemAt(29).widget().toolTip().startswith("检查时间：")
     view.deleteLater()
     application.processEvents()

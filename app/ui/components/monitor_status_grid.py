@@ -8,7 +8,7 @@ from app.ui.formatting import format_duration_ms, format_time
 _CELL_COUNT = 30
 _CELL_WIDTH = 16
 _CELL_HEIGHT = 22
-_CELL_SPACING = 3
+_CELL_SPACING = 0
 _GRID_MIN_WIDTH = _CELL_COUNT * _CELL_WIDTH + (_CELL_COUNT - 1) * _CELL_SPACING
 
 
@@ -28,7 +28,7 @@ class MonitorStatusGrid(QWidget):
             cell = QLabel()
             cell.setFixedSize(_CELL_WIDTH, _CELL_HEIGHT)
             cell.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            cell.setStyleSheet("background: #59606b; border-radius: 2px;")
+            cell.setStyleSheet("background: #59606b;")
             self._layout.addWidget(cell)
             self._cells.append(cell)
 
@@ -39,12 +39,12 @@ class MonitorStatusGrid(QWidget):
         for index, cell in enumerate(self._cells):
             record = records[index - offset] if index >= offset else None
             if record is None:
-                cell.setStyleSheet("background: #59606b; border-radius: 2px;")
+                cell.setStyleSheet("background: #59606b;")
                 cell.setToolTip("暂无监控记录")
                 continue
             success = bool(record.get("success"))
             color = "#2e9f63" if success else "#c43d4b"
-            cell.setStyleSheet(f"background: {color}; border-radius: 2px;")
+            cell.setStyleSheet(f"background: {color};")
             details = [
                 f"检查时间：{format_time(record.get('checked_at'))}",
                 f"耗时：{format_duration_ms(record.get('duration_ms'))}",
