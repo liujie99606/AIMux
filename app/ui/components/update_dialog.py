@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 
 import httpx
-from PySide6.QtCore import QProcess, QThread, QUrl, Signal
+from PySide6.QtCore import QProcess, QThread, QUrl, Qt, Signal
 from PySide6.QtGui import QCloseEvent, QDesktopServices
 from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QLabel, QMessageBox, QProgressBar, QPushButton, QVBoxLayout
 
@@ -86,10 +86,14 @@ class UpdateDialog(QDialog):
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("检查更新")
-        self.setMinimumWidth(460)
+        self.setMinimumSize(760, 360)
+        self.resize(820, 440)
         layout = QVBoxLayout(self)
         self.status = QLabel(f"当前版本：v{project_version()}\n正在检查 GitHub 最新版本...")
+        self.status.setMinimumHeight(220)
         self.status.setWordWrap(True)
+        self.status.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self.status.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         layout.addWidget(self.status)
         self.progress = QProgressBar()
         self.progress.setRange(0, 0)

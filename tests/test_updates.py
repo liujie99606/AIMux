@@ -15,6 +15,36 @@ def test_update_version_and_architecture(monkeypatch) -> None:
     assert update_dialog._architecture_asset() == "AIMux-macOS-arm64.zip"
 
 
+def test_update_dialog_has_room_for_long_status_messages(monkeypatch) -> None:
+    """更新弹窗应为长错误信息保留足够的可读空间。"""
+    monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtCore import QObject, Signal
+    from PySide6.QtWidgets import QApplication
+
+    from app.ui.components import update_dialog
+
+    class FakeWorker(QObject):
+        progress_changed = Signal(int, int)
+        finished_success = Signal(str, str)
+        failed = Signal(str)
+
+        def isRunning(self) -> bool:
+            return False
+
+        def start(self) -> None:
+            return None
+
+    monkeypatch.setattr(update_dialog, "UpdateWorker", FakeWorker)
+
+    application = QApplication.instance() or QApplication([])
+    dialog = update_dialog.UpdateDialog()
+    assert dialog.minimumWidth() >= 760
+    assert dialog.minimumHeight() >= 360
+    assert dialog.status.minimumHeight() >= 220
+    dialog.deleteLater()
+    application.processEvents()
+
+
 def test_update_worker_downloads_and_validates_release(monkeypatch, tmp_path) -> None:
     from app.ui.components import update_dialog
 
