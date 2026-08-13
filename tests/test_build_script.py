@@ -119,7 +119,7 @@ def test_windows_release_script_reads_project_version_and_uses_clean_build() -> 
 
 def test_release_installer_reads_project_version() -> None:
     """安装包名称应使用 pyproject.toml 中的统一版本。"""
-    assert release_installer.read_project_version() == "0.1.6"
+    assert release_installer.read_project_version() == "0.2.01"
 
 
 def test_release_installer_maps_supported_windows_architectures(monkeypatch) -> None:
