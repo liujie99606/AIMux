@@ -67,17 +67,23 @@ def test_pick_prefers_lower_multiplier_when_priority_is_equal(session):
     assert selected.id != expensive.id
 
 
-def test_account_list_orders_active_then_priority_then_name(session):
-    """账号列表先展示启用账号，再按优先级和名称排序。"""
+def test_account_list_orders_active_then_priority_then_multiplier_then_name(session):
+    """账号列表依次按状态、优先级、倍率和名称排序。"""
     add(session, name="启用低优先级", priority=1, models=None)
-    add(session, name="启用高优先级", priority=9, models=None)
+    add(session, name="启用高优先级", priority=9, multiplier=Decimal("0.10"), models=None)
+    add(session, name="启用高优先级低倍率", priority=9, multiplier=Decimal("0.04"), models=None)
     disabled = add(session, name="停用高优先级", priority=9, models=None)
     account_service.update_account(session, disabled, AccountUpdate(status="disabled"))
 
     records, total = account_dao.list_accounts(session)
 
-    assert total == 3
-    assert [account.name for account in records] == ["启用高优先级", "启用低优先级", "停用高优先级"]
+    assert total == 4
+    assert [account.name for account in records] == [
+        "启用高优先级低倍率",
+        "启用高优先级",
+        "启用低优先级",
+        "停用高优先级",
+    ]
 
 
 def test_test_priority_linkage_never_changes_manual_status(session):
