@@ -1,0 +1,62 @@
+import { del, get } from './client';
+export type UsageRecord = {
+  id: string;
+  trace_id?: string;
+  started_at: string;
+  ended_at?: string;
+  account_id?: string;
+  account_name?: string;
+  account_type?: string;
+  model?: string;
+  endpoint?: string;
+  reasoning_effort?: string;
+  success: boolean;
+  stream?: boolean;
+  status_code?: number;
+  error_code?: string;
+  duration_ms?: number;
+  first_token_ms?: number;
+  input_tokens?: number;
+  output_tokens?: number;
+  cached_tokens?: number;
+  total_tokens?: number;
+  error_message?: string;
+  client_ip?: string;
+  attempts?: number;
+};
+export const usageApi = {
+  list: (query: string) =>
+    get<{
+      items: UsageRecord[];
+      total: number;
+      summary: {
+        request_count: number;
+        success_rate: number;
+        average_duration_ms: number;
+        total_tokens: number;
+      };
+    }>(`/api/usage/records${query}`),
+  detail: (id: string) => get<UsageRecord>(`/api/usage/records/${id}`),
+  cleanup: () => del<{ deleted: number }>('/api/usage/records/expired'),
+  statistics: () => get<Statistics>('/api/usage/statistics'),
+};
+export type TokenSummary = {
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+  total_tokens: number;
+  cache_rate: number | null;
+};
+export type Statistics = {
+  total: TokenSummary;
+  yesterday: TokenSummary;
+  today: TokenSummary;
+  accounts_today: Array<
+    TokenSummary & {
+      account_id: string;
+      account_name: string;
+      account_type: string;
+      priority: number;
+    }
+  >;
+};
