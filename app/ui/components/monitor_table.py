@@ -10,6 +10,8 @@ from app.ui.formatting import format_duration_ms, format_time
 _STATUS_COUNT = 30
 _SUCCESS_COLOR = "#2e9f63"
 _FAILURE_COLOR = "#c43d4b"
+_SLOW_COLOR = "#e0a800"
+_SLOW_THRESHOLD_MS = 20_000
 
 
 class MonitorTable(DataTable):
@@ -25,7 +27,12 @@ class MonitorTable(DataTable):
             width=160,
         ),
         Column("最近检查", lambda row: format_time(row["_latest"].get("checked_at")), width=165),
-        Column("平均耗时", lambda row: format_duration_ms(row["_average_duration_ms"]), width=85),
+        Column(
+            "平均耗时",
+            lambda row: format_duration_ms(row["_average_duration_ms"]),
+            width=85,
+            color=lambda row: MonitorTable._duration_color(row["_average_duration_ms"]),
+        ),
         Column("结果", lambda row: row["_result"], width=75, color=lambda row: row["_result_color"]),
         Column("最近30次检测记录", lambda row: row["_status_grid"], widget=True, stretch=True),
     ]
@@ -65,3 +72,10 @@ class MonitorTable(DataTable):
         """计算当前最近三十次记录中有耗时数据的平均值。"""
         durations = [record["duration_ms"] for record in records if record.get("duration_ms") is not None]
         return sum(durations) / len(durations) if durations else None
+
+    @staticmethod
+    def _duration_color(duration_ms: float | None) -> QColor | None:
+        """平均耗时超过二十秒时使用黄色警示。"""
+        if duration_ms is not None and duration_ms > _SLOW_THRESHOLD_MS:
+            return QColor(_SLOW_COLOR)
+        return None

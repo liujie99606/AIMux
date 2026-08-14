@@ -54,7 +54,6 @@ class AccountsView(QWidget):
         self.table.test_requested.connect(self.test)
         self.table.toggle_requested.connect(self.toggle)
         self.table.priority_changed.connect(self.change_priority)
-        self.table.name_changed.connect(self.rename)
         self.refresh()
 
     def _sync_select_all(self) -> None:
@@ -176,13 +175,3 @@ class AccountsView(QWidget):
                 self.refresh()
             except Exception as exc:
                 self._error(exc)
-
-    def rename(self, account_id: str, name: str) -> None:
-        """直接在列表中快速修改账号名称，失败时刷新以恢复原值。"""
-        if account_id in self.accounts:
-            try:
-                self.client.put(f"/api/accounts/{account_id}", json={"name": name})
-                self.accounts[account_id]["name"] = name
-            except Exception as exc:
-                self._error(exc)
-                self.refresh()

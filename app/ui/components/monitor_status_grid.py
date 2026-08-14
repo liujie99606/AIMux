@@ -10,6 +10,10 @@ _CELL_WIDTH = 25
 _CELL_HEIGHT = 25
 _CELL_SPACING = 0
 _GRID_MIN_WIDTH = _CELL_COUNT * _CELL_WIDTH + (_CELL_COUNT - 1) * _CELL_SPACING
+_SLOW_THRESHOLD_MS = 20_000
+_SUCCESS_COLOR = "#2e9f63"
+_SLOW_COLOR = "#e0a800"
+_FAILURE_COLOR = "#c43d4b"
 
 
 class MonitorStatusGrid(QWidget):
@@ -20,6 +24,10 @@ class MonitorStatusGrid(QWidget):
         self.setMinimumWidth(_GRID_MIN_WIDTH)
         self.setFixedHeight(_CELL_HEIGHT)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setStyleSheet(
+            "QToolTip { color: #1f2937; background-color: #f8fafc; "
+            "border: 1px solid #64748b; padding: 6px; font-size: 13px; }"
+        )
         self._layout = QHBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(_CELL_SPACING)
@@ -45,7 +53,13 @@ class MonitorStatusGrid(QWidget):
                 cell.setToolTip("暂无监控记录")
                 continue
             success = bool(record.get("success"))
-            color = "#2e9f63" if success else "#c43d4b"
+            duration_ms = record.get("duration_ms")
+            if not success:
+                color = _FAILURE_COLOR
+            elif duration_ms is not None and duration_ms > _SLOW_THRESHOLD_MS:
+                color = _SLOW_COLOR
+            else:
+                color = _SUCCESS_COLOR
             cell.setStyleSheet(f"background: {color};")
             details = [
                 f"检查时间：{format_time(record.get('checked_at'))}",

@@ -7,15 +7,16 @@ from PySide6.QtWidgets import QHBoxLayout, QPushButton, QWidget
 from app.ui.components.common.data_table import Column, DataTable
 from app.ui.formatting import format_duration_ms, format_time
 
-_SLOW_THRESHOLD_MS = 10_000
-_SLOW_COLOR = QColor("#E0A800")  # 超过 10 秒的警示色
+_FIRST_TOKEN_SLOW_THRESHOLD_MS = 10_000
+_DURATION_SLOW_THRESHOLD_MS = 20_000
+_SLOW_COLOR = QColor("#E0A800")
 _FAILURE_COLOR = QColor("#D95C5C")  # 失败状态使用更深的红色
 
 
-def _slow_color(record: dict, key: str):
-    """超过 10 秒返回警示色，否则返回 None 保持默认。"""
+def _slow_color(record: dict, key: str, threshold_ms: int) -> QColor | None:
+    """超过给定阈值时返回警示色，否则保持默认颜色。"""
     value = record.get(key)
-    if value is not None and value > _SLOW_THRESHOLD_MS:
+    if value is not None and value > threshold_ms:
         return _SLOW_COLOR
     return None
 
@@ -38,8 +39,16 @@ class UsageTable(DataTable):
         Column("推理强度", lambda r: r.get("reasoning_effort") or "-"),
         Column("接口", lambda r: r.get("endpoint") or "-"),
         Column("结果", lambda r: "成功" if r["success"] else "失败", color=_result_color),
-        Column("首Token", lambda r: format_duration_ms(r.get("first_token_ms")), color=lambda r: _slow_color(r, "first_token_ms")),
-        Column("耗时", lambda r: format_duration_ms(r.get("duration_ms")), color=lambda r: _slow_color(r, "duration_ms")),
+        Column(
+            "首Token",
+            lambda r: format_duration_ms(r.get("first_token_ms")),
+            color=lambda r: _slow_color(r, "first_token_ms", _FIRST_TOKEN_SLOW_THRESHOLD_MS),
+        ),
+        Column(
+            "耗时",
+            lambda r: format_duration_ms(r.get("duration_ms")),
+            color=lambda r: _slow_color(r, "duration_ms", _DURATION_SLOW_THRESHOLD_MS),
+        ),
         Column("重试次数", lambda r: r.get("attempts") or 0),
         # Column("缓存Token", lambda r: r.get("cached_tokens") if r.get("cached_tokens") is not None else "-"),
         Column("操作", lambda r: r["_actions"], widget=True, stretch=True),

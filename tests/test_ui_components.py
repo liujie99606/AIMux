@@ -13,6 +13,7 @@ from app.ui.components.accounts.account_table import AccountTable
 from app.ui.components.accounts.account_test_dialog import AccountTestDialog
 from app.ui.components.accounts.batch_toolbar import BatchToolbar
 from app.ui.components.monitor_table import MonitorTable
+from app.ui.components.monitor_status_grid import MonitorStatusGrid
 from app.ui.components.statistics_cards import TokenStatisticsCards
 from app.ui.components.account_token_statistics_table import AccountTokenStatisticsTable
 from app.ui.components.usage.summary_card import SummaryCards
@@ -40,25 +41,24 @@ def test_account_table_builds_checkbox_cell_without_alignment_type_error():
     assert table.selected_ids() == []
     assert table.horizontalHeaderItem(2).text() == "倍率"
     assert table.item(0, 2).text() == "0.08"
-    assert table.horizontalHeaderItem(6).text() == "优先级快捷操作"
-    priority_actions = table.cellWidget(0, 6)
-    priority_buttons = priority_actions.findChildren(QPushButton)
-    assert [button.text() for button in priority_buttons] == ["0", "3", "6", "9"]
-    assert all(button.width() == button.height() == 26 for button in priority_buttons)
+    assert table.item(0, 1).text() == "测试账号"
+    assert "优先级快捷操作" not in [
+        table.horizontalHeaderItem(index).text() for index in range(table.columnCount())
+    ]
     priority_changes: list[tuple[str, int]] = []
     table.priority_changed.connect(
         lambda account_id, value: priority_changes.append((account_id, value))
     )
-    priority_buttons[2].click()
+    priority_editor = table.cellWidget(0, 5)
+    priority_editor.setValue(6)
     assert priority_changes == [("account-1", 6)]
-    assert [button.isChecked() for button in priority_buttons] == [False, False, True, False]
     toggled: list[str] = []
     table.toggle_requested.connect(toggled.append)
     status = table.cellWidget(0, 4)
     assert status.text() == "启用"
     status.click()
     assert toggled == ["account-1"]
-    actions = table.cellWidget(0, 8)
+    actions = table.cellWidget(0, 7)
     assert [button.text() for button in actions.findChildren(QPushButton)] == ["测试", "编辑", "复制", "删除"]
     table.set_all_selected(True)
     assert table.selected_ids() == ["account-1"]
@@ -292,7 +292,8 @@ def test_usage_formatting_and_failed_result_color():
     table = UsageTable()
     table.set_records([
         {"id": "failed", "success": False, "duration_ms": 1234, "first_token_ms": None, "attempts": 3},
-        {"id": "success", "success": True, "duration_ms": 1234, "first_token_ms": None, "attempts": 1},
+        {"id": "first-slow", "success": True, "duration_ms": 20_000, "first_token_ms": 10_001, "attempts": 1},
+        {"id": "duration-slow", "success": True, "duration_ms": 20_001, "first_token_ms": 10_000, "attempts": 1},
     ])
     assert table.horizontalHeaderItem(3).text() == "模型"
     assert table.horizontalHeaderItem(4).text() == "推理强度"
@@ -301,6 +302,10 @@ def test_usage_formatting_and_failed_result_color():
     assert table.item(0, result_column).text() == "失败"
     assert table.item(0, result_column).foreground().color().name().upper() == "#D95C5C"
     assert table.item(0, 8).text() == "1.2 s"
+    assert table.item(1, 7).foreground().color().name().upper() == "#E0A800"
+    assert table.item(1, 8).foreground().color().name().upper() != "#E0A800"
+    assert table.item(2, 7).foreground().color().name().upper() != "#E0A800"
+    assert table.item(2, 8).foreground().color().name().upper() == "#E0A800"
     assert table.horizontalHeaderItem(9).text() == "重试次数"
     assert table.item(0, 9).text() == "3"
     assert "缓存Token" not in [table.horizontalHeaderItem(index).text() for index in range(table.columnCount())]
@@ -311,6 +316,34 @@ def test_usage_formatting_and_failed_result_color():
     assert [card.title_label.text() for card in summary._cards] == ["请求数", "成功率", "平均耗时"]
     assert summary._cards[2].value_label.text() == "1.2 s"
     table.deleteLater(); summary.deleteLater(); application.processEvents()
+
+
+def test_monitor_slow_duration_uses_yellow_warning_color():
+    """监控平均耗时和成功但过慢的状态格应使用黄色，失败始终红色。"""
+    application = QApplication.instance() or QApplication([])
+    table = MonitorTable()
+    table.set_records([
+        {
+            "account_name": "账号一",
+            "account_type": "openai",
+            "records": [
+                {"success": True, "duration_ms": 20_001, "checked_at": "2026-08-01T00:00:00Z"},
+                {"success": False, "duration_ms": 30_000, "checked_at": "2026-08-01T00:02:00Z"},
+            ],
+        }
+    ])
+
+    assert table.item(0, 5).foreground().color().name().upper() == "#E0A800"
+    grid = table.cellWidget(0, 7)
+    assert grid is not None
+    assert "#e0a800" in grid.layout().itemAt(28).widget().styleSheet()
+    assert "#c43d4b" in grid.layout().itemAt(29).widget().styleSheet()
+    assert "color: #1f2937" in grid.styleSheet()
+
+    boundary_grid = MonitorStatusGrid()
+    boundary_grid.set_records([{"success": True, "duration_ms": 20_000}])
+    assert "#2e9f63" in boundary_grid.layout().itemAt(29).widget().styleSheet()
+    table.deleteLater(); boundary_grid.deleteLater(); application.processEvents()
 
 
 def test_token_statistics_cards_format_today_and_yesterday_values():

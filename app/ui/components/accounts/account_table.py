@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QButtonGroup, QCheckBox, QHBoxLayout, QLineEdit, QPushButton, QWidget
+from PySide6.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QWidget
 
 from app.ui.components.common.data_table import Column, DataTable
 from app.ui.components.common.priority_editor import PriorityEditor
@@ -18,17 +18,15 @@ class AccountTable(DataTable):
     test_requested = Signal(str)
     toggle_requested = Signal(str)
     priority_changed = Signal(str, int)
-    name_changed = Signal(str, str)
     selection_changed = Signal()
 
     COLUMNS = [
         Column("选择", lambda r: r["_checkbox"], widget=True, width=50),
-        Column("名称", lambda r: r["_name_editor"], widget=True, width=170),
+        Column("名称", lambda r: r["name"], width=170),
         Column("倍率", lambda r: f"{float(r.get('multiplier', 0.10)):.2f}", width=70),
         Column("类型", lambda r: r["type"]),
         Column("状态", lambda r: r["_status"], widget=True, width=120),
         Column("优先级", lambda r: r["_priority"], widget=True, width=90),
-        Column("优先级快捷操作", lambda r: r["_priority_actions"], widget=True, width=150),
         Column("最近使用", lambda r: format_time(r.get("last_used_at")), width=150),
         Column("操作", lambda r: r["_actions"], widget=True, stretch=True),
     ]
@@ -73,13 +71,6 @@ class AccountTable(DataTable):
         holder_layout.setAlignment(check, Qt.AlignmentFlag.AlignCenter)
         check.toggled.connect(lambda: self.selection_changed.emit())
 
-        name_editor = QLineEdit(account["name"])
-        name_editor.setFrame(False)
-        name_editor.setProperty("original", account["name"])
-        name_editor.editingFinished.connect(
-            lambda editor=name_editor, aid=account["id"]: self._emit_name(aid, editor)
-        )
-
         priority = PriorityEditor(account["priority"])
         priority.valueChanged.connect(
             lambda value, account_id=account["id"]: self.priority_changed.emit(account_id, value)
@@ -100,45 +91,9 @@ class AccountTable(DataTable):
             button = QPushButton(label)
             button.clicked.connect(lambda _, aid=account["id"], event=signal: event.emit(aid))
             buttons.addWidget(button)
-        # 用固定尺寸的圆形按钮直接设置常用优先级，避免增量调整产生歧义。
-        priority_actions = QWidget()
-        priority_buttons = QHBoxLayout(priority_actions)
-        priority_buttons.setContentsMargins(2, 0, 2, 0)
-        priority_buttons.setSpacing(4)
-        priority_group = QButtonGroup(priority_actions)
-        priority_group.setExclusive(True)
-        for value in (0, 3, 6, 9):
-            button = QPushButton(str(value))
-            button.setFixedSize(26, 26)
-            button.setCheckable(True)
-            button.setChecked(account["priority"] == value)
-            priority_group.addButton(button)
-            button.setToolTip(f"设置优先级为 {value}")
-            button.setAccessibleName(f"设置优先级为 {value}")
-            button.setStyleSheet(
-                "QPushButton { border: 1px solid #9aa4b2; border-radius: 13px; "
-                "padding: 0; background: transparent; }"
-                "QPushButton:hover { background: #e6f0ff; border-color: #2f80ed; }"
-                "QPushButton:checked { color: white; background: #2f80ed; border-color: #2f80ed; }"
-            )
-            button.clicked.connect(
-                lambda _, aid=account["id"], priority_value=value: self.priority_changed.emit(
-                    aid, priority_value
-                )
-            )
-            priority_buttons.addWidget(button)
-
         prepared = dict(account)
         prepared["_checkbox"] = holder
-        prepared["_name_editor"] = name_editor
         prepared["_status"] = status
         prepared["_priority"] = priority
-        prepared["_priority_actions"] = priority_actions
         prepared["_actions"] = actions
         return prepared
-
-    def _emit_name(self, account_id: str, editor: QLineEdit) -> None:
-        """名称编辑完成且非空、有变化时通知外部保存。"""
-        name = editor.text().strip()
-        if name and name != editor.property("original"):
-            self.name_changed.emit(account_id, name)
