@@ -12,6 +12,10 @@ AIMux 是本地桌面端的 OpenAI 与 Anthropic API 账号池。它只保留账
 请判断当前电脑是 macOS 还是 Windows，读取项目规范后，使用 scripts 目录下对应脚本启动或打包 AIMux；如果脚本不适用，请使用当前环境兼容的命令。打包默认增量构建，完成后告诉我执行结果和产物路径，不要自动 commit 或 push。
 ```
 
+### CC 配置示例
+
+![CC 中配置 AIMux](images/cc中配置.png)
+
 ## 为什么会有这个项目
 
 市面上中转站层出不穷，但稳定性参差不齐：要么突然跑路，要么高峰期限流降速，单点依赖一个中转站风险很高。虽然 [CC Switch](https://github.com/farion1231/cc-switch) 这类工具能切换上游配置，但每次切换都要重启 Codex / Claude Code 等客户端，打断工作流，体验不够顺滑。
