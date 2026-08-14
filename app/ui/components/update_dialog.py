@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QApplication, QDialog, QDialogButtonBox, QLabel, Q
 
 from app.utils.version import project_version
 
-_REPOSITORY = "liujie99606/AIMux"
+_REPOSITORY = "quietforge-dev/AIMux"
 _RELEASE_API = f"https://api.github.com/repos/{_REPOSITORY}/releases/latest"
 
 

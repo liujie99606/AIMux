@@ -102,7 +102,7 @@ def get_usage_record(session: Session, record_id: str) -> dict[str, Any] | None:
 
 
 def token_statistics(session: Session) -> dict[str, TokenStatistics | list[dict[str, Any]]]:
-    """汇总本地今日、昨日及各启用账号今日的 Token 数据。"""
+    """汇总本地总计、今日、昨日及各启用账号今日的 Token 数据。"""
     yesterday_start, yesterday_end = _local_day_range(1)
     today_start, today_end = _local_day_range(0)
     accounts, _ = account_dao.list_accounts(session, limit=10_000, status="active")
@@ -120,6 +120,7 @@ def token_statistics(session: Session) -> dict[str, TokenStatistics | list[dict[
         "cache_rate": None,
     }
     return {
+        "total": usage_dao.summarize_tokens(session),
         "yesterday": usage_dao.summarize_tokens(
             session, started_after=yesterday_start, started_before=yesterday_end
         ),

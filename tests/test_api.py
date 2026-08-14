@@ -186,13 +186,18 @@ def test_usage_record_cleanup_removes_only_records_older_than_three_days(setting
     assert {record["trace_id"] for record in payload["items"]} == {"boundary", "recent"}
 
 
-def test_usage_statistics_returns_today_and_yesterday_token_totals(settings):
-    """数据统计应按本地日期汇总四类 Token。"""
+def test_usage_statistics_returns_total_today_and_yesterday_token_totals(settings):
+    """数据统计应分别汇总总计、今日和昨日四类 Token。"""
     client = TestClient(create_app(settings))
+    history_start, _ = _local_day_range(2)
     yesterday_start, _ = _local_day_range(1)
     today_start, _ = _local_day_range(0)
     with Session(get_engine()) as session:
         session.add_all([
+            UsageRecord(
+                trace_id="history", started_at=history_start, input_tokens=500,
+                output_tokens=50, cached_tokens=250, total_tokens=550,
+            ),
             UsageRecord(
                 trace_id="yesterday", started_at=yesterday_start, input_tokens=1000,
                 output_tokens=200, cached_tokens=800, total_tokens=1200,
@@ -205,6 +210,10 @@ def test_usage_statistics_returns_today_and_yesterday_token_totals(settings):
         session.commit()
 
     payload = client.get("/api/usage/statistics").json()
+    assert payload["total"] == {
+        "input_tokens": 4000, "output_tokens": 550, "cached_tokens": 3050, "total_tokens": 4550,
+        "cache_rate": 0.7625,
+    }
     assert payload["yesterday"] == {
         "input_tokens": 1000, "output_tokens": 200, "cached_tokens": 800, "total_tokens": 1200,
         "cache_rate": 0.8,

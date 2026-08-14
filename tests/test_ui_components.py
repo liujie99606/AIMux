@@ -346,14 +346,18 @@ def test_monitor_slow_duration_uses_yellow_warning_color():
     table.deleteLater(); boundary_grid.deleteLater(); application.processEvents()
 
 
-def test_token_statistics_cards_format_today_and_yesterday_values():
-    """数据统计卡片应显示两组紧凑格式的 Token 数。"""
+def test_token_statistics_cards_format_total_today_and_yesterday_values():
+    """数据统计卡片应按总计、昨日、今日显示紧凑格式的 Token 数。"""
     application = QApplication.instance() or QApplication([])
     cards = TokenStatisticsCards()
     cards.set_statistics({
+        "total": {"total_tokens": 3_000_000, "input_tokens": 1_500, "output_tokens": 25, "cached_tokens": 900, "cache_rate": 0.6},
         "today": {"total_tokens": 1_250, "input_tokens": 1_000_000, "output_tokens": 12, "cached_tokens": 800, "cache_rate": 0.8},
         "yesterday": {"total_tokens": 2_000_000, "input_tokens": 500, "output_tokens": 250, "cached_tokens": 0, "cache_rate": None},
     })
+    assert list(cards._groups) == ["total", "yesterday", "today"]
+    assert cards._groups["total"]["total_tokens"].value_label.text() == "3M"
+    assert cards._groups["total"]["cache_rate"].value_label.text() == "60.0%"
     assert cards._groups["today"]["total_tokens"].value_label.text() == "1.2K"
     assert cards._groups["today"]["input_tokens"].value_label.text() == "1M"
     assert cards._groups["today"]["cache_rate"].value_label.text() == "80.0%"

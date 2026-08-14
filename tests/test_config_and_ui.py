@@ -78,8 +78,8 @@ def test_github_link_shows_url_then_opens_default_browser(monkeypatch):
 
     main_window.MainWindow.open_github(object())
 
-    assert messages == [("打开 GitHub", "将使用默认浏览器打开：\nhttps://github.com/liujie99606/AIMux.git")]
-    assert opened == ["https://github.com/liujie99606/AIMux.git"]
+    assert messages == [("打开 GitHub", "将使用默认浏览器打开：\nhttps://github.com/quietforge-dev/AIMux.git")]
+    assert opened == ["https://github.com/quietforge-dev/AIMux.git"]
 
 
 def test_main_window_constructs_github_link(monkeypatch):
@@ -109,7 +109,7 @@ def test_main_window_constructs_github_link(monkeypatch):
     application = QApplication.instance() or QApplication([])
     window = main_window.MainWindow(Settings())
     assert window.github_button.text() == "GitHub"
-    assert window.github_button.toolTip() == "https://github.com/liujie99606/AIMux.git"
+    assert window.github_button.toolTip() == "https://github.com/quietforge-dev/AIMux.git"
     window.tray.hide()
     window.deleteLater()
     application.processEvents()

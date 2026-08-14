@@ -11,7 +11,7 @@ description: AIMux GitHub Actions 跨平台构建规范。用户要求配置、�
 
 1. 使用用户指定的浏览器打开：
 
-   `https://github.com/liujie99606/AIMux/actions`
+   `https://github.com/quietforge-dev/AIMux/actions`
 
 2. 检查是否已登录 GitHub。若出现登录页，停止操作并明确提醒用户在当前浏览器登录；用户回复已登录后继续，不要切换到其他浏览器或绕过登录。
 3. 登录后检查 `Build Release Packages` workflow 是否存在、是否启用。

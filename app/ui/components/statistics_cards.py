@@ -31,7 +31,7 @@ class _StatisticCard(QFrame):
 
 
 class TokenStatisticsCards(QWidget):
-    """按今日和昨日分组展示 Token 汇总和缓存率。"""
+    """按总计、昨日和今日分组展示 Token 汇总和缓存率。"""
 
     _metrics = (
         ("总Token", "total_tokens"),
@@ -47,13 +47,13 @@ class TokenStatisticsCards(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(20)
         self._groups: dict[str, dict[str, _StatisticCard]] = {}
-        for key, title in (("yesterday", "昨日"), ("today", "今日")):
+        for key, title in (("total", "总计"), ("yesterday", "昨日"), ("today", "今日")):
             group, cards = self._create_group(title)
             layout.addWidget(group)
             self._groups[key] = cards
 
     def _create_group(self, title: str) -> tuple[QWidget, dict[str, _StatisticCard]]:
-        """创建包含四项指标的日期分组。"""
+        """创建包含五项指标的统计分组。"""
         group = QWidget(self)
         layout = QVBoxLayout(group)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -73,7 +73,7 @@ class TokenStatisticsCards(QWidget):
         return group, cards
 
     def set_statistics(self, statistics: dict) -> None:
-        """按接口返回的今日和昨日数据刷新卡片。"""
+        """按接口返回的总计、今日和昨日数据刷新卡片。"""
         for group_key, cards in self._groups.items():
             values = statistics.get(group_key, {})
             for metric_key, card in cards.items():

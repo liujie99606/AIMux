@@ -106,18 +106,19 @@ def summarize(
 
 
 def summarize_tokens(
-    session: Session, *, started_after: str, started_before: str
+    session: Session, *, started_after: str | None = None, started_before: str | None = None
 ) -> dict[str, int | float | None]:
-    """汇总指定时间范围内的输入、输出、缓存和总 Token。"""
+    """汇总可选时间范围内的输入、输出、缓存和总 Token。"""
     statement = select(
         func.sum(UsageRecord.input_tokens),
         func.sum(UsageRecord.output_tokens),
         func.sum(UsageRecord.cached_tokens),
         func.sum(UsageRecord.total_tokens),
-    ).where(
-        UsageRecord.started_at >= started_after,
-        UsageRecord.started_at < started_before,
     )
+    if started_after:
+        statement = statement.where(UsageRecord.started_at >= started_after)
+    if started_before:
+        statement = statement.where(UsageRecord.started_at < started_before)
     input_tokens, output_tokens, cached_tokens, total_tokens = session.exec(statement).one()
     input_count = input_tokens or 0
     output_count = output_tokens or 0
