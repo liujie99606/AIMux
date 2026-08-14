@@ -34,6 +34,7 @@ class StatisticsView(QWidget):
 
     def refresh(self) -> None:
         """读取并展示最新的今日和昨日 Token 汇总。"""
+        self.account_table.set_loading(True)
         self.loader.load(lambda: self.client.get("/api/usage/statistics"))
 
     def _apply_statistics(self, data: object) -> None:
@@ -41,8 +42,10 @@ class StatisticsView(QWidget):
         payload = data if isinstance(data, dict) else {}
         self.cards.set_statistics(payload)
         accounts = payload.get("accounts_today", [])
+        self.account_table.set_loading(False)
         self.account_table.set_statistics(accounts if isinstance(accounts, list) else [])
 
     def _error(self, exc: object) -> None:
         """显示后台统计查询失败原因。"""
+        self.account_table.set_loading(False)
         QMessageBox.warning(self, "查询失败", str(exc))

@@ -89,6 +89,8 @@ class UpdateDialog(QDialog):
         self.setMinimumSize(760, 360)
         self.resize(820, 440)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(14)
         self.status = QLabel(f"当前版本：v{project_version()}\n正在检查 GitHub 最新版本...")
         self.status.setMinimumHeight(220)
         self.status.setWordWrap(True)

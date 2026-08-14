@@ -39,6 +39,7 @@ class MonitorTable(DataTable):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
+        self.set_empty_text("暂无监控记录")
         self.verticalHeader().setDefaultSectionSize(35)
         self.verticalHeader().setVisible(False)
 

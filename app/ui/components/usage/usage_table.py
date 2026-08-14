@@ -32,7 +32,7 @@ class UsageTable(DataTable):
     detail_requested = Signal(str)
 
     COLUMNS = [
-        Column("时间", lambda r: format_time(r.get("started_at")), width=150),
+        Column("时间", lambda r: format_time(r.get("started_at")), width=190),
         Column("账号", lambda r: r.get("account_name") or "-", width=150),
         Column("类型", lambda r: r.get("account_type") or "-"),
         Column("模型", lambda r: r.get("model") or "-"),
@@ -56,6 +56,7 @@ class UsageTable(DataTable):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent=parent)
+        self.set_empty_text("暂无使用记录")
         self.row_activated.connect(self._open_detail)
 
     def set_records(self, records: list[dict]) -> None:
@@ -67,7 +68,9 @@ class UsageTable(DataTable):
         actions = QWidget()
         layout = QHBoxLayout(actions)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
         detail = QPushButton("详情")
+        detail.setMinimumWidth(60)
         detail.clicked.connect(lambda _, rid=record["id"]: self.detail_requested.emit(rid))
         layout.addWidget(detail)
         prepared = dict(record)

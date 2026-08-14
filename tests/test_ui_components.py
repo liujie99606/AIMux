@@ -242,7 +242,11 @@ def test_account_form_model_mapping_uses_supported_and_catalog_dropdowns():
     assert [target.itemData(index) for index in range(target.count())] == [None, "gpt-5.5", "grok4.6"]
     assert form.model_mappings_table.minimumWidth() == 700
     assert form.model_mappings_table.minimumHeight() >= 120
-    assert [form.model_mappings_table.columnWidth(index) for index in range(3)] == [300, 300, 80]
+    assert form.model_mappings_table.horizontalHeaderItem(2).text() == "操作"
+    assert form.model_mappings_table.columnWidth(0) == form.model_mappings_table.columnWidth(1)
+    assert form.model_mappings_table.columnWidth(0) >= 240
+    assert form.model_mappings_table.columnWidth(2) == 80
+    assert not form.model_mappings_table.verticalHeader().isVisible()
     assert form.model_mappings_table.verticalHeader().defaultSectionSize() == 38
     form.deleteLater(); application.processEvents()
 

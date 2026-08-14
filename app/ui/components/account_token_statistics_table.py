@@ -23,6 +23,7 @@ class AccountTokenStatisticsTable(DataTable):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent=parent)
+        self.set_empty_text("暂无启用账号统计")
 
     def set_statistics(self, statistics: list[dict]) -> None:
         """刷新各账号统计，并统一右对齐数值列。"""

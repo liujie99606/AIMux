@@ -12,6 +12,7 @@ class BatchToolbar(QWidget):
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
         self.select_all_checkbox = QCheckBox("全选")
         self.select_all_checkbox.setAccessibleName("全选账号")
         self.select_all_checkbox.toggled.connect(self.select_all_changed)

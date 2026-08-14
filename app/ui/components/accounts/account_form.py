@@ -16,9 +16,11 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QPlainTextEdit,
     QPushButton,
+    QSizePolicy,
     QSpinBox,
     QLabel,
     QTableWidget,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -36,7 +38,8 @@ class AccountForm(QDialog):
         super().__init__(parent)
         # copy=True 时以现有账号数据预填表单，但作为新增账号处理（标题与提交均按新增）。
         self.setWindowTitle("编辑账号" if account and not copy else "新增账号")
-        self.setMinimumWidth(920)
+        self.setMinimumSize(920, 720)
+        self.resize(960, 760)
         self._selected_by_type: dict[str, set[str]] = defaultdict(set)
         self._test_default_by_type: dict[str, str] = {}
         if account:
@@ -49,6 +52,11 @@ class AccountForm(QDialog):
             self._models_by_type[model["type"]].append(model["name"])
 
         form = QFormLayout(self)
+        form.setContentsMargins(24, 20, 24, 20)
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(6)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         self.name = QLineEdit(account.get("name", "") if account else "")
         self.type = QComboBox()
         self.type.addItems(["openai", "anthropic"])
@@ -68,24 +76,27 @@ class AccountForm(QDialog):
             float(account.get("multiplier", 0.10)) if account else 0.10
         )
         self.models = QListWidget()
-        self.models.setMaximumHeight(130)
+        self.models.setMinimumHeight(78)
+        self.models.setMaximumHeight(104)
         self.models.setToolTip("可多选；不选择表示该账号支持全部模型")
         self.test_default_model = QComboBox()
         self.test_default_model.setToolTip("仅可从已勾选的支持模型中选择")
         self.model_mappings_table = QTableWidget(0, 3)
-        self.model_mappings_table.setHorizontalHeaderLabels(["客户端模型", "上游模型", ""])
+        self.model_mappings_table.setHorizontalHeaderLabels(["客户端模型", "上游模型", "操作"])
         self.model_mappings_table.setMinimumWidth(700)
         self.model_mappings_table.setMinimumHeight(124)
         self.model_mappings_table.setMaximumHeight(180)
         header = self.model_mappings_table.horizontalHeader()
         header.setStretchLastSection(False)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        self.model_mappings_table.setColumnWidth(0, 300)
-        self.model_mappings_table.setColumnWidth(1, 300)
         self.model_mappings_table.setColumnWidth(2, 80)
+        self.model_mappings_table.verticalHeader().setVisible(False)
         self.model_mappings_table.verticalHeader().setDefaultSectionSize(38)
+        self.model_mappings_table.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
+        )
         mapping_tools = QWidget()
         mapping_tools_layout = QHBoxLayout(mapping_tools)
         mapping_tools_layout.setContentsMargins(0, 0, 0, 0)
@@ -95,6 +106,21 @@ class AccountForm(QDialog):
         mapping_tools_layout.addStretch()
         self.tags = QLineEdit(", ".join(account.get("tags") or []) if account else "")
         self.notes = QPlainTextEdit((account.get("notes") or "") if account else "")
+        for field in (
+            self.name,
+            self.type,
+            self.base_url,
+            self.api_key,
+            self.test_default_model,
+            self.tags,
+        ):
+            self._configure_field(field, width=560)
+        for field in (self.priority, self.multiplier):
+            self._configure_field(field, width=150, expand=False)
+        self.models.setMinimumWidth(560)
+        self.models.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.notes.setMinimumSize(560, 90)
+        self.notes.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         form.addRow(self._required_label("名称"), self.name)
         form.addRow(self._required_label("类型"), self.type)
         form.addRow(self._required_label("上游地址"), self.base_url)
@@ -103,8 +129,13 @@ class AccountForm(QDialog):
         form.addRow(self._required_label("倍率"), self.multiplier)
         form.addRow(self._required_label("支持模型"), self.models)
         form.addRow(self._required_label("测试默认模型"), self.test_default_model)
-        form.addRow("模型映射", self.model_mappings_table)
-        form.addRow("", mapping_tools)
+        mapping_section = QWidget()
+        mapping_layout = QVBoxLayout(mapping_section)
+        mapping_layout.setContentsMargins(0, 0, 0, 0)
+        mapping_layout.setSpacing(6)
+        mapping_layout.addWidget(self.model_mappings_table)
+        mapping_layout.addWidget(mapping_tools)
+        form.addRow("模型映射", mapping_section)
         form.addRow("标签", self.tags)
         form.addRow("备注", self.notes)
         buttons = QDialogButtonBox(
@@ -131,6 +162,16 @@ class AccountForm(QDialog):
         label = QLabel(f'{text}<span style="color: red">*</span>')
         label.setTextFormat(Qt.TextFormat.RichText)
         return label
+
+    @staticmethod
+    def _configure_field(field: QWidget, *, width: int, expand: bool = True) -> None:
+        """统一表单字段的最小尺寸和横向扩展策略。"""
+        field.setMinimumWidth(width)
+        field.setMinimumHeight(28)
+        horizontal_policy = (
+            QSizePolicy.Policy.Expanding if expand else QSizePolicy.Policy.Fixed
+        )
+        field.setSizePolicy(horizontal_policy, QSizePolicy.Policy.Fixed)
 
     def accept(self) -> None:
         """校验必填项，未通过时保留表单并显示当前缺失字段。"""

@@ -62,10 +62,14 @@ class AccountTestDialog(QDialog):
         self.setMinimumSize(900, 700)
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(14)
 
         selector = QHBoxLayout()
+        selector.setSpacing(10)
         selector.addWidget(QLabel("选择测试模型"))
         self.model = QComboBox()
+        self.model.setMinimumWidth(240)
         configured_defaults = {
             str(item["test_default_model"])
             for item in self.accounts
@@ -82,7 +86,6 @@ class AccountTestDialog(QDialog):
             if self.model.count():
                 self.model.setCurrentIndex(0)
         selector.addWidget(self.model)
-        selector.addSpacing(16)
         selector.addWidget(QLabel("测试请求形态"))
         self.request_type = QLabel(self._detect_request_type())
         selector.addWidget(self.request_type)
@@ -103,6 +106,7 @@ class AccountTestDialog(QDialog):
         # 深色背景等宽字体，便于阅读请求/响应文本。
         self.log.setStyleSheet(
             "QTextEdit { background-color: #1e1e1e; color: #d4d4d4;"
+            " border: 1px solid #414854; border-radius: 5px;"
             " font-family: Consolas, 'Courier New', monospace; font-size: 12px; }"
         )
         layout.addWidget(self.log)

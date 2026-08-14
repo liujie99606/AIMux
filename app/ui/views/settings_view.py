@@ -1,8 +1,19 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import Qt, QUrl
 from PySide6.QtGui import QDesktopServices
-from PySide6.QtWidgets import QCheckBox, QFormLayout, QLineEdit, QMessageBox, QPushButton, QSpinBox, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QCheckBox,
+    QFormLayout,
+    QHBoxLayout,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSizePolicy,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
+)
 
 from app.ui.client import ApiClient
 from app.ui.components.common.background_loader import BackgroundLoader
@@ -20,7 +31,11 @@ class SettingsView(QWidget):
         root.setContentsMargins(20, 18, 20, 18)
         root.setSpacing(14)
         form = QFormLayout()
-        form.setSpacing(10)
+        form.setContentsMargins(0, 0, 0, 0)
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(10)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        form.setFieldGrowthPolicy(QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow)
         root.addLayout(form)
         self.host = QLineEdit()
         self.port = QSpinBox()
@@ -40,6 +55,17 @@ class SettingsView(QWidget):
         self.token = QLineEdit()
         self.token.setEchoMode(QLineEdit.EchoMode.Password)
         self.launch_at_login = QCheckBox("开机后自动启动 AIMux")
+        for field in (
+            self.host,
+            self.port,
+            self.db_path,
+            self.timeout,
+            self.first_timeout,
+            self.retries,
+            self.proxy_url,
+            self.token,
+        ):
+            self._configure_field(field)
         for label, field in [
             ("监听地址", self.host),
             ("端口", self.port),
@@ -56,14 +82,27 @@ class SettingsView(QWidget):
             form.addRow(label, field)
         self.proxy_enabled.toggled.connect(self.proxy_url.setEnabled)
         self.open_data_button = QPushButton("打开数据目录")
+        self.open_data_button.setMinimumWidth(140)
         self.open_data_button.clicked.connect(self.open_data_directory)
         form.addRow("数据目录", self.open_data_button)
         self.save_button = QPushButton("保存设置")
+        self.save_button.setMinimumWidth(104)
         self.save_button.setEnabled(False)
-        root.addWidget(self.save_button)
+        actions = QHBoxLayout()
+        actions.setContentsMargins(0, 0, 0, 0)
+        actions.addStretch()
+        actions.addWidget(self.save_button)
+        root.addLayout(actions)
         root.addStretch()
         self.save_button.clicked.connect(self.save)
         self.refresh()
+
+    @staticmethod
+    def _configure_field(field: QWidget) -> None:
+        """统一设置页输入控件的跨平台宽度与尺寸策略。"""
+        field.setMinimumWidth(460)
+        field.setMinimumHeight(32)
+        field.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
     def open_data_directory(self) -> None:
         """使用系统文件管理器打开 AIMux 用户数据目录。"""

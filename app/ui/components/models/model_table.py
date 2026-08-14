@@ -24,6 +24,7 @@ class ModelTable(DataTable):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent=parent)
+        self.set_empty_text("暂无模型")
 
     def set_models(self, models: list[dict]) -> None:
         """渲染模型列表，操作按钮在预处理中连接信号。"""
@@ -34,9 +35,12 @@ class ModelTable(DataTable):
         actions = QWidget()
         layout = QHBoxLayout(actions)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
         edit = QPushButton("编辑")
         remove = QPushButton("删除")
         set_default = QPushButton("设为默认")
+        for button in (edit, remove, set_default):
+            button.setMinimumWidth(68)
         # 当前已是默认时禁用按钮，避免重复操作。
         set_default.setEnabled(not model.get("is_default"))
         edit.clicked.connect(lambda _, model_id=model["id"]: self.edit_requested.emit(model_id))

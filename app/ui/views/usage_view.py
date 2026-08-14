@@ -59,6 +59,7 @@ class UsageView(QWidget):
 
     def refresh(self, page: int | None = None) -> None:
         """按当前页查询使用记录。"""
+        self.table.set_loading(True)
         current_page = self.pagination.page if page is None else max(page, 0)
         self._requested_page = current_page
         params = self.filter.parameters(offset=current_page * _PAGE_SIZE, limit=_PAGE_SIZE)
@@ -73,12 +74,14 @@ class UsageView(QWidget):
         """在主线程渲染后台查询返回的当前页记录。"""
         payload = data if isinstance(data, dict) else {}
         items = payload.get("items", [])
+        self.table.set_loading(False)
         self.table.set_records(items)
         self.summary.set_summary(_page_summary(items))
         self.pagination.set_total(payload.get("total", 0), self._requested_page)
 
     def _query_error(self, exc: object) -> None:
         """显示后台列表查询失败原因。"""
+        self.table.set_loading(False)
         QMessageBox.warning(self, "查询失败", str(exc))
 
     def show_detail(self, record_id: str) -> None:

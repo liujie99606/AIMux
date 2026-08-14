@@ -24,6 +24,7 @@ class AccountsView(QWidget):
         root.setContentsMargins(20, 18, 20, 18)
         root.setSpacing(14)
         tools = QHBoxLayout()
+        tools.setContentsMargins(0, 0, 0, 0)
         tools.setSpacing(8)
         self.type_filter = QComboBox()
         self.type_filter.addItems(["全部类型", "openai", "anthropic"])
@@ -73,6 +74,7 @@ class AccountsView(QWidget):
 
     def refresh(self) -> None:
         """按筛选条件刷新账号表格。"""
+        self.table.set_loading(True)
         params = {"limit": 200}
         account_type = self.type_filter.currentText()
         status = self.status_filter.currentText()
@@ -87,6 +89,7 @@ class AccountsView(QWidget):
         payload = data if isinstance(data, dict) else {}
         items = payload.get("items", [])
         self.accounts = {item["id"]: item for item in items}
+        self.table.set_loading(False)
         self.table.set_accounts(items)
 
     def add(self) -> None:

@@ -22,6 +22,7 @@ class ModelsView(QWidget):
         root.setContentsMargins(20, 18, 20, 18)
         root.setSpacing(14)
         tools = QHBoxLayout()
+        tools.setContentsMargins(0, 0, 0, 0)
         tools.setSpacing(8)
         self.type_filter = QComboBox()
         self.type_filter.addItems(["全部类型", "openai", "anthropic"])
@@ -49,6 +50,7 @@ class ModelsView(QWidget):
 
     def refresh(self) -> None:
         """重新读取模型目录并绘制表格。"""
+        self.table.set_loading(True)
         params: dict[str, str] = {}
         model_type = self.type_filter.currentText()
         if model_type != "全部类型":
@@ -60,6 +62,7 @@ class ModelsView(QWidget):
         payload = data if isinstance(data, dict) else {}
         items = payload.get("items", [])
         self.models = {item["id"]: item for item in items}
+        self.table.set_loading(False)
         self.table.set_models(items)
 
     def add(self) -> None:

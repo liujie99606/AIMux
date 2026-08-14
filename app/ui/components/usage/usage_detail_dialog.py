@@ -30,8 +30,13 @@ class UsageDetailDialog(QDialog):
         self.setWindowTitle("使用记录详情")
         self.setMinimumSize(920, 560)
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(12)
 
         form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
+        form.setHorizontalSpacing(18)
+        form.setVerticalSpacing(8)
         form.setLabelAlignment(self._label_alignment())
         get = record.get
 
@@ -74,7 +79,11 @@ class UsageDetailDialog(QDialog):
         error_view = QTextEdit()
         error_view.setReadOnly(True)
         error_view.setPlainText(_text(error_message))
-        error_view.setStyleSheet("QTextEdit { background-color: #1e1e1e; color: #d4d4d4; font-family: Consolas, monospace; }")
+        error_view.setStyleSheet(
+            "QTextEdit { background-color: #1e1e1e; color: #d4d4d4;"
+            " border: 1px solid #414854; border-radius: 5px;"
+            " font-family: Consolas, monospace; }"
+        )
         error_view.setFixedHeight(140)
         layout.addWidget(error_view)
 

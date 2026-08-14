@@ -106,30 +106,6 @@ class MainWindow(QMainWindow):
         layout.addWidget(sidebar)
         layout.addWidget(self.content, 1)
         self.setCentralWidget(root)
-        # 侧栏背景与导航项样式，与深色主题协调。
-        self.setStyleSheet(
-            "QFrame#sidebar { background: #1e2128; border-right: 1px solid #2d3139; }"
-            "QLabel#brand { color: #e8eaed; font-size: 16px; font-weight: 600; padding: 6px 0; }"
-            "QLabel#appVersion { color: #8b909a; font-size: 12px; padding: 2px 0; }"
-            "QLabel#sidebarClock { color: #8b909a; font-size: 13px; padding: 2px 0 4px; }"
-            "QLabel#pageTitle { color: #e8eaed; font-size: 20px; font-weight: 600; }"
-            "QLabel#statisticsGroupTitle { color: #c5c8ce; font-size: 15px; font-weight: 600; }"
-            "QListWidget#navigation { border: 0; background: transparent; outline: 0; }"
-            "QListWidget#navigation::item { padding: 9px 12px; border-radius: 6px; color: #c5c8ce; }"
-            "QListWidget#navigation::item:selected { background: #3b82f6; color: #ffffff; }"
-            "QListWidget#navigation::item:hover { background: #2d3139; }"
-            "QPushButton#githubLink { color: #c5c8ce; text-align: left; padding: 9px 12px; }"
-            "QPushButton#githubLink:hover { background: #2d3139; }"
-            "QPushButton#updateLink { color: #8b909a; text-align: center; padding: 5px; }"
-            "QPushButton#updateLink:hover { color: #ffffff; background: #2d3139; }"
-            # 统计卡片样式。
-            "QFrame#statCard { background: #1e2128; border: 1px solid #2d3139; border-radius: 8px; }"
-            "QLabel#statTitle { color: #8b909a; font-size: 12px; }"
-            "QLabel#statValue { color: #e8eaed; font-size: 20px; font-weight: 600; }"
-            # 表格统一深色风格。
-            "QTableWidget { border: 1px solid #2d3139; border-radius: 6px; }"
-            "QHeaderView::section { background: #1e2128; border: 0; border-bottom: 1px solid #2d3139; padding: 6px 8px; }"
-        )
         self._closing = False
         self.tray = QSystemTrayIcon(icon, self)
         menu = QMenu(self)

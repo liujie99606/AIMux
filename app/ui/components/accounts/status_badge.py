@@ -9,6 +9,7 @@ class StatusBadge(QPushButton):
 
     def __init__(self, status: str, parent=None) -> None:
         super().__init__(parent)
+        self.setFixedSize(68, 28)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.set_status(status)
 
@@ -19,17 +20,17 @@ class StatusBadge(QPushButton):
         self.setToolTip("点击切换为禁用" if active else "点击切换为启用")
         # 启用绿色、禁用灰色，配色适配深色主题背景。
         if active:
-            color = "#52c41a"
-            background = "#162312"
-            border = "#274916"
+            color = "#5dcf7a"
+            background = "#17331f"
+            border = "#2c6940"
         else:
-            color = "#8c8c8c"
-            background = "#262626"
-            border = "#3a3a3a"
+            color = "#a4abb6"
+            background = "#292e36"
+            border = "#4a5360"
         self.setStyleSheet(
             "QPushButton {"
             f"color: {color}; background: {background}; border: 1px solid {border};"
-            " padding: 3px 10px; border-radius: 10px; font-size: 12px;"
+            " padding: 2px 8px; border-radius: 5px; font-size: 12px;"
             "}"
-            "QPushButton:hover { background: #3a3a3a; }"
+            "QPushButton:hover { background: #3a4553; }"
         )

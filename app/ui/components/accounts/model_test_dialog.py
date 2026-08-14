@@ -9,8 +9,13 @@ class ModelTestDialog(QDialog):
     def __init__(self, models: list[dict], parent=None) -> None:
         super().__init__(parent)
         self.setWindowTitle("选择测试模型")
+        self.setMinimumSize(520, 220)
         form = QFormLayout(self)
+        form.setContentsMargins(24, 20, 24, 20)
+        form.setHorizontalSpacing(16)
+        form.setVerticalSpacing(10)
         self.model = QComboBox()
+        self.model.setMinimumWidth(320)
         self.model.addItems([item["name"] for item in models])
         form.addRow("测试模型", self.model)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)

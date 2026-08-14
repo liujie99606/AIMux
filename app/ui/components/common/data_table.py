@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPaintEvent, QPainter
 from PySide6.QtWidgets import QAbstractItemView, QHeaderView, QTableWidget, QTableWidgetItem, QWidget
 
 
@@ -46,10 +47,21 @@ class DataTable(QTableWidget):
         super().__init__(0, len(cols), parent)
         self._rows: list[dict] = []
         self._columns: list[Column] = list(cols)
+        self._default_empty_text = "暂无数据"
+        self._empty_text = self._default_empty_text
         self.setHorizontalHeaderLabels([col.title for col in self._columns])
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.setAlternatingRowColors(True)
+        self.setShowGrid(True)
+        self.setWordWrap(False)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.verticalHeader().setDefaultSectionSize(30)
+        self.verticalHeader().setMinimumSectionSize(30)
+        self.verticalHeader().setFixedWidth(34)
         header = self.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
+        header.setMinimumSectionSize(48)
         header.setStretchLastSection(True)
         # 按列配置设置固定宽度或拉伸。
         for index, col in enumerate(self._columns):
@@ -59,6 +71,31 @@ class DataTable(QTableWidget):
             elif col.stretch:
                 header.setSectionResizeMode(index, QHeaderView.ResizeMode.Stretch)
         self.cellDoubleClicked.connect(self._on_double_click)
+
+    def set_empty_text(self, text: str) -> None:
+        """设置无数据时在表格视口中显示的提示文本。"""
+        self._default_empty_text = text
+        self._empty_text = text
+        self.viewport().update()
+
+    def set_loading(self, loading: bool) -> None:
+        """切换查询中的空列表提示，不影响已有行数据。"""
+        self._empty_text = "正在加载..." if loading else self._default_empty_text
+        self.viewport().update()
+
+    def paintEvent(self, event: QPaintEvent) -> None:
+        """绘制表格后补充统一的空数据提示。"""
+        super().paintEvent(event)
+        if self.rowCount() or not self._empty_text:
+            return
+        painter = QPainter(self.viewport())
+        painter.setPen(self.palette().mid().color())
+        painter.drawText(
+            self.viewport().rect(),
+            Qt.AlignmentFlag.AlignCenter,
+            self._empty_text,
+        )
+        painter.end()
 
     def _render(self, rows: list[dict]) -> None:
         """按列配置通用渲染所有行，子类调此方法刷新数据。"""

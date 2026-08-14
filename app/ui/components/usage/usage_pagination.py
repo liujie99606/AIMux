@@ -17,10 +17,12 @@ class UsagePagination(QWidget):
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
         layout.addStretch()
         self.previous_button = QPushButton("上一页")
         self.previous_button.clicked.connect(self._previous)
         self.page_label = QLabel()
+        self.page_label.setMinimumWidth(150)
         self.page_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.next_button = QPushButton("下一页")
         self.next_button.clicked.connect(self._next)

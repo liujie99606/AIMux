@@ -66,11 +66,10 @@ def main() -> None:
         return
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QApplication, QMessageBox
-    import qdarktheme
     from app.ui.main_window import MainWindow
+    from app.ui.theme import setup_application_theme
     application = QApplication([])
-    # 应用扁平深色主题，统一全局控件视觉风格。
-    qdarktheme.setup_theme("dark")
+    setup_application_theme(application)
     application.setQuitOnLastWindowClosed(False)
     window = MainWindow(settings); window.show()
 

@@ -33,6 +33,7 @@ class AccountTable(DataTable):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent=parent)
+        self.set_empty_text("暂无账号")
 
     def set_accounts(self, accounts: list[dict]) -> None:
         """渲染账号列表，复选框、优先级与操作按钮在预处理中绑定信号。"""
@@ -82,6 +83,7 @@ class AccountTable(DataTable):
         actions = QWidget()
         buttons = QHBoxLayout(actions)
         buttons.setContentsMargins(0, 0, 0, 0)
+        buttons.setSpacing(6)
         for label, signal in [
             ("测试", self.test_requested),
             ("编辑", self.edit_requested),
@@ -89,6 +91,7 @@ class AccountTable(DataTable):
             ("删除", self.delete_requested),
         ]:
             button = QPushButton(label)
+            button.setMinimumWidth(56)
             button.clicked.connect(lambda _, aid=account["id"], event=signal: event.emit(aid))
             buttons.addWidget(button)
         prepared = dict(account)
