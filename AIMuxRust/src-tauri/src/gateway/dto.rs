@@ -19,9 +19,14 @@ pub fn reasoning_effort(body: &Value) -> Option<String> {
 }
 
 fn usage_object(body: &Value) -> Option<&Value> {
-    body.get("usage")
-        .or_else(|| body.get("response").and_then(|value| value.get("usage")))
-        .or_else(|| body.get("message").and_then(|value| value.get("usage")))
+    [
+        body.get("usage"),
+        body.get("response").and_then(|value| value.get("usage")),
+        body.get("message").and_then(|value| value.get("usage")),
+    ]
+    .into_iter()
+    .flatten()
+    .find(|value| value.is_object())
 }
 
 fn usage_fields(body: &Value) -> (Option<i64>, Option<i64>, Option<i64>, Option<i64>) {
@@ -62,10 +67,8 @@ pub fn usage_from_sse(bytes: &[u8]) -> (Option<i64>, Option<i64>, Option<i64>, O
     let text = String::from_utf8_lossy(bytes);
     let mut result = (None, None, None, None);
     for line in text.lines() {
-        let Some(data) = line.strip_prefix("data:") else {
-            continue;
-        };
-        let data = data.trim();
+        let line = line.trim();
+        let data = line.strip_prefix("data:").map(str::trim).unwrap_or(line);
         if data == "[DONE]" {
             continue;
         }
@@ -137,10 +140,34 @@ mod tests {
     fn merges_usage_fields_across_sse_events() {
         let body = br#"data: {"response":{"usage":{"input_tokens":12}}}
 
-data: {"response":{"usage":{"output_tokens":3,"prompt_tokens_details":{"cached_tokens":5}}}
+data: {"type":"response.completed","response":{"usage":{"output_tokens":3,"prompt_tokens_details":{"cached_tokens":5}}}}
 
 data: [DONE]
 "#;
         assert_eq!(usage_from_sse(body), (Some(12), Some(3), Some(15), Some(5)));
+    }
+
+    #[test]
+    fn accepts_null_top_level_usage_and_bare_json_events() {
+        assert_eq!(
+            usage(&json!({
+                "usage": null,
+                "response": {
+                    "usage": {
+                        "input_tokens": 10,
+                        "output_tokens": 2,
+                        "input_tokens_details": {"cached_tokens": 8}
+                    }
+                }
+            })),
+            (Some(10), Some(2), Some(12), Some(8))
+        );
+        assert_eq!(
+            usage_from_sse(
+                br#"{"response":{"usage":{"input_tokens":4,"output_tokens":1}}}
+"#
+            ),
+            (Some(4), Some(1), Some(5), None)
+        );
     }
 }
