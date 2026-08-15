@@ -48,18 +48,16 @@
           <span v-else :class="resultClass(row)">{{ resultText(row) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="首Token" width="100">
+      <el-table-column label="延迟" width="125">
         <template #default="{ row }">
-          <span :class="(row.first_token_ms ?? 0) > 10_000 ? 'warning-text' : ''">
-            {{ formatMs(row.first_token_ms) }}
-          </span>
-        </template>
-      </el-table-column>
-      <el-table-column label="耗时" width="100">
-        <template #default="{ row }">
-          <span :class="(row.duration_ms ?? 0) > 20_000 ? 'warning-text' : ''">
-            {{ formatMs(row.duration_ms) }}
-          </span>
+          <div class="latency-cell">
+            <div :class="(row.first_token_ms ?? 0) > 10_000 ? 'warning-text' : ''">
+              首字:{{ formatSeconds(row.first_token_ms) }}
+            </div>
+            <div :class="(row.duration_ms ?? 0) > 20_000 ? 'warning-text' : ''">
+              总耗时:{{ formatSeconds(row.duration_ms) }}
+            </div>
+          </div>
         </template>
       </el-table-column>
       <el-table-column prop="attempts" label="重试次数" width="80" />
@@ -195,6 +193,7 @@ const formatTime = (value?: string) => {
 };
 
 const formatMs = (value?: number) => (value == null ? '-' : `${(value / 1000).toFixed(2)} 秒`);
+const formatSeconds = (value?: number) => (value == null ? '-' : `${(value / 1000).toFixed(2)}s`);
 const resultText = (record: UsageRecord) =>
   record.ended_at ? (record.success ? '成功' : '失败') : '进行中';
 const resultClass = (record: UsageRecord) =>
@@ -262,6 +261,11 @@ onUnmounted(() => {
 .token-usage-cell {
   color: #475467;
   font-size: 12px;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.latency-cell {
   line-height: 1.45;
   white-space: nowrap;
 }

@@ -5,21 +5,21 @@
       <el-button :loading="loading" @click="load">刷新</el-button>
     </div>
 
-    <section v-for="group in groups" :key="group.key" class="stat-group">
-      <h3>{{ group.label }}</h3>
-      <div class="metric-grid">
-        <div v-for="metric in metrics" :key="metric.key" class="metric">
-          <div class="metric-label">{{ metric.label }}</div>
-          <div class="metric-value">
+    <div class="summary-cards">
+      <section v-for="group in groups" :key="group.key" class="summary-card">
+        <h3 class="summary-card-title">{{ group.label }}</h3>
+        <div v-for="metric in metrics" :key="metric.key" class="summary-row">
+          <span class="summary-label">{{ metric.label }}:</span>
+          <strong class="summary-value">
             {{
               metric.key === 'cache_rate'
                 ? rate(summary(group.key).cache_rate)
                 : format(summary(group.key)[metric.key])
             }}
-          </div>
+          </strong>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
 
     <el-divider />
     <h3>启用账号今日统计</h3>
@@ -100,17 +100,60 @@ onMounted(load);
 </script>
 
 <style scoped>
-.stat-group {
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
   margin-bottom: 18px;
 }
 
-.stat-group h3,
+.summary-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.summary-card-title {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+.summary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f2f5;
+}
+
+.summary-row:last-child {
+  border-bottom: 0;
+}
+
+.summary-label,
+.summary-value {
+  white-space: nowrap;
+}
+
+.summary-label {
+  color: #667085;
+}
+
+.summary-value {
+  color: #1f2937;
+  font-size: 15px;
+}
+
 .page > h3 {
   margin: 0 0 10px;
   font-size: 16px;
 }
 
-.metric-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+@media (max-width: 1280px) {
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
