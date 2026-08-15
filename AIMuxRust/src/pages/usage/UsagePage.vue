@@ -16,12 +16,12 @@
         <div class="metric-value">{{ summary.request_count }}</div>
       </div>
       <div class="metric">
-        <div class="metric-label">成功率</div>
-        <div class="metric-value">{{ (summary.success_rate * 100).toFixed(2) }}%</div>
+        <div class="metric-label">最近10次成功率</div>
+        <div class="metric-value">{{ (pageSuccessRate * 100).toFixed(2) }}%</div>
       </div>
       <div class="metric">
-        <div class="metric-label">平均耗时</div>
-        <div class="metric-value">{{ formatMs(summary.average_duration_ms) }}</div>
+        <div class="metric-label">最近10次平均耗时</div>
+        <div class="metric-value">{{ formatMs(pageAverageDurationMs) }}</div>
       </div>
     </div>
 
@@ -97,7 +97,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { usageApi, type UsageFilterState, type UsageRecord } from '../../api/usage';
 import UsageDetailDialog from '../../components/usage/UsageDetailDialog.vue';
@@ -124,6 +124,20 @@ const summary = reactive({
 });
 const detailVisible = ref(false);
 const selected = ref<UsageRecord>();
+
+const pageSuccessRate = computed(() => {
+  if (!items.value.length) return 0;
+  const successful = items.value.filter((record) => record.success).length;
+  return successful / items.value.length;
+});
+
+const pageAverageDurationMs = computed(() => {
+  const durations = items.value
+    .map((record) => record.duration_ms)
+    .filter((duration): duration is number => duration != null);
+  if (!durations.length) return undefined;
+  return Math.round(durations.reduce((sum, duration) => sum + duration, 0) / durations.length);
+});
 
 const query = () => {
   const params = new URLSearchParams({
@@ -223,7 +237,7 @@ onMounted(() => {
   load();
   refreshTimer = setInterval(() => {
     if (!loading.value) load();
-  }, 5000);
+  }, 3000);
 });
 
 onUnmounted(() => {
