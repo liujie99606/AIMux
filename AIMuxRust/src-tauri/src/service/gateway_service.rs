@@ -22,7 +22,7 @@ use crate::{
 pub async fn forward(
     pool: &SqlitePool,
     settings: &Settings,
-    mut body: Value,
+    body: Value,
     endpoint: &str,
     kind: &str,
     headers: HeaderMap,
@@ -42,8 +42,11 @@ pub async fn forward(
             break;
         };
         account_dao::mark_used(pool, &account.id).await?;
+        // Keep the client request immutable. A model mapping belongs only to this
+        // account and must not leak into a later retry with another account.
+        let mut upstream_body = body.clone();
         if let Some(upstream) = account_service::mapping(&account, requested.as_deref()) {
-            if let Some(object) = body.as_object_mut() {
+            if let Some(object) = upstream_body.as_object_mut() {
                 object.insert("model".into(), Value::String(upstream));
             }
         }
@@ -59,52 +62,52 @@ pub async fn forward(
                 &["openai-beta", "idempotency-key"]
             },
         );
-        let response =
-            match crate::upstream::client::post(&account, endpoint, &body, settings, &passthrough)
-                .await
-            {
-                Ok(value) => value,
-                Err(error) => {
-                    tracing::error!(
-                        trace_id = %trace_id,
-                        account_id = %account.id,
-                        account_name = %account.name,
-                        attempt,
-                        %error,
-                        "网关上游请求失败"
-                    );
-                    last = (
-                        StatusCode::BAD_GATEWAY,
-                        "upstream_connection_error".into(),
-                        error.to_string(),
-                    );
-                    record(
-                        pool,
-                        &trace_id,
-                        &account,
-                        requested.as_deref(),
-                        endpoint,
-                        false,
-                        Some(502),
-                        Some(&last.1),
-                        Some(&last.2),
-                        attempt,
-                        started,
-                        None,
-                        reasoning_effort.as_deref(),
-                        None,
-                    )
+        let response = match crate::upstream::client::post(
+            &account,
+            endpoint,
+            &upstream_body,
+            settings,
+            &passthrough,
+        )
+        .await
+        {
+            Ok(value) => value,
+            Err(error) => {
+                tracing::error!(
+                    trace_id = %trace_id,
+                    account_id = %account.id,
+                    account_name = %account.name,
+                    attempt,
+                    %error,
+                    "网关上游请求失败"
+                );
+                last = (
+                    StatusCode::BAD_GATEWAY,
+                    "upstream_connection_error".into(),
+                    error.to_string(),
+                );
+                record(
+                    pool,
+                    &trace_id,
+                    &account,
+                    requested.as_deref(),
+                    endpoint,
+                    false,
+                    Some(502),
+                    Some(&last.1),
+                    Some(&last.2),
+                    attempt,
+                    started,
+                    None,
+                    reasoning_effort.as_deref(),
+                    None,
+                )
+                .await?;
+                account_service::record_failure(pool, &account.id, Some(&last.1), Some(&last.2))
                     .await?;
-                    account_service::record_failure(
-                        pool,
-                        &account.id,
-                        Some(&last.1),
-                        Some(&last.2),
-                    )
-                    .await?;
-                    continue;
-                }
-            };
+                continue;
+            }
+        };
         let status = response.status();
         let content_type = response
             .headers()
@@ -154,7 +157,11 @@ pub async fn forward(
             .await?;
             continue;
         }
-        if body.get("stream").and_then(Value::as_bool).unwrap_or(false) {
+        if upstream_body
+            .get("stream")
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+        {
             let mut upstream = response.bytes_stream();
             let stream_record = UsageRecord {
                 id: Uuid::new_v4().to_string(),

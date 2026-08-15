@@ -113,12 +113,6 @@ pub fn stream_outcome(bytes: &[u8]) -> Option<bool> {
             | Some("response.incomplete")
             | Some("response.cancelled")
             | Some("error") => return Some(false),
-            _ if value
-                .pointer("/choices/0/finish_reason")
-                .is_some_and(|reason| !reason.is_null()) =>
-            {
-                return Some(true)
-            }
             _ => {}
         }
     }
@@ -230,7 +224,7 @@ data: [DONE]
         );
         assert_eq!(
             stream_outcome(br#"data: {"choices":[{"finish_reason":"stop"}]}"#),
-            Some(true)
+            None
         );
         assert_eq!(
             stream_outcome(br#"data: {"type":"response.failed"}"#),
@@ -244,6 +238,21 @@ data: [DONE]
         assert_eq!(
             stream_outcome(br#"data: {"type":"response.output_text.delta"}"#),
             None
+        );
+    }
+
+    #[test]
+    fn keeps_usage_after_chat_completion_finish_reason() {
+        let body = br#"data: {"choices":[{"finish_reason":"stop"}]}
+
+data: {"choices":[],"usage":{"prompt_tokens":100,"completion_tokens":4,"total_tokens":104,"prompt_tokens_details":{"cached_tokens":80}}}
+
+data: [DONE]
+"#;
+        assert_eq!(stream_outcome(body), Some(true));
+        assert_eq!(
+            usage_from_sse(body),
+            (Some(100), Some(4), Some(104), Some(80))
         );
     }
 }
