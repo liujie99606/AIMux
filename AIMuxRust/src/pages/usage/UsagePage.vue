@@ -28,10 +28,22 @@
         </el-select>
       </el-form-item>
       <el-form-item>
-        <el-input v-model="filters.started_after" placeholder="开始时间 ISO" clearable />
+        <el-date-picker
+          v-model="filters.started_after"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="开始日期"
+          clearable
+        />
       </el-form-item>
       <el-form-item>
-        <el-input v-model="filters.started_before" placeholder="结束时间 ISO" clearable />
+        <el-date-picker
+          v-model="filters.started_before"
+          type="date"
+          value-format="YYYY-MM-DD"
+          placeholder="结束日期"
+          clearable
+        />
       </el-form-item>
       <el-button type="primary" native-type="submit">查询</el-button>
     </el-form>
@@ -52,7 +64,7 @@
     </div>
 
     <el-table :data="items" v-loading="loading" border stripe class="compact-table">
-      <el-table-column label="时间" min-width="180">
+      <el-table-column label="时间" min-width="160">
         <template #default="{ row }">{{ formatTime(row.started_at) }}</template>
       </el-table-column>
       <el-table-column prop="account_name" label="账号" min-width="140" />
@@ -62,8 +74,8 @@
       <el-table-column prop="endpoint" label="接口" min-width="180" />
       <el-table-column label="结果" width="80">
         <template #default="{ row }">
-          <span :class="row.success ? 'success-text' : 'failure-text'">
-            {{ row.success ? '成功' : '失败' }}
+          <span :class="resultClass(row)">
+            {{ resultText(row) }}
           </span>
         </template>
       </el-table-column>
@@ -141,7 +153,7 @@
             text(selected.client_ip)
           }}</el-descriptions-item>
           <el-descriptions-item label="结果">{{
-            selected.success ? '成功' : '失败'
+            resultText(selected)
           }}</el-descriptions-item>
           <el-descriptions-item label="状态码">{{
             text(selected.status_code)
@@ -169,7 +181,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { usageApi, type UsageRecord } from '../../api/usage';
 
@@ -204,9 +216,17 @@ const query = () => {
   if (filters.model.trim()) params.set('model', filters.model.trim());
   if (filters.kind) params.set('type', filters.kind);
   if (filters.success !== undefined) params.set('success', String(filters.success));
-  if (filters.started_after.trim()) params.set('started_after', filters.started_after.trim());
-  if (filters.started_before.trim()) params.set('started_before', filters.started_before.trim());
+  const startedAfter = dayBoundary(filters.started_after, false);
+  const startedBefore = dayBoundary(filters.started_before, true);
+  if (startedAfter) params.set('started_after', startedAfter);
+  if (startedBefore) params.set('started_before', startedBefore);
   return `?${params.toString()}`;
+};
+
+const dayBoundary = (date: string, endOfDay: boolean) => {
+  const value = date.trim();
+  if (!value) return '';
+  return `${value}T${endOfDay ? '23:59:59' : '00:00:00'}Z`;
 };
 
 const load = async () => {
@@ -257,8 +277,23 @@ const formatTime = (value?: string) => {
 const formatMs = (value?: number) => (value == null ? '-' : `${(value / 1000).toFixed(2)} 秒`);
 const formatMsRaw = (value?: number) => (value == null ? '-' : `${value} ms`);
 const text = (value: unknown) => (value == null || value === '' ? '-' : String(value));
+const resultText = (record: UsageRecord) =>
+  record.ended_at ? (record.success ? '成功' : '失败') : '进行中';
+const resultClass = (record: UsageRecord) =>
+  record.ended_at ? (record.success ? 'success-text' : 'failure-text') : 'pending-text';
 
-onMounted(load);
+let refreshTimer: ReturnType<typeof setInterval> | undefined;
+
+onMounted(() => {
+  load();
+  refreshTimer = setInterval(() => {
+    if (!loading.value) load();
+  }, 5000);
+});
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer);
+});
 </script>
 
 <style scoped>
@@ -284,6 +319,11 @@ onMounted(load);
 
 .failure-text {
   color: #c43d4b;
+  font-weight: 600;
+}
+
+.pending-text {
+  color: #b7791f;
   font-weight: 600;
 }
 

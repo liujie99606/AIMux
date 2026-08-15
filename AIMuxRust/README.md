@@ -37,4 +37,16 @@ cargo test --lib
 cargo check
 ```
 
+## Windows 打包
+
+双击 `scripts/windows/build_windows.bat`。脚本会检查 Node.js 与 Rust 工具链，在首次打包时安装 npm 依赖，再通过 Tauri 生成 Windows NSIS 单文件安装包。
+
+产物位于：
+
+```text
+release\AIMux-Windows-x64.exe
+```
+
+ARM64 Windows 会生成 `release\AIMux-Windows-arm64.exe`。打包采用 Rust/Tauri 的增量构建，不会清理 `src-tauri\target` 缓存。
+
 首次启动时，空数据库执行 `src-tauri/migrations/0001_baseline.sql`；已有 AIMux SQLite 数据库只接管 SQLx 的 `_sqlx_migrations` 元数据，不修改业务表、旧数据或 `alembic_version`。后续结构变化只追加新的 SQL migration。

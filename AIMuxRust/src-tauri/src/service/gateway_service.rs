@@ -28,6 +28,8 @@ pub async fn forward(
     headers: HeaderMap,
 ) -> Result<Response, AppError> {
     let requested = dto::model(&body).map(str::to_owned);
+    let reasoning_effort = dto::reasoning_effort(&body);
+    let request_started = Instant::now();
     let max_attempts = settings.request_retry_attempts.clamp(1, 20) as i64;
     let trace_id = Uuid::new_v4().to_string();
     let mut last = (
@@ -89,6 +91,8 @@ pub async fn forward(
                         attempt,
                         started,
                         None,
+                        reasoning_effort.as_deref(),
+                        None,
                     )
                     .await?;
                     account_service::record_failure(
@@ -117,7 +121,6 @@ pub async fn forward(
                 account_name = %account.name,
                 attempt,
                 status_code = status.as_u16(),
-                response_body = %message,
                 "网关上游响应失败"
             );
             last = (
@@ -138,6 +141,8 @@ pub async fn forward(
                 attempt,
                 started,
                 None,
+                reasoning_effort.as_deref(),
+                None,
             )
             .await?;
             account_service::record_failure(
@@ -151,26 +156,141 @@ pub async fn forward(
         }
         if body.get("stream").and_then(Value::as_bool).unwrap_or(false) {
             let mut upstream = response.bytes_stream();
+            let stream_record = UsageRecord {
+                id: Uuid::new_v4().to_string(),
+                trace_id: trace_id.clone(),
+                started_at: started_at(started),
+                ended_at: None,
+                duration_ms: None,
+                first_token_ms: None,
+                account_id: Some(account.id.clone()),
+                account_name: Some(account.name.clone()),
+                account_type: Some(account.r#type.clone()),
+                model: requested.clone(),
+                reasoning_effort: reasoning_effort.clone(),
+                endpoint: Some(endpoint.to_owned()),
+                stream: true,
+                success: true,
+                status_code: Some(status.as_u16() as i64),
+                error_code: None,
+                error_message: None,
+                input_tokens: None,
+                output_tokens: None,
+                total_tokens: None,
+                cached_tokens: None,
+                client_ip: None,
+                attempts: attempt,
+            };
+            let stream_record_id = stream_record.id.clone();
+            let stream_record_id = match usage_dao::create(pool, &stream_record).await {
+                Ok(()) => Some(stream_record_id),
+                Err(error) => {
+                    tracing::error!(
+                        trace_id = %trace_id,
+                        account_id = %account.id,
+                        %error,
+                        "流式使用记录初始写入失败"
+                    );
+                    None
+                }
+            };
             let pool_for_stream = pool.clone();
             let account_for_stream = account.clone();
             let trace_for_stream = trace_id.clone();
             let model_for_stream = requested.clone();
             let endpoint_for_stream = endpoint.to_owned();
             let started_for_stream = started;
+            let request_started_for_stream = request_started;
             let status_for_stream = status.as_u16() as i64;
-            let streamed: futures_util::stream::BoxStream<'static, Result<axum::body::Bytes, std::io::Error>> = async_stream::try_stream! {
+            let reasoning_for_stream = reasoning_effort.clone();
+            let streamed: futures_util::stream::BoxStream<'static, Result<axum::body::Bytes, std::io::Error>> = async_stream::stream! {
                 let mut captured = Vec::new();
-                while let Some(chunk) = upstream.next().await {
-                    let chunk = chunk.map_err(|error| std::io::Error::other(error.to_string()))?;
-                    captured.extend_from_slice(&chunk);
-                    yield chunk;
+                let mut first_token_ms = None;
+                let mut stream_error = None;
+                while let Some(result) = upstream.next().await {
+                    match result {
+                        Ok(chunk) => {
+                            captured.extend_from_slice(&chunk);
+                            if !chunk.is_empty() && first_token_ms.is_none() {
+                                first_token_ms = Some(request_started_for_stream.elapsed().as_millis() as i64);
+                            }
+                            yield Ok(chunk);
+                        }
+                        Err(error) => {
+                            stream_error = Some(error.to_string());
+                            break;
+                        }
+                    }
                 }
                 let tokens = dto::usage_from_sse(&captured);
-                if let Err(error) = record(&pool_for_stream, &trace_for_stream, &account_for_stream, model_for_stream.as_deref(), &endpoint_for_stream, true, Some(status_for_stream), None, None, attempt, started_for_stream, Some(tokens)).await {
-                    tracing::error!(%error, "流式使用记录写入失败");
+                let success = stream_error.is_none();
+                let error_message = stream_error.as_deref();
+                let error_code = if success {
+                    None
                 } else {
-                    let _ = sqlx::query("UPDATE usage_records SET stream=1 WHERE id=(SELECT id FROM usage_records WHERE trace_id=? AND account_id=? ORDER BY started_at DESC, id DESC LIMIT 1)").bind(&trace_for_stream).bind(&account_for_stream.id).execute(&pool_for_stream).await;
+                    Some("stream_read_error")
+                };
+                if let Some(id) = stream_record_id.as_deref() {
+                    if let Err(error) = usage_dao::finish_stream(
+                        &pool_for_stream,
+                        id,
+                        &now(),
+                        started_for_stream.elapsed().as_millis() as i64,
+                        first_token_ms,
+                        success,
+                        Some(status_for_stream),
+                        error_code,
+                        error_message,
+                        tokens,
+                    )
+                    .await
+                    {
+                        tracing::error!(
+                            trace_id = %trace_for_stream,
+                            account_id = %account_for_stream.id,
+                            %error,
+                            "流式使用记录更新失败"
+                        );
+                    } else if let Some(total) = tokens.2 {
+                        let _ = sqlx::query("UPDATE accounts SET total_tokens=total_tokens+? WHERE id=?")
+                            .bind(total)
+                            .bind(&account_for_stream.id)
+                            .execute(&pool_for_stream)
+                            .await;
+                    }
+                } else if let Err(error) = record(
+                    &pool_for_stream,
+                    &trace_for_stream,
+                    &account_for_stream,
+                    model_for_stream.as_deref(),
+                    &endpoint_for_stream,
+                    success,
+                    Some(status_for_stream),
+                    error_code,
+                    error_message,
+                    attempt,
+                    started_for_stream,
+                    first_token_ms,
+                    reasoning_for_stream.as_deref(),
+                    Some(tokens),
+                )
+                .await
+                {
+                    tracing::error!(%error, "流式使用记录写入失败");
+                }
+                if success {
                     let _ = account_service::record_success(&pool_for_stream, &account_for_stream.id).await;
+                } else {
+                    let _ = account_service::record_failure(
+                        &pool_for_stream,
+                        &account_for_stream.id,
+                        error_code,
+                        error_message,
+                    )
+                    .await;
+                }
+                if let Some(error) = stream_error {
+                    yield Err(std::io::Error::other(error));
                 }
             }.boxed();
             let response = Response::builder()
@@ -197,6 +317,8 @@ pub async fn forward(
             None,
             attempt,
             started,
+            None,
+            reasoning_effort.as_deref(),
             Some(dto::usage(&payload)),
         )
         .await?;
@@ -226,26 +348,26 @@ async fn record(
     message: Option<&str>,
     attempt: i64,
     started: Instant,
+    first_token_ms: Option<i64>,
+    reasoning_effort: Option<&str>,
     tokens: Option<(Option<i64>, Option<i64>, Option<i64>, Option<i64>)>,
 ) -> Result<(), AppError> {
     let (input, output, total, cached) = tokens.unwrap_or((None, None, None, None));
     let duration_ms = started.elapsed().as_millis() as i64;
     let ended_at = now();
-    let started_at = (chrono::Utc::now() - chrono::Duration::milliseconds(duration_ms))
-        .format("%Y-%m-%dT%H:%M:%SZ")
-        .to_string();
+    let started_at = started_at(started);
     let record = UsageRecord {
         id: Uuid::new_v4().to_string(),
         trace_id: trace_id.into(),
         started_at,
         ended_at: Some(ended_at),
         duration_ms: Some(duration_ms),
-        first_token_ms: None,
+        first_token_ms,
         account_id: Some(account.id.clone()),
         account_name: Some(account.name.clone()),
         account_type: Some(account.r#type.clone()),
         model: model.map(str::to_owned),
-        reasoning_effort: None,
+        reasoning_effort: reasoning_effort.map(str::to_owned),
         endpoint: Some(endpoint.into()),
         stream: false,
         success,
@@ -268,6 +390,16 @@ async fn record(
             .await?;
     }
     Ok(())
+}
+
+fn started_at(started: Instant) -> String {
+    chrono::Utc::now()
+        .checked_sub_signed(chrono::Duration::milliseconds(
+            started.elapsed().as_millis() as i64,
+        ))
+        .unwrap_or_else(chrono::Utc::now)
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string()
 }
 
 pub async fn models(pool: &SqlitePool, kind: &str) -> Result<Value, AppError> {

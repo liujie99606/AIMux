@@ -45,6 +45,7 @@ pub fn run() {
         .manage(shared)
         .invoke_handler(tauri::generate_handler![
             commands::open_data_directory,
+            commands::open_external_url,
             commands::app_version
         ])
         .setup(|app| {

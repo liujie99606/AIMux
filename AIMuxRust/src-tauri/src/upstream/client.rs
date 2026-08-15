@@ -30,7 +30,6 @@ pub async fn post(
         account_type = %account.r#type,
         endpoint,
         upstream_url = %url,
-        request_body = %body,
         "发送上游请求"
     );
     let client = client(settings)?;

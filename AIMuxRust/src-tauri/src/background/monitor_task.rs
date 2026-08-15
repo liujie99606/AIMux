@@ -69,7 +69,6 @@ async fn round(state: &Arc<AppState>) -> Result<(), crate::error::AppError> {
                         account_id = %account.id,
                         account_name = %account.name,
                         status_code = status.as_u16(),
-                        response_body = %response_body,
                         "账号监控失败"
                     );
                     Some(response_body)

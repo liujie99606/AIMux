@@ -11,12 +11,12 @@
     </div>
 
     <el-table :data="items" v-loading="loading" border class="compact-table">
-      <el-table-column prop="account_name" label="账号" min-width="160" />
+      <el-table-column prop="account_name" label="账号" min-width="140" />
       <el-table-column prop="account_type" label="类型" width="90" />
       <el-table-column prop="multiplier" label="倍率" width="80">
         <template #default="{ row }">{{ Number(row.multiplier).toFixed(2) }}</template>
       </el-table-column>
-      <el-table-column label="测试模型" min-width="160">
+      <el-table-column label="测试模型" min-width="140">
         <template #default="{ row }">
           {{ row.model || latest(row.records)?.model || '-' }}
         </template>
