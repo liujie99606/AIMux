@@ -24,6 +24,14 @@ export type UsageRecord = {
   client_ip?: string;
   attempts?: number;
 };
+export type UsageFilterState = {
+  account_id: string;
+  model: string;
+  kind: string;
+  success: boolean | undefined;
+  started_after: string;
+  started_before: string;
+};
 export const usageApi = {
   list: (query: string) =>
     get<{

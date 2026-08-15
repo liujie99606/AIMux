@@ -8,45 +8,7 @@
       </div>
     </div>
 
-    <el-form inline class="usage-filter" @submit.prevent="queryFromFirstPage">
-      <el-form-item label="筛选">
-        <el-input v-model="filters.account_id" placeholder="账号 ID" clearable />
-      </el-form-item>
-      <el-form-item>
-        <el-input v-model="filters.model" placeholder="模型" clearable />
-      </el-form-item>
-      <el-form-item>
-        <el-select v-model="filters.kind" placeholder="全部类型" clearable>
-          <el-option label="OpenAI" value="openai" />
-          <el-option label="Anthropic" value="anthropic" />
-        </el-select>
-      </el-form-item>
-      <el-form-item>
-        <el-select v-model="filters.success" placeholder="全部结果" clearable>
-          <el-option label="成功" :value="true" />
-          <el-option label="失败" :value="false" />
-        </el-select>
-      </el-form-item>
-      <el-form-item>
-        <el-date-picker
-          v-model="filters.started_after"
-          type="date"
-          value-format="YYYY-MM-DD"
-          placeholder="开始日期"
-          clearable
-        />
-      </el-form-item>
-      <el-form-item>
-        <el-date-picker
-          v-model="filters.started_before"
-          type="date"
-          value-format="YYYY-MM-DD"
-          placeholder="结束日期"
-          clearable
-        />
-      </el-form-item>
-      <el-button type="primary" native-type="submit">查询</el-button>
-    </el-form>
+    <UsageFilter v-model="filters" @query="queryFromFirstPage" />
 
     <div class="summary-grid">
       <div class="metric">
@@ -67,16 +29,23 @@
       <el-table-column label="时间" min-width="160">
         <template #default="{ row }">{{ formatTime(row.started_at) }}</template>
       </el-table-column>
-      <el-table-column prop="account_name" label="账号" min-width="140" />
+      <el-table-column prop="account_name" label="账号" min-width="120" />
       <el-table-column prop="account_type" label="类型" width="90" />
-      <el-table-column prop="model" label="模型" min-width="150" />
-      <el-table-column prop="reasoning_effort" label="推理强度" width="100" />
-      <el-table-column prop="endpoint" label="接口" min-width="180" />
-      <el-table-column label="结果" width="80">
+      <el-table-column prop="model" label="模型" min-width="130" />
+      <el-table-column prop="reasoning_effort" label="推理强度" width="80" />
+      <el-table-column prop="endpoint" label="接口" min-width="150" />
+      <el-table-column label="结果" width="90">
         <template #default="{ row }">
-          <span :class="resultClass(row)">
-            {{ resultText(row) }}
-          </span>
+          <el-tooltip
+            v-if="isFailure(row)"
+            :content="failureReason(row)"
+            placement="top"
+            :show-after="200"
+            effect="dark"
+          >
+            <span :class="resultClass(row)">{{ resultText(row) }}</span>
+          </el-tooltip>
+          <span v-else :class="resultClass(row)">{{ resultText(row) }}</span>
         </template>
       </el-table-column>
       <el-table-column label="首Token" width="100">
@@ -93,7 +62,22 @@
           </span>
         </template>
       </el-table-column>
-      <el-table-column prop="attempts" label="重试次数" width="90" />
+      <el-table-column prop="attempts" label="重试次数" width="80" />
+      <el-table-column label="Token用量" min-width="180">
+        <template #default="{ row }">
+          <div class="token-usage-cell">
+            <div>
+              输入: {{ formatToken(row.input_tokens) }} / 缓存:
+              {{ formatToken(row.cached_tokens) }}
+            </div>
+            <div>
+              输出: {{ formatToken(row.output_tokens) }} / 合计:
+              {{ formatToken(row.total_tokens) }}
+            </div>
+            <div>缓存率: {{ formatCacheRate(row) }}</div>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="80" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="showDetail(row.id)">详情</el-button>
@@ -110,87 +94,23 @@
       @current-change="load"
     />
 
-    <el-dialog v-model="detailVisible" title="使用记录详情" width="920px" top="5vh">
-      <template v-if="selected">
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="记录 ID">{{ text(selected.id) }}</el-descriptions-item>
-          <el-descriptions-item label="Trace ID">{{
-            text(selected.trace_id)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="开始时间">{{
-            formatTime(selected.started_at)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="结束时间">{{
-            formatTime(selected.ended_at)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="总耗时">{{
-            formatMsRaw(selected.duration_ms)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="首 Token 用时">{{
-            formatMsRaw(selected.first_token_ms)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="尝试次数">{{
-            text(selected.attempts)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="账号名称">{{
-            text(selected.account_name)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="账号 ID">{{
-            text(selected.account_id)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="账号类型">{{
-            text(selected.account_type)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="模型">{{ text(selected.model) }}</el-descriptions-item>
-          <el-descriptions-item label="推理强度">{{
-            text(selected.reasoning_effort)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="接口">{{ text(selected.endpoint) }}</el-descriptions-item>
-          <el-descriptions-item label="流式">{{
-            selected.stream ? '是' : '否'
-          }}</el-descriptions-item>
-          <el-descriptions-item label="客户端 IP">{{
-            text(selected.client_ip)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="结果">{{
-            resultText(selected)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="状态码">{{
-            text(selected.status_code)
-          }}</el-descriptions-item>
-          <el-descriptions-item label="错误码">{{
-            text(selected.error_code)
-          }}</el-descriptions-item>
-        </el-descriptions>
-        <div class="token-line">
-          Token 用量：输入 {{ text(selected.input_tokens) }} / 输出
-          {{ text(selected.output_tokens) }} / 缓存 {{ text(selected.cached_tokens) }} / 合计
-          {{ text(selected.total_tokens) }}
-        </div>
-        <div class="error-title">错误信息：</div>
-        <el-input
-          :model-value="text(selected.error_message)"
-          type="textarea"
-          readonly
-          :rows="5"
-          class="error-view"
-        />
-      </template>
-    </el-dialog>
+    <UsageDetailDialog v-model="detailVisible" :record="selected" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { usageApi, type UsageRecord } from '../../api/usage';
+import { usageApi, type UsageFilterState, type UsageRecord } from '../../api/usage';
+import UsageDetailDialog from '../../components/usage/UsageDetailDialog.vue';
+import UsageFilter from '../../components/usage/UsageFilter.vue';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 const items = ref<UsageRecord[]>([]);
 const total = ref(0);
 const page = ref(1);
 const loading = ref(false);
-const filters = reactive({
+const filters = reactive<UsageFilterState>({
   account_id: '',
   model: '',
   kind: '',
@@ -275,12 +195,28 @@ const formatTime = (value?: string) => {
 };
 
 const formatMs = (value?: number) => (value == null ? '-' : `${(value / 1000).toFixed(2)} 秒`);
-const formatMsRaw = (value?: number) => (value == null ? '-' : `${value} ms`);
-const text = (value: unknown) => (value == null || value === '' ? '-' : String(value));
 const resultText = (record: UsageRecord) =>
   record.ended_at ? (record.success ? '成功' : '失败') : '进行中';
 const resultClass = (record: UsageRecord) =>
   record.ended_at ? (record.success ? 'success-text' : 'failure-text') : 'pending-text';
+const isFailure = (record: UsageRecord) => Boolean(record.ended_at && !record.success);
+const failureReason = (record: UsageRecord) => {
+  const details = [
+    record.error_message,
+    record.error_code,
+    record.status_code && `状态码 ${record.status_code}`,
+  ]
+    .filter(Boolean)
+    .map(String);
+  return details.join(' / ') || '未记录失败原因';
+};
+const formatToken = (value?: number) => (value == null ? '-' : String(value));
+const formatCacheRate = (record: UsageRecord) => {
+  if (record.input_tokens == null || record.input_tokens <= 0 || record.cached_tokens == null) {
+    return '-';
+  }
+  return `${((record.cached_tokens / record.input_tokens) * 100).toFixed(2)}%`;
+};
 
 let refreshTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -297,10 +233,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.usage-filter {
-  margin-bottom: 10px;
-}
-
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -327,16 +259,10 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-.token-line {
-  padding: 14px 0;
-  color: #344054;
-}
-
-.error-title {
-  margin-bottom: 6px;
-}
-
-.error-view :deep(textarea) {
-  font-family: Consolas, monospace;
+.token-usage-cell {
+  color: #475467;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: nowrap;
 }
 </style>

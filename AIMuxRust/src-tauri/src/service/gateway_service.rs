@@ -170,7 +170,7 @@ pub async fn forward(
                 reasoning_effort: reasoning_effort.clone(),
                 endpoint: Some(endpoint.to_owned()),
                 stream: true,
-                success: true,
+                success: false,
                 status_code: Some(status.as_u16() as i64),
                 error_code: None,
                 error_message: None,
@@ -203,21 +203,47 @@ pub async fn forward(
             let request_started_for_stream = request_started;
             let status_for_stream = status.as_u16() as i64;
             let reasoning_for_stream = reasoning_effort.clone();
-            let streamed: futures_util::stream::BoxStream<'static, Result<axum::body::Bytes, std::io::Error>> = async_stream::stream! {
+            let stream_timeout =
+                std::time::Duration::from_secs(settings.upstream_timeout_seconds.max(1));
+            let (tx, mut rx) =
+                tokio::sync::mpsc::channel::<Result<axum::body::Bytes, std::io::Error>>(16);
+            tokio::spawn(async move {
                 let mut captured = Vec::new();
                 let mut first_token_ms = None;
-                let mut stream_error = None;
-                while let Some(result) = upstream.next().await {
-                    match result {
-                        Ok(chunk) => {
+                let mut stream_error: Option<String> = None;
+                loop {
+                    let next = tokio::time::timeout(stream_timeout, upstream.next()).await;
+                    match next {
+                        Ok(Some(Ok(chunk))) => {
                             captured.extend_from_slice(&chunk);
                             if !chunk.is_empty() && first_token_ms.is_none() {
-                                first_token_ms = Some(request_started_for_stream.elapsed().as_millis() as i64);
+                                first_token_ms =
+                                    Some(request_started_for_stream.elapsed().as_millis() as i64);
                             }
-                            yield Ok(chunk);
+                            let sent =
+                                tokio::time::timeout(stream_timeout, tx.send(Ok(chunk))).await;
+                            if !matches!(sent, Ok(Ok(()))) {
+                                stream_error = Some("下游客户端已断开或读取超时".to_owned());
+                                break;
+                            }
+                            if let Some(outcome) = dto::stream_outcome(&captured) {
+                                if !outcome {
+                                    stream_error = Some("上游返回流式失败事件".to_owned());
+                                }
+                                break;
+                            }
                         }
-                        Err(error) => {
-                            stream_error = Some(error.to_string());
+                        Ok(Some(Err(error))) => {
+                            let message = error.to_string();
+                            stream_error = Some(message.clone());
+                            let _ = tx.try_send(Err(std::io::Error::other(message)));
+                            break;
+                        }
+                        Ok(None) => break,
+                        Err(_) => {
+                            let message = "上游流读取超时".to_owned();
+                            stream_error = Some(message.clone());
+                            let _ = tx.try_send(Err(std::io::Error::other(message)));
                             break;
                         }
                     }
@@ -230,8 +256,8 @@ pub async fn forward(
                 } else {
                     Some("stream_read_error")
                 };
-                if let Some(id) = stream_record_id.as_deref() {
-                    if let Err(error) = usage_dao::finish_stream(
+                let persisted = if let Some(id) = stream_record_id.as_deref() {
+                    match usage_dao::finish_stream(
                         &pool_for_stream,
                         id,
                         &now(),
@@ -245,18 +271,27 @@ pub async fn forward(
                     )
                     .await
                     {
-                        tracing::error!(
-                            trace_id = %trace_for_stream,
-                            account_id = %account_for_stream.id,
-                            %error,
-                            "流式使用记录更新失败"
-                        );
-                    } else if let Some(total) = tokens.2 {
-                        let _ = sqlx::query("UPDATE accounts SET total_tokens=total_tokens+? WHERE id=?")
-                            .bind(total)
-                            .bind(&account_for_stream.id)
-                            .execute(&pool_for_stream)
-                            .await;
+                        Ok(()) => {
+                            if let Some(total) = tokens.2 {
+                                let _ = sqlx::query(
+                                    "UPDATE accounts SET total_tokens=total_tokens+? WHERE id=?",
+                                )
+                                .bind(total)
+                                .bind(&account_for_stream.id)
+                                .execute(&pool_for_stream)
+                                .await;
+                            }
+                            true
+                        }
+                        Err(error) => {
+                            tracing::error!(
+                                trace_id = %trace_for_stream,
+                                account_id = %account_for_stream.id,
+                                %error,
+                                "流式使用记录更新失败"
+                            );
+                            false
+                        }
                     }
                 } else if let Err(error) = record(
                     &pool_for_stream,
@@ -277,9 +312,14 @@ pub async fn forward(
                 .await
                 {
                     tracing::error!(%error, "流式使用记录写入失败");
-                }
-                if success {
-                    let _ = account_service::record_success(&pool_for_stream, &account_for_stream.id).await;
+                    false
+                } else {
+                    true
+                };
+                if persisted && success {
+                    let _ =
+                        account_service::record_success(&pool_for_stream, &account_for_stream.id)
+                            .await;
                 } else {
                     let _ = account_service::record_failure(
                         &pool_for_stream,
@@ -289,10 +329,16 @@ pub async fn forward(
                     )
                     .await;
                 }
-                if let Some(error) = stream_error {
-                    yield Err(std::io::Error::other(error));
+            });
+            let streamed: futures_util::stream::BoxStream<
+                'static,
+                Result<axum::body::Bytes, std::io::Error>,
+            > = async_stream::stream! {
+                while let Some(item) = rx.recv().await {
+                    yield item;
                 }
-            }.boxed();
+            }
+            .boxed();
             let response = Response::builder()
                 .status(status)
                 .header("content-type", content_type)

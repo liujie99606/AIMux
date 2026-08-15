@@ -79,6 +79,52 @@ pub fn usage_from_sse(bytes: &[u8]) -> (Option<i64>, Option<i64>, Option<i64>, O
     with_estimated_total(result)
 }
 
+pub fn stream_outcome(bytes: &[u8]) -> Option<bool> {
+    let text = String::from_utf8_lossy(bytes);
+    let mut event_name = None;
+    for line in text.lines().map(str::trim) {
+        if line.is_empty() {
+            event_name = None;
+            continue;
+        }
+        if let Some(event) = line.strip_prefix("event:").map(str::trim) {
+            event_name = Some(event);
+            continue;
+        }
+        let data = line.strip_prefix("data:").map(str::trim).unwrap_or(line);
+        if data == "[DONE]" {
+            return Some(true);
+        }
+        let Ok(value) = serde_json::from_str::<Value>(data) else {
+            continue;
+        };
+        if let Some(event) = event_name {
+            match event {
+                "response.completed" | "message_stop" => return Some(true),
+                "response.failed" | "response.incomplete" | "response.cancelled" | "error" => {
+                    return Some(false)
+                }
+                _ => {}
+            }
+        }
+        match value.get("type").and_then(Value::as_str) {
+            Some("response.completed") | Some("message_stop") => return Some(true),
+            Some("response.failed")
+            | Some("response.incomplete")
+            | Some("response.cancelled")
+            | Some("error") => return Some(false),
+            _ if value
+                .pointer("/choices/0/finish_reason")
+                .is_some_and(|reason| !reason.is_null()) =>
+            {
+                return Some(true)
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 fn merge_usage(
     target: &mut (Option<i64>, Option<i64>, Option<i64>, Option<i64>),
     current: (Option<i64>, Option<i64>, Option<i64>, Option<i64>),
@@ -99,7 +145,7 @@ fn merge_usage(
 
 #[cfg(test)]
 mod tests {
-    use super::{reasoning_effort, usage, usage_from_sse};
+    use super::{reasoning_effort, stream_outcome, usage, usage_from_sse};
     use serde_json::json;
 
     #[test]
@@ -168,6 +214,36 @@ data: [DONE]
 "#
             ),
             (Some(4), Some(1), Some(5), None)
+        );
+    }
+
+    #[test]
+    fn detects_protocol_completion_events() {
+        assert_eq!(stream_outcome(b"data: [DONE]\n"), Some(true));
+        assert_eq!(
+            stream_outcome(br#"data: {"type":"response.completed","response":{}}"#),
+            Some(true)
+        );
+        assert_eq!(
+            stream_outcome(br#"data: {"type":"message_stop"}"#),
+            Some(true)
+        );
+        assert_eq!(
+            stream_outcome(br#"data: {"choices":[{"finish_reason":"stop"}]}"#),
+            Some(true)
+        );
+        assert_eq!(
+            stream_outcome(br#"data: {"type":"response.failed"}"#),
+            Some(false)
+        );
+        assert_eq!(stream_outcome(b"event: response.completed\n"), None);
+        assert_eq!(
+            stream_outcome(b"event: response.completed\ndata: {\"response\":{}}\n"),
+            Some(true)
+        );
+        assert_eq!(
+            stream_outcome(br#"data: {"type":"response.output_text.delta"}"#),
+            None
         );
     }
 }

@@ -104,3 +104,14 @@ pub async fn cleanup(pool: &SqlitePool, cutoff: &str) -> Result<i64, AppError> {
         .await?;
     Ok(r.rows_affected() as i64)
 }
+
+pub async fn fail_unfinished_streams(pool: &SqlitePool, ended_at: &str) -> Result<i64, AppError> {
+    let result = sqlx::query(
+        "UPDATE usage_records SET ended_at=?,duration_ms=CAST((julianday(?) - julianday(started_at))*86400000 AS INTEGER),success=0,status_code=504,error_code='stream_interrupted',error_message='流式请求因网关重启中断' WHERE stream=1 AND ended_at IS NULL",
+    )
+    .bind(ended_at)
+    .bind(ended_at)
+    .execute(pool)
+    .await?;
+    Ok(result.rows_affected() as i64)
+}
