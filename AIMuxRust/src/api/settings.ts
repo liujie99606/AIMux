@@ -2,7 +2,6 @@ import { get, put } from './client';
 export type Settings = {
   host: string;
   port: number;
-  db_path: string;
   upstream_timeout_seconds: number;
   first_token_timeout_seconds: number;
   request_retry_attempts: number;

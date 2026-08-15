@@ -8,7 +8,6 @@ use tokio::sync::RwLock;
 pub struct Settings {
     pub host: String,
     pub port: u16,
-    pub db_path: String,
     pub upstream_timeout_seconds: u64,
     pub first_token_timeout_seconds: u64,
     pub request_retry_attempts: u32,
@@ -24,7 +23,6 @@ impl Default for Settings {
         Self {
             host: "127.0.0.1".into(),
             port: 7789,
-            db_path: String::new(),
             upstream_timeout_seconds: 300,
             first_token_timeout_seconds: 60,
             request_retry_attempts: 10,
@@ -49,21 +47,20 @@ impl Settings {
             .unwrap_or_else(|| PathBuf::from("."))
     }
     pub fn database_path(&self) -> PathBuf {
-        if self.db_path.trim().is_empty() {
-            Self::data_dir().join("aimux.db")
-        } else {
-            PathBuf::from(self.db_path.trim())
-        }
+        Self::data_dir().join("aimux.db")
     }
     pub fn load() -> anyhow::Result<Self> {
         let path = Self::config_path();
-        if !path.exists() {
+        let mut settings = if !path.exists() {
             let settings = Self::default();
             settings.save()?;
-            return Ok(settings);
-        }
-        let raw = std::fs::read_to_string(path)?;
-        Ok(serde_json::from_str(&raw).unwrap_or_default())
+            settings
+        } else {
+            let raw = std::fs::read_to_string(path)?;
+            serde_json::from_str(&raw).unwrap_or_default()
+        };
+        settings.apply_environment_overrides();
+        Ok(settings)
     }
     pub fn save(&self) -> anyhow::Result<()> {
         let path = Self::config_path();
@@ -73,6 +70,35 @@ impl Settings {
         std::fs::write(path, serde_json::to_vec_pretty(self)?)?;
         Ok(())
     }
+
+    fn apply_environment_overrides(&mut self) {
+        if let Ok(port) = std::env::var("AIMUX_PORT") {
+            if let Ok(port) = port.parse::<u16>() {
+                self.port = port;
+            }
+        }
+        if let Ok(enabled) = std::env::var("AIMUX_MONITORING_ENABLED") {
+            let normalized = enabled.trim().to_ascii_lowercase();
+            if !normalized.is_empty() {
+                self.monitoring_enabled = matches!(normalized.as_str(), "1" | "true");
+            }
+        }
+    }
 }
 
 pub type SharedSettings = Arc<RwLock<Settings>>;
+
+#[cfg(test)]
+mod tests {
+    use super::Settings;
+
+    #[test]
+    fn database_path_always_uses_aimux_db() {
+        let path = Settings::default().database_path();
+        assert_eq!(
+            path.file_name().and_then(|name| name.to_str()),
+            Some("aimux.db")
+        );
+        assert_eq!(path.parent(), Some(Settings::data_dir().as_path()));
+    }
+}

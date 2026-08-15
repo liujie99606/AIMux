@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 pub struct SettingsPayload {
     pub host: String,
     pub port: u16,
-    pub db_path: String,
     pub upstream_timeout_seconds: u64,
     pub first_token_timeout_seconds: u64,
     pub request_retry_attempts: u32,

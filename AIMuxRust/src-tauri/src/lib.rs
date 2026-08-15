@@ -56,3 +56,20 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("运行 Tauri 应用失败");
 }
+
+pub fn run_gateway() -> Result<(), String> {
+    logging::init();
+    let settings = Settings::load().map_err(|error| format!("读取设置失败: {error}"))?;
+    let runtime = tokio::runtime::Runtime::new().map_err(|error| error.to_string())?;
+    let state = runtime
+        .block_on(async { AppState::initialize(settings).await })
+        .map_err(|error| format!("初始化 AIMux 失败: {error}"))?;
+    let shared = Arc::new(state);
+    let monitor_state = Arc::clone(&shared);
+    runtime.spawn(async move {
+        background::monitor_task::run(monitor_state).await;
+    });
+    runtime
+        .block_on(controller::serve(shared))
+        .map_err(|error| format!("AIMux HTTP 服务退出: {error}"))
+}

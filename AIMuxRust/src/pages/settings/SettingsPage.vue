@@ -9,8 +9,6 @@
         ><el-form-item label="监听地址"><el-input v-model="form.host" /></el-form-item
         ><el-form-item label="端口"
           ><el-input-number v-model="form.port" :min="1" :max="65535" /></el-form-item
-        ><el-form-item label="数据库路径"
-          ><el-input v-model="form.db_path" placeholder="留空使用系统数据目录" /></el-form-item
         ><el-form-item label="上游超时（秒）"
           ><el-input-number v-model="form.upstream_timeout_seconds" :min="1" /></el-form-item
         ><el-form-item label="首字超时（秒）"
@@ -43,7 +41,6 @@ import { invoke } from '@tauri-apps/api/core';
 const form = reactive<Settings>({
   host: '127.0.0.1',
   port: 7789,
-  db_path: '',
   upstream_timeout_seconds: 300,
   first_token_timeout_seconds: 60,
   request_retry_attempts: 10,

@@ -23,7 +23,7 @@
           </el-button>
         </template>
       </el-table-column>
-      <el-table-column prop="priority" label="优先级" width="100">
+      <el-table-column prop="priority" label="优先级" width="130">
         <template #default="{ row }">
           <el-input-number
             v-model="row.priority"
@@ -32,11 +32,6 @@
             size="small"
             @change="priority(row)"
           />
-        </template>
-      </el-table-column>
-      <el-table-column prop="supported_models" label="支持模型" min-width="220">
-        <template #default="{ row }">
-          {{ row.supported_models?.join(', ') || '不限' }}
         </template>
       </el-table-column>
       <el-table-column prop="test_default_model" label="测试默认模型" min-width="150" />

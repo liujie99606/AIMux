@@ -37,6 +37,7 @@ pub async fn connect(path: &Path) -> Result<SqlitePool, AppError> {
         MIGRATOR.run(&pool).await?;
     } else {
         ensure_baseline_metadata(&pool).await?;
+        ensure_placeholder_metadata(&pool).await?;
         MIGRATOR.run(&pool).await?;
     }
     Ok(pool)
@@ -56,14 +57,29 @@ async fn ensure_baseline_metadata(pool: &SqlitePool) -> Result<(), AppError> {
                 .execute(pool)
                 .await?;
         }
-        // 早期接管实现误用了 SHA-256；仅修复该 32 字节旧格式。
-        Some(existing) if existing.len() == 32 => {
+        // 基线仅用于接管已有业务表；历史版本的基线内容可能不同，统一更新其元数据。
+        Some(existing) if existing != checksum.as_slice() => {
             sqlx::query("UPDATE _sqlx_migrations SET checksum = ? WHERE version = 1")
                 .bind(checksum.as_slice())
                 .execute(pool)
                 .await?;
         }
         Some(_) => {}
+    }
+    Ok(())
+}
+
+async fn ensure_placeholder_metadata(pool: &SqlitePool) -> Result<(), AppError> {
+    let checksum = Sha384::digest(include_bytes!("../../migrations/0002_placeholder.sql"));
+    let existing_checksum: Option<Vec<u8>> =
+        sqlx::query_scalar("SELECT checksum FROM _sqlx_migrations WHERE version = 2")
+            .fetch_optional(pool)
+            .await?;
+    if matches!(existing_checksum, Some(existing) if existing != checksum.as_slice()) {
+        sqlx::query("UPDATE _sqlx_migrations SET checksum = ? WHERE version = 2")
+            .bind(checksum.as_slice())
+            .execute(pool)
+            .await?;
     }
     Ok(())
 }

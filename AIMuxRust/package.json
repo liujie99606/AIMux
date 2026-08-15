@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 1420",
+    "dev:desktop": "node scripts/tauri-dev.mjs",
+    "dev:gateway": "powershell -ExecutionPolicy Bypass -File scripts/dev-gateway.ps1",
     "build": "vue-tsc -b && vite build",
     "format": "prettier --write \"src/**/*.{ts,vue,scss}\" \"*.{json,ts}\"",
     "format:check": "prettier --check \"src/**/*.{ts,vue,scss}\" \"*.{json,ts}\"",
