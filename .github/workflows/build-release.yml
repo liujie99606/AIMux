@@ -61,8 +61,8 @@ jobs:
           $installer = Get-ChildItem 'src-tauri/target/release/bundle/nsis/*.exe' | Select-Object -First 1
           if (-not $installer) { throw '未找到 Tauri NSIS 安装包' }
           $installDirectory = Join-Path $env:RUNNER_TEMP 'AIMux-smoke'
-          & $installer.FullName /S "/D=$installDirectory"
-          if ($LASTEXITCODE -ne 0) { throw "AIMux 安装失败，退出码：$LASTEXITCODE" }
+          $installerProcess = Start-Process -FilePath $installer.FullName -ArgumentList @('/S', "/D=$installDirectory") -Wait -PassThru
+          if ($installerProcess.ExitCode -ne 0) { throw "AIMux 安装失败，退出码：$($installerProcess.ExitCode)" }
           $application = Join-Path $installDirectory 'aimux.exe'
           if (-not (Test-Path $application)) { throw "未找到已安装的主程序：$application" }
           $process = Start-Process -FilePath $application -PassThru
