@@ -5,7 +5,7 @@ use tokio::time::{interval, MissedTickBehavior};
 
 use crate::{
     app_state::AppState,
-    dao::{account_dao, monitor_dao},
+    dao::{account_dao, model_dao, monitor_dao},
     model::monitor_record::MonitorRecord,
     service::account_service,
 };
@@ -30,7 +30,7 @@ async fn round(state: &Arc<AppState>) -> Result<(), crate::error::AppError> {
     for account in accounts {
         let model = match account.test_default_model.clone() {
             Some(value) => Some(value),
-            None => default_model(&state.pool, &account.r#type).await,
+            None => model_dao::default_name(&state.pool, &account.r#type).await?,
         };
         let Some(model) = model else { continue };
         let started = std::time::Instant::now();
@@ -155,13 +155,4 @@ async fn rebalance(
         }
     }
     Ok(())
-}
-
-async fn default_model(pool: &sqlx::SqlitePool, kind: &str) -> Option<String> {
-    sqlx::query_scalar("SELECT name FROM models WHERE type=? AND is_default=1 LIMIT 1")
-        .bind(kind)
-        .fetch_optional(pool)
-        .await
-        .ok()
-        .flatten()
 }

@@ -191,6 +191,14 @@ pub async fn mark_used(pool: &SqlitePool, id: &str) -> Result<(), AppError> {
     sqlx::query("UPDATE accounts SET total_requests=total_requests+1,last_used_at=?,updated_at=? WHERE id=?").bind(now()).bind(now()).bind(id).execute(pool).await?;
     Ok(())
 }
+pub async fn add_total_tokens(pool: &SqlitePool, id: &str, tokens: i64) -> Result<(), AppError> {
+    sqlx::query("UPDATE accounts SET total_tokens=total_tokens+? WHERE id=?")
+        .bind(tokens)
+        .bind(id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
 pub async fn adjust(
     pool: &SqlitePool,
     id: &str,

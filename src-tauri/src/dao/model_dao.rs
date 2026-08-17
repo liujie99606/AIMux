@@ -27,6 +27,28 @@ pub async fn get(pool: &SqlitePool, id: &str) -> Result<Option<CatalogModel>, Ap
             .await?,
     )
 }
+pub async fn default_name(pool: &SqlitePool, kind: &str) -> Result<Option<String>, AppError> {
+    Ok(
+        sqlx::query_scalar("SELECT name FROM models WHERE type=? AND is_default=1 LIMIT 1")
+            .bind(kind)
+            .fetch_optional(pool)
+            .await?,
+    )
+}
+pub async fn insert_missing(pool: &SqlitePool, defaults: &[(&str, &str)]) -> Result<(), AppError> {
+    let now = now();
+    for (kind, name) in defaults {
+        sqlx::query("INSERT OR IGNORE INTO models(id,name,type,is_default,created_at,updated_at) VALUES(?,?,?,0,?,?)")
+            .bind(Uuid::new_v4().to_string())
+            .bind(name)
+            .bind(kind)
+            .bind(&now)
+            .bind(&now)
+            .execute(pool)
+            .await?;
+    }
+    Ok(())
+}
 pub async fn create(pool: &SqlitePool, p: ModelCreate) -> Result<CatalogModel, AppError> {
     if !["openai", "anthropic"].contains(&p.model_type.as_str()) {
         return Err(AppError::BadRequest("协议类型不支持".into()));
@@ -101,16 +123,18 @@ pub async fn set_default(
     pool: &SqlitePool,
     current: CatalogModel,
 ) -> Result<CatalogModel, AppError> {
+    let mut transaction = pool.begin().await?;
     sqlx::query("UPDATE models SET is_default=0,updated_at=? WHERE type=?")
         .bind(now())
         .bind(&current.r#type)
-        .execute(pool)
+        .execute(&mut *transaction)
         .await?;
     sqlx::query("UPDATE models SET is_default=1,updated_at=? WHERE id=?")
         .bind(now())
         .bind(&current.id)
-        .execute(pool)
+        .execute(&mut *transaction)
         .await?;
+    transaction.commit().await?;
     get(pool, &current.id)
         .await?
         .ok_or_else(|| AppError::Internal("设置默认模型后读取失败".into()))
@@ -153,4 +177,64 @@ pub fn to_view(m: CatalogModel) -> ModelView {
 }
 fn now() -> String {
     chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{create, get, set_default};
+    use crate::{database::connect, schema::model_schema::ModelCreate};
+
+    #[tokio::test]
+    async fn switches_the_only_default_model_in_a_transaction() {
+        let path = std::env::temp_dir().join(format!(
+            "aimux-model-default-{}.sqlite3",
+            uuid::Uuid::new_v4()
+        ));
+        let pool = connect(&path).await.expect("创建数据库失败");
+        let first = create(
+            &pool,
+            ModelCreate {
+                name: "model-a".into(),
+                model_type: "openai".into(),
+            },
+        )
+        .await
+        .expect("创建第一个模型失败");
+        let second = create(
+            &pool,
+            ModelCreate {
+                name: "model-b".into(),
+                model_type: "openai".into(),
+            },
+        )
+        .await
+        .expect("创建第二个模型失败");
+        set_default(&pool, first)
+            .await
+            .expect("设置第一个默认模型失败");
+        let duplicate_default = sqlx::query("UPDATE models SET is_default=1 WHERE id=?")
+            .bind(&second.id)
+            .execute(&pool)
+            .await;
+        assert!(duplicate_default.is_err());
+        set_default(&pool, second.clone())
+            .await
+            .expect("切换默认模型失败");
+        let defaults: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM models WHERE type='openai' AND is_default=1")
+                .fetch_one(&pool)
+                .await
+                .expect("读取默认模型数量失败");
+        assert_eq!(defaults, 1);
+        assert_eq!(
+            get(&pool, &second.id)
+                .await
+                .expect("读取第二个模型失败")
+                .expect("第二个模型不存在")
+                .is_default,
+            1
+        );
+        pool.close().await;
+        let _ = std::fs::remove_file(path);
+    }
 }

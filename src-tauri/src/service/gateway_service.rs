@@ -280,13 +280,20 @@ pub async fn forward(
                     {
                         Ok(()) => {
                             if let Some(total) = tokens.2 {
-                                let _ = sqlx::query(
-                                    "UPDATE accounts SET total_tokens=total_tokens+? WHERE id=?",
+                                if let Err(error) = account_dao::add_total_tokens(
+                                    &pool_for_stream,
+                                    &account_for_stream.id,
+                                    total,
                                 )
-                                .bind(total)
-                                .bind(&account_for_stream.id)
-                                .execute(&pool_for_stream)
-                                .await;
+                                .await
+                                {
+                                    tracing::error!(
+                                        trace_id = %trace_for_stream,
+                                        account_id = %account_for_stream.id,
+                                        %error,
+                                        "流式请求累计账号 Token 失败"
+                                    );
+                                }
                             }
                             true
                         }
@@ -436,11 +443,7 @@ async fn record(
     };
     usage_dao::create(pool, &record).await?;
     if let Some(tokens) = total {
-        sqlx::query("UPDATE accounts SET total_tokens=total_tokens+? WHERE id=?")
-            .bind(tokens)
-            .bind(&account.id)
-            .execute(pool)
-            .await?;
+        account_dao::add_total_tokens(pool, &account.id, tokens).await?;
     }
     Ok(())
 }

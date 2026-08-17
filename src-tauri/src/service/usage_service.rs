@@ -55,38 +55,16 @@ async fn summary(
     started_after: Option<&str>,
     started_before: Option<&str>,
 ) -> Result<UsageSummary, AppError> {
-    let mut where_sql = String::from(" WHERE 1=1");
-    let mut vals: Vec<String> = Vec::new();
-    if let Some(v) = account_id {
-        where_sql.push_str(" AND account_id=?");
-        vals.push(v.into())
-    }
-    if let Some(v) = model {
-        where_sql.push_str(" AND model=?");
-        vals.push(v.into())
-    }
-    if let Some(v) = kind {
-        where_sql.push_str(" AND account_type=?");
-        vals.push(v.into())
-    }
-    if let Some(v) = success {
-        where_sql.push_str(" AND success=?");
-        vals.push((v as i32).to_string())
-    }
-    if let Some(v) = started_after {
-        where_sql.push_str(" AND started_at>=?");
-        vals.push(v.into())
-    }
-    if let Some(v) = started_before {
-        where_sql.push_str(" AND started_at<=?");
-        vals.push(v.into())
-    }
-    let q=format!("SELECT COUNT(*),COALESCE(SUM(success),0),COALESCE(AVG(duration_ms),0),COALESCE(SUM(total_tokens),0) FROM usage_records{}",where_sql);
-    let mut query = sqlx::query_as::<_, (i64, i64, f64, i64)>(&q);
-    for v in vals {
-        query = query.bind(v);
-    }
-    let (count, ok, avg, tokens) = query.fetch_one(pool).await?;
+    let (count, ok, avg, tokens) = usage_dao::summary(
+        pool,
+        account_id,
+        model,
+        kind,
+        success,
+        started_after,
+        started_before,
+    )
+    .await?;
     Ok(UsageSummary {
         request_count: count,
         success_rate: if count == 0 {

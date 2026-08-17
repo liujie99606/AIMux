@@ -1,6 +1,6 @@
 use crate::{
     app_state::AppState,
-    dao::account_dao,
+    dao::{account_dao, model_dao},
     error::AppError,
     schema::account_schema::{AccountCreate, AccountUpdate, TestRequest},
     service::account_service,
@@ -119,11 +119,7 @@ async fn test(
     let account = account_dao::get(&s.pool, &id)
         .await?
         .ok_or_else(|| AppError::NotFound("账号不存在".into()))?;
-    let fallback: Option<String> =
-        sqlx::query_scalar("SELECT name FROM models WHERE type=? AND is_default=1 LIMIT 1")
-            .bind(&account.r#type)
-            .fetch_optional(&s.pool)
-            .await?;
+    let fallback = model_dao::default_name(&s.pool, &account.r#type).await?;
     let model = p.model.or(account.test_default_model.clone()).or(fallback);
     let Some(model) = model else {
         return Err(AppError::BadRequest("没有可用测试模型".into()));
