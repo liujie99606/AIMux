@@ -56,7 +56,10 @@ import {
 import { useAppStore } from '../stores/app';
 const route = useRoute();
 const app = useAppStore();
-onMounted(() => app.startClock());
+onMounted(() => {
+  app.startClock();
+  void app.loadVersion();
+});
 const clock = computed(() => app.now.toLocaleTimeString('zh-CN', { hour12: false }));
 
 const GITHUB_URL = 'https://github.com/quietforge-dev/AIMux';

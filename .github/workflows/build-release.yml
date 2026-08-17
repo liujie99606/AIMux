@@ -41,6 +41,12 @@ jobs:
           toolchain: stable
           targets: ${{ matrix.arch == 'arm64' && 'aarch64-pc-windows-msvc' || 'x86_64-pc-windows-msvc' }}
 
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: windows-${{ matrix.arch }}
+
       - name: Install frontend dependencies
         run: npm ci
 
@@ -88,6 +94,12 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: macos-${{ matrix.arch }}
 
       - name: Install frontend dependencies
         run: npm ci
