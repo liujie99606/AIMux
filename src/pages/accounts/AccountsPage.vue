@@ -34,6 +34,15 @@
           />
         </template>
       </el-table-column>
+      <el-table-column label="平均耗时" width="105">
+        <template #default="{ row }">
+          <span
+            :class="(row.monitor_average_duration_ms ?? 0) > SLOW_DURATION_MS ? 'warning-text' : ''"
+          >
+            {{ formatDuration(row.monitor_average_duration_ms) }}
+          </span>
+        </template>
+      </el-table-column>
       <el-table-column prop="test_default_model" label="测试默认模型" min-width="150" />
       <el-table-column label="操作" width="190" fixed="right">
         <template #default="{ row }">
@@ -76,6 +85,7 @@ const editingAccount = ref<Account>();
 const testDialog = ref(false);
 const testAccount = ref<Account>();
 const testModels = computed(() => models.byType(testAccount.value?.type ?? 'openai'));
+const SLOW_DURATION_MS = 20_000;
 
 const load = async () => {
   await Promise.all([store.load(), models.load()]);
@@ -120,6 +130,9 @@ const test = async (row: Account) => {
   testAccount.value = row;
   testDialog.value = true;
 };
+
+const formatDuration = (duration?: number | null) =>
+  duration == null ? '-' : `${(duration / 1000).toFixed(2)} 秒`;
 
 onMounted(load);
 </script>

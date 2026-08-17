@@ -8,6 +8,7 @@ export type Account = {
   status: 'active' | 'disabled';
   priority: number;
   multiplier: number;
+  monitor_average_duration_ms?: number | null;
   test_default_model?: string;
   model_mappings?: Record<string, string>;
   supported_models?: string[];

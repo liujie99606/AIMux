@@ -26,10 +26,12 @@
         <div>{{ clock }}</div>
         <div class="sidebar-actions">
           <el-button text class="sidebar-action" @click="openGithub">
-            <el-icon><Link /></el-icon>GitHub
+            <Github class="sidebar-action-icon" :size="16" :stroke-width="2" />
+            <span>GitHub</span>
           </el-button>
           <el-button text class="sidebar-action" @click="checkForUpdates">
-            <el-icon><Refresh /></el-icon>检查更新
+            <RefreshCw class="sidebar-action-icon" :size="16" :stroke-width="2" />
+            <span>检查更新</span>
           </el-button>
         </div>
         <div class="version">v{{ app.version }}</div>
@@ -43,16 +45,8 @@ import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import {
-  DataAnalysis,
-  Grid,
-  Link,
-  Monitor,
-  Refresh,
-  Setting,
-  Tickets,
-  User,
-} from '@element-plus/icons-vue';
+import { DataAnalysis, Grid, Monitor, Setting, Tickets, User } from '@element-plus/icons-vue';
+import { Github, RefreshCw } from 'lucide-vue-next';
 import { useAppStore } from '../stores/app';
 const route = useRoute();
 const app = useAppStore();
@@ -177,12 +171,19 @@ const checkForUpdates = async () => {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  margin: 8px -10px 4px;
+  margin: 8px 0 4px;
 }
 .sidebar-action {
   justify-content: flex-start;
   color: #aab7cb;
   min-height: 30px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+.sidebar-action-icon {
+  flex: 0 0 auto;
+  margin-right: 6px;
 }
 .sidebar-action:hover {
   color: #fff;

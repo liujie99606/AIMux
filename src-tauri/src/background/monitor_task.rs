@@ -143,7 +143,16 @@ async fn rebalance(
         let Some(candidate) = accounts
             .iter()
             .filter(|account| successful.iter().any(|(id, _, _, _)| id == &account.id))
-            .min_by(|left, right| left.multiplier.total_cmp(&right.multiplier))
+            .min_by(|left, right| {
+                candidate_order(
+                    left.multiplier,
+                    left.monitor_average_duration_ms,
+                    right.multiplier,
+                    right.monitor_average_duration_ms,
+                )
+                .then_with(|| left.name.to_lowercase().cmp(&right.name.to_lowercase()))
+                .then_with(|| left.id.cmp(&right.id))
+            })
         else {
             continue;
         };
@@ -164,6 +173,19 @@ async fn rebalance(
     Ok(())
 }
 
+fn candidate_order(
+    left_multiplier: f64,
+    left_average_duration_ms: Option<i64>,
+    right_multiplier: f64,
+    right_average_duration_ms: Option<i64>,
+) -> Ordering {
+    left_multiplier.total_cmp(&right_multiplier).then_with(|| {
+        left_average_duration_ms
+            .unwrap_or(i64::MAX)
+            .cmp(&right_average_duration_ms.unwrap_or(i64::MAX))
+    })
+}
+
 fn should_promote(
     candidate_multiplier: f64,
     candidate_average_duration_ms: Option<i64>,
@@ -182,7 +204,26 @@ fn should_promote(
 
 #[cfg(test)]
 mod tests {
-    use super::should_promote;
+    use std::cmp::Ordering;
+
+    use super::{candidate_order, should_promote};
+
+    #[test]
+    fn chooses_the_lowest_multiplier_then_the_fastest_average_duration() {
+        assert_eq!(
+            candidate_order(0.04, Some(900), 0.10, Some(100)),
+            Ordering::Less
+        );
+        assert_eq!(
+            candidate_order(0.10, Some(500), 0.10, Some(800)),
+            Ordering::Less
+        );
+        assert_eq!(candidate_order(0.10, Some(500), 0.10, None), Ordering::Less);
+        assert_eq!(
+            candidate_order(0.10, None, 0.10, Some(500)),
+            Ordering::Greater
+        );
+    }
 
     #[test]
     fn promotes_a_successful_lower_multiplier_account() {
