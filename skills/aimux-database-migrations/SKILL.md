@@ -5,7 +5,7 @@ description: AIMux Alembic 数据库迁移维护规范。修改 SQLModel 表结�
 
 # AIMux 数据库迁移规范
 
-同时遵守 `../aimux-backend/SKILL.md`，并以 `../../docs/plan/数据库迁移升级规划.md` 为兼容边界。
+同时遵守 `../aimux-backend/SKILL.md`，并以 `../../AIMuxRust/docs/plan/数据库迁移升级规划.md` 为兼容边界。
 
 ## 判断是否需要 migration
 

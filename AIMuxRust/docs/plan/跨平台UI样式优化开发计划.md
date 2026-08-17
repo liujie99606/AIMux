@@ -17,7 +17,7 @@
 
 ## 3. 账号表单现状分析
 
-主要代码位于 `app/ui/components/accounts/account_form.py`。
+主要代码位于 `../../../app/ui/components/accounts/account_form.py`。
 
 ### 3.1 窗口装饰
 
@@ -49,7 +49,7 @@
 
 ### 4.1 抽取统一主题模块
 
-新增 `app/ui/theme.py`，集中维护：
+新增 `../../../app/ui/theme.py`，集中维护：
 
 - 应用级颜色和字体常量。
 - 输入控件、下拉框、数值框、列表、表格和按钮样式。
@@ -119,14 +119,14 @@
 预计涉及以下模块：
 
 - `app/__main__.py`：主题初始化入口。
-- `app/ui/theme.py`：新增统一主题模块。
-- `app/ui/main_window.py`：减少重复样式，保留页面级布局样式。
-- `app/ui/components/accounts/account_form.py`：第一阶段重点改造。
-- `app/ui/components/common/data_table.py`：公共表格基础样式。
-- `app/ui/components/accounts/`：账号按钮、状态和测试组件。
-- `app/ui/components/usage/`：使用记录筛选、表格和详情组件。
+- `../../../app/ui/theme.py`：新增统一主题模块。
+- `../../../app/ui/main_window.py`：减少重复样式，保留页面级布局样式。
+- `../../../app/ui/components/accounts/account_form.py`：第一阶段重点改造。
+- `../../../app/ui/components/common/data_table.py`：公共表格基础样式。
+- `../../../app/ui/components/accounts`：账号按钮、状态和测试组件。
+- `../../../app/ui/components/usage`：使用记录筛选、表格和详情组件。
 - `app/ui/components/monitor_*.py`：监控表格、状态格和提示样式。
-- `app/ui/views/settings_view.py`、`models_view.py`、`usage_view.py`、`monitor_view.py`：页面级间距和工具栏适配。
+- `../../../app/ui/views/settings_view.py`、`models_view.py`、`usage_view.py`、`monitor_view.py`：页面级间距和工具栏适配。
 
 本计划只涉及 UI 样式和布局，不涉及数据库、API 契约、调度算法或业务数据，因此不需要 migration。
 
@@ -185,7 +185,7 @@
 
 本轮已完成以下代码调整：
 
-- [x] 新增 `app/ui/theme.py`，集中维护深色控件、导航、表格、按钮、滚动条和统计卡片样式。
+- [x] 新增 `../../../app/ui/theme.py`，集中维护深色控件、导航、表格、按钮、滚动条和统计卡片样式。
 - [x] 应用启动统一使用主题入口，并使用 Qt Fusion 基础风格减少平台原生控件差异。
 - [x] 移除主窗口重复的局部全局样式，避免样式定义分散和覆盖顺序不确定。
 - [x] 账号表单统一弹窗尺寸、表单边距、标签对齐、字段宽度、高度和扩展策略。

@@ -135,36 +135,36 @@ return await forwarders.post(account, endpoint, body, settings)
 
 ### 4.1 数据库和模型
 
-- `app/models.py`：`Account` 增加 `model_mappings: Optional[str] = None`。
-- `migrations/versions/003_add_account_model_mappings.py`：新增可空字段。
-- `tests/test_database_migrations.py`：验证全新库、`002` 数据库升级后字段存在，旧账号数据不丢失。
+- `../../../app/models.py`：`Account` 增加 `model_mappings: Optional[str] = None`。
+- `../../../migrations/versions/003_add_account_model_mappings.py`：新增可空字段。
+- `../../../tests/test_database_migrations.py`：验证全新库、`002` 数据库升级后字段存在，旧账号数据不丢失。
 
 ### 4.2 Schema、DAO 和 Service
 
-- `app/schemas.py`：`AccountCreate`、`AccountUpdate`、`AccountView` 增加模型映射字段及类型约束。
-- `app/service/account_service.py`：增加 JSON 序列化/反序列化和规范化；`to_view()` 返回字典供编辑回显。
-- 建议在 `app/service/dispatch_service.py` 或独立 `app/service/model_mapping.py` 增加纯解析函数，禁止 controller 直接读取数据库 JSON。
+- `../../../app/schemas.py`：`AccountCreate`、`AccountUpdate`、`AccountView` 增加模型映射字段及类型约束。
+- `../../../app/service/account_service.py`：增加 JSON 序列化/反序列化和规范化；`to_view()` 返回字典供编辑回显。
+- 建议在 `../../../app/service/dispatch_service.py` 或独立 `../../../app/service/model_mapping.py` 增加纯解析函数，禁止 controller 直接读取数据库 JSON。
 - `pick_one()` 不改排序和候选资格逻辑，仍按客户端模型选择账号。
 
 ### 4.3 请求转发
 
-- `app/service/dispatch_service.py`：非流式和流式每次尝试分别解析当前账号映射，构造请求 body 副本。
-- `app/service/monitor_service.py`：`send_ping()` 调用同一个解析方法，覆盖账号管理测试和后台监控；`build_ping_request()` 接收解析后的上游模型。不能出现真实请求支持映射、监控却不支持映射的分裂行为。
-- `app/utils/forwarders.py`：原则上不承载账号选择和业务映射，只负责发送传入 body，避免工具层反向依赖业务规则。
+- `../../../app/service/dispatch_service.py`：非流式和流式每次尝试分别解析当前账号映射，构造请求 body 副本。
+- `../../../app/service/monitor_service.py`：`send_ping()` 调用同一个解析方法，覆盖账号管理测试和后台监控；`build_ping_request()` 接收解析后的上游模型。不能出现真实请求支持映射、监控却不支持映射的分裂行为。
+- `../../../app/utils/forwarders.py`：原则上不承载账号选择和业务映射，只负责发送传入 body，避免工具层反向依赖业务规则。
 
 ### 4.4 账号管理界面
 
-- `app/ui/components/accounts/account_form.py`：新增“模型映射”编辑区域，建议使用可增删行的表格/列表：客户端模型、上游模型、删除按钮。
+- `../../../app/ui/components/accounts/account_form.py`：新增“模型映射”编辑区域，建议使用可增删行的表格/列表：客户端模型、上游模型、删除按钮。
 - 映射客户端模型使用当前协议已勾选的“支持模型”下拉框；上游模型使用当前协议全部模型目录下拉框。编辑旧数据时保留已保存但已从目录删除的目标值，避免打开表单后立即丢失配置。
 - 保存前前端校验：key/value 非空、key 不重复、目标模型非空；校验失败保持弹窗打开。
-- `app/ui/components/accounts/account_table.py`：首期不建议增加“模型映射”列，避免列表过宽；可在编辑页查看和维护。
-- `tests/test_ui_components.py`：覆盖新增、编辑、切换协议、重复 key、删除行、旧映射回显和空映射提交。
+- `../../../app/ui/components/accounts/account_table.py`：首期不建议增加“模型映射”列，避免列表过宽；可在编辑页查看和维护。
+- `../../../tests/test_ui_components.py`：覆盖新增、编辑、切换协议、重复 key、删除行、旧映射回显和空映射提交。
 
 ### 4.5 文档
 
-- `docs/账号管理功能.md`：说明映射格式、匹配规则、作用范围和保存校验。
-- `docs/调度逻辑说明`（实际文件名以仓库为准）：说明先按客户端模型选账号，再按账号映射生成上游请求模型。
-- `README.md` 或 FAQ：增加“客户端模型与上游模型不同”的示例和排障说明。
+- `..号管理功能.md`：说明映射格式、匹配规则、作用范围和保存校验。
+- `../调度逻辑说明`（实际文件名以仓库为准）：说明先按客户端模型选账号，再按账号映射生成上游请求模型。
+- `../../../README.md` 或 FAQ：增加“客户端模型与上游模型不同”的示例和排障说明。
 
 ## 5. 风险与处理
 
