@@ -6,6 +6,8 @@ import './styles/index.scss';
 import router from './router';
 import App from './App.vue';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
+import { ElMessageBox } from 'element-plus';
 import { setApiBase } from './api/client';
 
 const configureTauriGateway = async (): Promise<boolean> => {
@@ -27,8 +29,39 @@ const bindDevtoolsShortcut = () => {
   });
 };
 
+const bindCloseHandler = async () => {
+  let handling = false;
+  await listen('aimux://close-requested', async () => {
+    if (handling) return;
+    handling = true;
+    try {
+      await ElMessageBox.confirm(
+        '直接退出会停止网关和账号监控。选择最小化后，AIMux 将继续在系统托盘运行。',
+        '关闭 AIMux',
+        {
+          confirmButtonText: '直接退出',
+          cancelButtonText: '最小化到托盘',
+          closeOnClickModal: false,
+          closeOnPressEscape: false,
+          showClose: false,
+        },
+      );
+      await invoke('exit_app');
+    } catch (reason) {
+      if (reason === 'cancel') await invoke('minimize_to_tray');
+    } finally {
+      handling = false;
+    }
+  });
+};
+
 const bootstrap = async () => {
-  if (await configureTauriGateway()) bindDevtoolsShortcut();
+  if (await configureTauriGateway()) {
+    bindDevtoolsShortcut();
+    createApp(App).use(createPinia()).use(router).use(ElementPlus).mount('#app');
+    await bindCloseHandler();
+    return;
+  }
   createApp(App).use(createPinia()).use(router).use(ElementPlus).mount('#app');
 };
 

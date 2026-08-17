@@ -19,7 +19,11 @@ use std::sync::Arc;
 
 use app_state::AppState;
 use config::Settings;
-use tauri::Manager;
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
+    Emitter, Manager, WindowEvent,
+};
 
 pub fn run() {
     logging::init();
@@ -48,12 +52,57 @@ pub fn run() {
             commands::open_external_url,
             commands::app_version,
             commands::gateway_url,
-            commands::open_devtools
+            commands::open_devtools,
+            commands::minimize_to_tray,
+            commands::exit_app
         ])
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_title("AIMux");
+                let close_window = window.clone();
+                window.on_window_event(move |event| {
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        api.prevent_close();
+                        let _ = close_window.emit("aimux://close-requested", ());
+                    }
+                });
             }
+
+            let show = MenuItem::with_id(app, "show", "显示 AIMux", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show, &quit])?;
+            let icon = app
+                .default_window_icon()
+                .cloned()
+                .ok_or_else(|| "未找到托盘图标".to_string())?;
+            TrayIconBuilder::with_id("main-tray")
+                .icon(icon)
+                .menu(&menu)
+                .tooltip("AIMux")
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    "quit" => app.exit(0),
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| {
+                    if let TrayIconEvent::DoubleClick {
+                        button: MouseButton::Left,
+                        ..
+                    } = event
+                    {
+                        if let Some(window) = tray.app_handle().get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
             Ok(())
         })
         .run(tauri::generate_context!())

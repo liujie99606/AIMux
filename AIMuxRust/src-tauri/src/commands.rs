@@ -73,3 +73,13 @@ pub fn open_devtools(window: tauri::WebviewWindow) -> Result<(), String> {
     window.open_devtools();
     Ok(())
 }
+
+#[tauri::command]
+pub fn minimize_to_tray(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.hide().map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn exit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
