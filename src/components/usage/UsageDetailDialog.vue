@@ -39,9 +39,10 @@
       </el-descriptions>
 
       <div class="token-line">
-        Token 用量：输入 {{ text(record.input_tokens) }} / 输出 {{ text(record.output_tokens) }} /
-        缓存 {{ text(record.cached_tokens) }} / 合计
-        {{ text(record.total_tokens) }}
+        Token 用量：输入 {{ formatToken(record.input_tokens) }} / 输出
+        {{ formatToken(record.output_tokens) }} / 缓存 {{ formatToken(record.cached_tokens) }} /
+        合计
+        {{ formatToken(record.total_tokens) }}
       </div>
       <div class="error-title">错误信息：</div>
       <el-input
@@ -57,6 +58,7 @@
 
 <script setup lang="ts">
 import type { UsageRecord } from '../../api/usage';
+import { formatToken } from '../../utils/token';
 
 const visible = defineModel<boolean>({ required: true });
 defineProps<{ record?: UsageRecord }>();

@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::time::Duration;
+use std::{cmp::Ordering, sync::Arc};
 
 use tokio::time::{interval, MissedTickBehavior};
 
@@ -149,10 +149,56 @@ async fn rebalance(
         };
         let current = account_dao::pick_one(pool, Some(model), kind).await?;
         if let Some(current) = current {
-            if current.id != candidate.id && candidate.multiplier < current.multiplier {
+            if current.id != candidate.id
+                && should_promote(
+                    candidate.multiplier,
+                    candidate.monitor_average_duration_ms,
+                    current.multiplier,
+                    current.monitor_average_duration_ms,
+                )
+            {
                 account_dao::save_priority(pool, &candidate.id, 9).await?;
             }
         }
     }
     Ok(())
+}
+
+fn should_promote(
+    candidate_multiplier: f64,
+    candidate_average_duration_ms: Option<i64>,
+    current_multiplier: f64,
+    current_average_duration_ms: Option<i64>,
+) -> bool {
+    match candidate_multiplier.total_cmp(&current_multiplier) {
+        Ordering::Less => true,
+        Ordering::Greater => false,
+        Ordering::Equal => {
+            candidate_average_duration_ms.unwrap_or(i64::MAX)
+                < current_average_duration_ms.unwrap_or(i64::MAX)
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_promote;
+
+    #[test]
+    fn promotes_a_successful_lower_multiplier_account() {
+        assert!(should_promote(0.04, None, 0.10, Some(500)));
+    }
+
+    #[test]
+    fn promotes_a_faster_account_when_multipliers_match() {
+        assert!(should_promote(0.10, Some(500), 0.10, Some(800)));
+        assert!(should_promote(0.10, Some(500), 0.10, None));
+    }
+
+    #[test]
+    fn does_not_promote_an_unknown_or_slower_account_when_multipliers_match() {
+        assert!(!should_promote(0.10, None, 0.10, Some(800)));
+        assert!(!should_promote(0.10, None, 0.10, None));
+        assert!(!should_promote(0.10, Some(800), 0.10, Some(500)));
+    }
 }

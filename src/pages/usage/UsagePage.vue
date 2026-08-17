@@ -106,6 +106,7 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { usageApi, type UsageFilterState, type UsageRecord } from '../../api/usage';
 import UsageDetailDialog from '../../components/usage/UsageDetailDialog.vue';
 import UsageFilter from '../../components/usage/UsageFilter.vue';
+import { formatToken } from '../../utils/token';
 
 const PAGE_SIZE = 10;
 const items = ref<UsageRecord[]>([]);
@@ -241,7 +242,6 @@ const failureReason = (record: UsageRecord) => {
     .map(String);
   return details.join(' / ') || '未记录失败原因';
 };
-const formatToken = (value?: number) => (value == null ? '-' : String(value));
 const formatCacheRate = (record: UsageRecord) => formatPercentage(cacheRate(record));
 
 let refreshTimer: ReturnType<typeof setInterval> | undefined;

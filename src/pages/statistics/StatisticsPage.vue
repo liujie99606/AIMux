@@ -14,7 +14,7 @@
             {{
               metric.key === 'cache_rate'
                 ? rate(summary(group.key).cache_rate)
-                : format(summary(group.key)[metric.key])
+                : formatToken(summary(group.key)[metric.key])
             }}
           </strong>
         </div>
@@ -28,16 +28,16 @@
       <el-table-column prop="account_type" label="类型" width="90" />
       <el-table-column prop="priority" label="优先级" width="80" />
       <el-table-column label="总Token" min-width="110">
-        <template #default="{ row }">{{ format(row.total_tokens) }}</template>
+        <template #default="{ row }">{{ formatToken(row.total_tokens) }}</template>
       </el-table-column>
       <el-table-column label="总输入" min-width="110">
-        <template #default="{ row }">{{ format(row.input_tokens) }}</template>
+        <template #default="{ row }">{{ formatToken(row.input_tokens) }}</template>
       </el-table-column>
       <el-table-column label="总输出" min-width="110">
-        <template #default="{ row }">{{ format(row.output_tokens) }}</template>
+        <template #default="{ row }">{{ formatToken(row.output_tokens) }}</template>
       </el-table-column>
       <el-table-column label="总缓存" min-width="110">
-        <template #default="{ row }">{{ format(row.cached_tokens) }}</template>
+        <template #default="{ row }">{{ formatToken(row.cached_tokens) }}</template>
       </el-table-column>
       <el-table-column label="缓存率" min-width="100">
         <template #default="{ row }">{{ rate(row.cache_rate) }}</template>
@@ -49,6 +49,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { usageApi, type Statistics, type TokenSummary } from '../../api/usage';
+import { formatToken } from '../../utils/token';
 
 type SummaryKey = 'total' | 'yesterday' | 'today';
 type MetricKey = keyof TokenSummary;
@@ -84,13 +85,6 @@ const load = async () => {
   } finally {
     loading.value = false;
   }
-};
-
-const format = (value?: number) => {
-  if (value == null) return '-';
-  if (value >= 1e6) return `${(value / 1e6).toFixed(2)}m`;
-  if (value >= 1e3) return `${(value / 1e3).toFixed(2)}k`;
-  return String(value);
 };
 
 const rate = (value: number | null | undefined) =>
