@@ -1,0 +1,2 @@
+src-tauri/migrations/0001_baseline.sql whitespace=-blank-at-eof
+src-tauri/migrations/0002_placeholder.sql whitespace=-blank-at-eof
