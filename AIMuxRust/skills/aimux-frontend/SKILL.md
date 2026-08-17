@@ -81,7 +81,7 @@ app/ui/
 
 ## ApiClient 调用规范
 
-- `ApiClient`（`../../app/ui/client.py`）封装 `get/post/put/delete`，内部 `httpx.request(..., timeout=30)`。
+- `ApiClient`（`../../../app/ui/client.py`）封装 `get/post/put/delete`，内部 `httpx.request(..., timeout=30)`。
 - 204 返回 `None`；非 2xx `raise_for_status()`（由视图 `_error` 捕获）。
 - 查询参数传 `params=`，JSON 体传 `json=`。
 - 视图持有 `self.client` 与 `self.accounts: dict[str, dict]`（id → 视图数据）缓存，便于编辑/复制时取数。
@@ -131,7 +131,7 @@ app/ui/
 - 首行 `os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")`，再 `QApplication.instance() or QApplication([])`。
 - 断言聚焦行为（`rowCount`、`selected_ids`、表单模型过滤结果），不断言渲染像素。
 - 构造组件传入最小 dict 数据即可，无需真实 API。
-- 默认按 UI 改动影响范围运行聚焦测试：组件改动运行 `tests/test_ui_components.py` 中对应测试，具体视图或页面交互改动运行对应视图/API 集成测试；必要时同时运行受影响的后端契约测试。
+- 默认按 UI 改动影响范围运行聚焦测试：组件改动运行 `../../../tests/test_ui_components.py` 中对应测试，具体视图或页面交互改动运行对应视图/API 集成测试；必要时同时运行受影响的后端契约测试。
 - 只有在跨多个页面或前后端模块、修改共享组件/客户端/API 契约、影响主窗口或全局状态，聚焦测试无法覆盖完整影响范围，或准备发布/打包时，才运行全量测试：`./.venv/Scripts/python.exe -m pytest`。
 - 提交前应记录实际执行的测试命令及结果；仅文档或注释改动可只执行 `git diff --check`。
 

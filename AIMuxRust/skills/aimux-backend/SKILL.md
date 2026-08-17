@@ -23,12 +23,12 @@ AIMux 是本地桌面端的 OpenAI 与 Anthropic API 账号池。后端只保留
 
 | 层 | 目录 | 职责 | 禁止 |
 |----|------|------|------|
-| controller | `../../app/controller` | 路由、参数解析、调用 service、组装响应 | 直接写 SQL、操作加密 |
-| service | `../../app/service` | 业务规则、字段映射、调用 dao | — |
-| dao | `../../app/dao` | 持久化 CRUD、查询过滤、排序 | 含业务判断 |
-| models | `../../app/models.py` | SQLModel 表定义、约束、索引 | 含业务方法 |
-| schemas | `../../app/schemas.py` | Pydantic I/O 模型与校验 | 与表定义耦合 |
-| utils | `../../app/utils` | 转发、路径、SSE、自启动等纯工具 | 依赖业务层 |
+| controller | `../../../app/controller` | 路由、参数解析、调用 service、组装响应 | 直接写 SQL、操作加密 |
+| service | `../../../app/service` | 业务规则、字段映射、调用 dao | — |
+| dao | `../../../app/dao` | 持久化 CRUD、查询过滤、排序 | 含业务判断 |
+| models | `../../../app/models.py` | SQLModel 表定义、约束、索引 | 含业务方法 |
+| schemas | `../../../app/schemas.py` | Pydantic I/O 模型与校验 | 与表定义耦合 |
+| utils | `../../../app/utils` | 转发、路径、SSE、自启动等纯工具 | 依赖业务层 |
 
 ## 目录结构
 
@@ -86,7 +86,7 @@ app/
 
 - `to_view(model)`：model → dict 转换，显式列出对外字段，JSON 字符串反序列化为列表；`api_key` 以明文返回以便编辑回显。
 - 测试结果记录：成功调 `record_test_success`（优先级 +3、清错误、记模型），失败调 `record_test_failure`（优先级 -1、存错误）；真实请求成功调 `record_request_success`（优先级 +1、清错误），失败调 `record_request_failure`（优先级 -1、存错误，绝不自动停用账号）。
-- 优先级算法集中在 `../../app/service/priority.py`，范围保持 0–9。
+- 优先级算法集中在 `../../../app/service/priority.py`，范围保持 0–9。
 
 ## DAO 规范（app/dao/）
 
@@ -116,7 +116,7 @@ app/
 - SQLite `connect_args={"check_same_thread": False}` 以适配 FastAPI 线程模型。
 - `get_session()` 为生成器依赖，请求结束自动关闭会话。
 - 禁止在业务启动中调用 `SQLModel.metadata.create_all()`、临时 `ALTER TABLE` 或 `_ensure_columns()` 隐式升级；数据库模型变化必须追加 Alembic revision。
-- 已发布 migration 只能追加，不能修改；全新库、当前无版本库、合法版本库的接管边界遵循 `../../AIMuxRust/docs/plan/数据库迁移升级规划.md`。
+- 已发布 migration 只能追加，不能修改；全新库、当前无版本库、合法版本库的接管边界遵循 `../../docs/plan/数据库迁移升级规划.md`。
 - migration 或首次 stamp 写入已有数据库前必须使用 SQLite Backup API 创建一致性备份；失败时停止应用启动。
 
 ## 转发规范（app/utils/forwarders.py）

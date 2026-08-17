@@ -17,7 +17,7 @@ description: AIMux Windows 简化发版流程。用户要求发版、升级版�
 
    有未提交改动时，先向用户说明。不要覆盖或隐藏用户改动。
 
-2. 确认发版版本号并修改 `pyproject.toml` 的 `[project].version`。
+2. 确认发版版本号并修改 `../../../pyproject.toml` 的 `[project].version`。
 
    用户没有提供目标版本时，先报告当前版本并询问，不要自行猜版本号。版本号只维护这一处，发布脚本会自动读取它。
 

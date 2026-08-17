@@ -3,15 +3,15 @@
 本文件适用于整个 AIMux 仓库。进行代码修改前，先根据改动范围阅读对应的 skill：
 
 - 修改 `app/ui/` 下的 PySide6 桌面端视图、组件、弹窗、表格或交互时，阅读
-  [`skills/aimux-frontend/SKILL.md`](skills/aimux-frontend/SKILL.md)。
+  [`AIMuxRust/skills/aimux-frontend/SKILL.md`](AIMuxRust/skills/aimux-frontend/SKILL.md)。
 - 修改 `app/` 下的 FastAPI 控制器、服务、DAO、模型、Schema、工具或 API/数据库业务时，阅读
-  [`skills/aimux-backend/SKILL.md`](skills/aimux-backend/SKILL.md)。
+  [`AIMuxRust/skills/aimux-backend/SKILL.md`](AIMuxRust/skills/aimux-backend/SKILL.md)。
 - 修改 SQLModel 表结构、字段/约束/索引，或需要转换、回填已有持久化数据时，额外阅读
-  [`skills/aimux-database-migrations/SKILL.md`](skills/aimux-database-migrations/SKILL.md)，并同步维护 `migrations/versions/`。普通 DAO/Service 增删改查、查询、排序和分页不需要新增 migration。
+  [`AIMuxRust/skills/aimux-database-migrations/SKILL.md`](AIMuxRust/skills/aimux-database-migrations/SKILL.md)，并同步维护 `migrations/versions/`。普通 DAO/Service 增删改查、查询、排序和分页不需要新增 migration。
 - 执行 Windows 打包、安装包生成、版本升级、正式发版、产物验证或排查发布脚本时，阅读
-  [`skills/aimux-windows-release/SKILL.md`](skills/aimux-windows-release/SKILL.md)。
+  [`AIMuxRust/skills/aimux-windows-release/SKILL.md`](AIMuxRust/skills/aimux-windows-release/SKILL.md)。
 - 配置、触发、查看或排查 GitHub Actions 的 Windows/macOS 构建，或通过浏览器操作 GitHub Actions 页面时，阅读
-  [`skills/aimux-github-actions/SKILL.md`](skills/aimux-github-actions/SKILL.md)。
+  [`AIMuxRust/skills/aimux-github-actions/SKILL.md`](AIMuxRust/skills/aimux-github-actions/SKILL.md)。
 - 同时涉及多个范围时，对应 skill 都要阅读并遵守。
 
 ## 通用要求

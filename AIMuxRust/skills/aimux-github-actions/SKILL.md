@@ -5,7 +5,7 @@ description: AIMux GitHub Actions 跨平台构建规范。用户要求配置、�
 
 # AIMux GitHub Actions
 
-仓库 workflow 位于 `.github/workflows/build-release.yml`，构建 Windows 安装包和 macOS APP。支持 GitHub Actions 页面手动触发，也支持推送 `v*` tag 自动触发。
+仓库 workflow 位于 `../../../.github/workflows/build-release.yml`，构建 Windows 安装包和 macOS APP。支持 GitHub Actions 页面手动触发，也支持推送 `v*` tag 自动触发。
 
 ## 浏览器操作
 
@@ -32,7 +32,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-不要替用户执行 `git push` 或创建 tag，除非用户明确要求。发布版本应先修改 `pyproject.toml` 的 `version`，确保标签使用对应的 `v<版本号>`，再提交代码和 tag。手动运行 workflow 只生成 Actions Artifact，不创建正式 Release。
+不要替用户执行 `git push` 或创建 tag，除非用户明确要求。发布版本应先修改 `../../../pyproject.toml` 的 `version`，确保标签使用对应的 `v<版本号>`，再提交代码和 tag。手动运行 workflow 只生成 Actions Artifact，不创建正式 Release。
 
 ## 产物边界
 
