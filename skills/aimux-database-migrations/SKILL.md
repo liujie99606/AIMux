@@ -20,6 +20,7 @@ description: AIMux SQLx/SQLite 数据库迁移规范。修改表、字段、类�
 - `0001_baseline.sql` 是 Rust 首个版本的当前完整表结构，已经发布后不得修改。
 - `0002_placeholder.sql` 仅作为后续 migration 的占位，不回写基线。
 - SQLx migration 元数据存于 `_sqlx_migrations`；历史 `alembic_version` 只作为兼容数据库中的遗留表保留，不再由 Rust 读取或维护。
+- migration SQL 文件必须使用 LF 换行符；SQLx 会校验文件字节的 SHA-384，CRLF/LF 差异会导致已有用户数据库无法启动。`.gitattributes` 已固定 `src-tauri/migrations/*.sql` 为 `eol=lf`，不得移除。
 - Rust 启动时执行 `sqlx::migrate!`，不使用启动时临时 `ALTER TABLE` 或隐式建表。
 - migration 必须兼容 SQLite，并考虑已有用户数据库、WAL、空表和旧数据。
 

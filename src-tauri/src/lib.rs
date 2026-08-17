@@ -53,11 +53,13 @@ pub fn run() {
     logging::init();
     let settings = load_runtime_settings();
     let runtime = tokio::runtime::Runtime::new().expect("创建 Tokio runtime 失败");
-    let state = runtime.block_on(async {
-        AppState::initialize(settings)
-            .await
-            .expect("初始化 AIMux 失败")
-    });
+    let state = match runtime.block_on(AppState::initialize(settings)) {
+        Ok(state) => state,
+        Err(error) => {
+            tracing::error!(%error, "初始化 AIMux 失败");
+            return;
+        }
+    };
     let shared = Arc::new(state);
     let monitor_state = Arc::clone(&shared);
     runtime.spawn(async move {
