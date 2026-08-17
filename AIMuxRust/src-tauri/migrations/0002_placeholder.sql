@@ -1,1 +1,0 @@
--- Reserved for the first Rust-owned schema change. Do not edit 0001_baseline.sql.

@@ -1,4 +1,0 @@
-interface:
-  display_name: "AIMux GitHub Actions"
-  short_description: "配置和触发 AIMux Windows、macOS 云端构建"
-  default_prompt: "Use $aimux-github-actions to configure or run AIMux cross-platform GitHub Actions builds."

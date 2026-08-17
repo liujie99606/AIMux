@@ -1,7 +1,0 @@
-node_modules/
-.vscode/
-dist/
-src-tauri/target/
-*.tsbuildinfo
-vite.config.js
-vite.config.d.ts

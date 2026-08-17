@@ -1,15 +1,17 @@
 # AIMux
 
-AIMux 是本地桌面端的 OpenAI 与 Anthropic API 账号池。它只保留账号管理、实时调度、协议原样转发和使用记录。
+AIMux 是一个本地运行的 OpenAI/Anthropic 中转聚合网关。它把多个官方账号或中转站账号统一放入本地账号池，根据协议、模型、状态、优先级和倍率自动调度，并在失败时重试其他可用账号。
+
+项目当前正式使用 Rust + Tauri 2 + Vue 3。桌面端、HTTP 网关和管理页面都由 Rust/Tauri 项目提供。
 
 ## 新手教程
 
-第一次使用建议先阅读：[新手第一次使用教程](AIMuxRust/docs/新手第一次使用教程.md)
+第一次使用建议先阅读：[新手第一次使用教程](docs/新手第一次使用教程.md)
 
 #### 建议直接让 AI 启动或打包
 
-```
-请判断当前电脑是 macOS 还是 Windows，读取项目规范后，使用 scripts 目录下对应脚本启动或打包 AIMux；如果脚本不适用，请使用当前环境兼容的命令。打包默认增量构建，完成后告诉我执行结果和产物路径，不要自动 commit 或 push。
+```text
+请判断当前电脑是 macOS 还是 Windows，先读取项目规范和相关 skills，再使用 scripts 目录下对应脚本启动或打包 AIMux；如果脚本不适用，请使用当前环境兼容的 Rust/Node 命令。默认使用增量构建，完成后告诉我结果和产物路径，不要自动 commit 或 push。
 ```
 
 ### CC 配置示例
@@ -18,105 +20,157 @@ AIMux 是本地桌面端的 OpenAI 与 Anthropic API 账号池。它只保留账
 
 ## 为什么会有这个项目
 
-市面上中转站层出不穷，但稳定性参差不齐：要么突然跑路，要么高峰期限流降速，单点依赖一个中转站风险很高。虽然 [CC Switch](https://github.com/farion1231/cc-switch) 这类工具能切换上游配置，但每次切换都要重启 Codex / Claude Code 等客户端，打断工作流，体验不够顺滑。
+市面上的中转站数量很多，但稳定性和倍率经常变化。使用单个中转站时，遇到限流、超时或故障，通常需要在 CC Switch 等工具中手动切换配置并重启客户端，工作流会被打断。
 
-AIMux 解决的核心问题是**多账号路由**：把多个上游 Key（官方直连或中转站）统一录入本地账号池，客户端只需配置一次 `http://127.0.0.1:7788`，后续所有请求由 AIMux 按优先级和健康状态自动分配到可用账号。某个账号限流或报错时自动降级并重试下一个，无需手动切换、无需重启客户端。
+AIMux 的核心是多账号路由：把多个上游 Key（官方直连或中转站）统一录入本地账号池，客户端只配置一次 `http://127.0.0.1:7789/v1`，后续请求由 AIMux 根据最新状态和优先级选择账号。某个账号限流或报错时自动降级并重试下一个，无需手动切换。
 
 设计原则：
 
-- **只做路由，不做统计计费**：使用记录仅用于排查问题（耗时、状态码、错误信息），不统计 Token 费用、不生成账单
-- **协议原样转发**：OpenAI 请求走 OpenAI 账号，Anthropic 请求走 Anthropic 账号，不做协议转换，保持上游行为一致
-- **本地运行，数据不出机器**：所有配置和密钥加密存储在本地，不上报任何信息
-- **故障自动降级**：请求失败自动降低该账号优先级；每次重试都按最新优先级重新选择账号，成功后自动恢复
+- **协议原样转发**：OpenAI 请求走 OpenAI 账号，Anthropic 请求走 Anthropic 账号，不做协议转换或提示词改写。
+- **本地运行**：数据库、配置和上游密钥保存在当前用户的数据目录，不上传到第三方服务。
+- **故障自动降级**：失败尝试会记录失败原因并降低账号优先级；成功后按监控和调度规则恢复优先级。
+- **Rust 原生实现**：网关使用 Axum/Tokio/Reqwest，数据库使用 SQLx + SQLite，桌面窗口使用 Tauri 2，管理页面使用 Vue 3。
+
+## 技术栈
+
+- 桌面端：Tauri 2
+- 前端：Vue 3、Vite、Element Plus、Element Plus Icons、Pinia、少量自定义 SCSS/CSS
+- 后端：Rust、Axum、Tokio、Reqwest、Tracing
+- 数据库：SQLite、SQLx migrations
+- API：OpenAI 和 Anthropic 兼容接口
 
 ## 启动
 
-### 一键启动
+端口和启动方式集中说明在：[开发启动与端口说明](开发启动与端口说明.md)。
 
-项目在 `scripts/` 目录下提供了平台启动脚本，首次运行会自动创建虚拟环境并安装依赖，后续直接启动：
+| 模式 | 后端 | 前端 | 说明 |
+| --- | ---: | ---: | --- |
+| 稳定网关 | `7789` | `1420` | 给 Codex、Claude Code 或其他客户端使用 |
+| 开发网关 | `7790` | `1421` | 后端调试和页面联调，不中断稳定网关 |
 
-| 脚本 | 平台 | 用法 |
-|------|------|------|
-| `scripts/win_start.bat` | Windows | 双击运行，或终端执行 `.\scripts\win_start.bat` |
-| `scripts/mac_start.sh` | macOS | 终端执行 `chmod +x scripts/mac_start.sh && ./scripts/mac_start.sh` |
+### Windows 脚本
 
-macOS 脚本会依次尝试 `python3.14`、`python3.13`、`python3.12` 和 `python3`，只使用 Python 3.12 或更新版本，避免误用系统自带旧版解释器。未找到兼容版本时，脚本会显示安装说明；已安装的解释器不在 PATH 中时，可用 `AIMUX_PYTHON=/完整路径/python3.13 ./scripts/mac_start.sh` 指定。Homebrew 用户可执行 `brew install python@3.13` 安装。
+在项目根目录双击对应脚本：
 
-两个脚本都会自动切到项目根目录并创建 `.venv`。启动脚本安装运行依赖；打包脚本额外安装 PyInstaller 等开发依赖，因此即使先运行过启动脚本，之后首次打包也能正常补齐依赖。
+| 脚本 | 用途 |
+| --- | --- |
+| `scripts/windows/start_rust_7789.bat` | 启动已编译的稳定网关 `7789` |
+| `scripts/windows/build_start_rust_7789.bat` | 编译最新 Rust 网关后启动 `7789` |
+| `scripts/windows/start_rust.bat` | 启动开发网关 `7790` |
+| `scripts/windows/start_frontend_stable.bat` | 启动稳定前端 `1420`，连接 `7789` |
+| `scripts/windows/start_frontend.bat` | 启动开发前端 `1421`，连接 `7790` |
+| `scripts/windows/start_desktop.bat` | 启动 Tauri 桌面开发端，使用 `1421`/`7790` |
+| `scripts/windows/build_windows.bat` | 构建 Windows Tauri 安装包 |
 
-### 手动启动
-
-如需手动控制环境，可逐步执行：
+日常前端开发只需要：
 
 ```powershell
-py -3.13 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
-.\.venv\Scripts\python.exe -m app
+npm install
+npm run dev
 ```
 
-服务默认监听 `http://127.0.0.1:7788`。桌面端通过左侧菜单进入账号管理、模型维护、使用记录和设置。两种协议不会相互转换，只会匹配同类型账号。
+后端开发网关：
 
-“总尝试次数”默认 10，表示单次客户端请求最多向上游发送 10 次。每次失败都会将命中账号的优先级减 1，下一次尝试从当前最高优先级的可用账号开始重新选择；达到上限后返回最后一次失败结果。保存该设置后，后续请求立即使用新值。
+```powershell
+npm run dev:gateway
+```
 
-账号可选配置“模型映射”，用于将客户端模型名替换为该账号上游实际接受的模型名。例如客户端请求 `gpt-5.5`，账号映射为 `gpt-5.5 -> grok4.6` 时，上游收到 `grok4.6`。调度始终先按客户端模型选择账号，选中后才按该账号映射替换本次上游请求；不同账号在重试时会各自使用自己的映射。账号测试和后台监控同样生效，使用记录仍保留客户端模型名。
+桌面端开发：
 
-## 功能截图
+```powershell
+npm run dev:desktop
+```
+
+正式 Tauri 安装版的前端已经嵌入应用，不会监听 Vite 的 `1420`/`1421` 端口；正式网关使用 `7789`。端口统一配置在 `config/runtime-ports.json`，启动脚本和 Vite/Tauri 配置都会读取它。
+
+## 功能
 
 ### 账号管理
 
-![账号管理](images/账号管理.png)
+账号管理支持新增、编辑、删除、启用/禁用、优先级调整、倍率设置、支持模型、测试默认模型和模型映射。API 密钥按当前本机版本约定保存于本地数据库，不会上传。
+
+模型映射可以将客户端模型名替换成特定账号上游接受的模型名，例如 `gpt-5.5 -> grok4.6`。调度先按客户端模型选择账号，再按被选账号的映射替换上游请求；账号测试和后台监控同样遵循这个规则。
+
+### 模型维护
+
+模型目录按 OpenAI/Anthropic 类型维护。账号的支持模型、测试默认模型和模型映射会从对应类型的模型目录中选择。
 
 ### 使用记录
 
-![使用记录管理](images/使用记录管理.png)
+使用记录保存每一次请求和每一次失败尝试，包括开始/结束时间、首字耗时、总耗时、账号、协议、模型、推理强度、接口、流式状态、状态码、错误信息、输入/输出/缓存/总 Token、缓存率和重试次数。列表支持查询、分页、详情查看和清除 3 天以前的数据。
+
+流式请求在收到首个请求时创建记录，在流结束或读取异常时更新最终状态；因此中途断流也会留下可排查的记录。
+
+### 监控
+
+后台监控按设置的间隔测试所有启用账号，并保存最近检测状态和耗时。页面切换不会停止后台任务。监控结果会影响账号状态和优先级，失败记录为红色，超过耗时阈值的记录为黄色。
 
 ### 数据统计
 
-![数据统计](images/数据统计.png)
+数据统计展示总计、今日和昨日的总 Token、输入、输出、缓存及缓存率，并展示启用账号的今日使用情况。
 
-### 监控管理
+### 设置
 
-![监控管理](images/监控管理.png)
-
-## 模型目录
-
-数据库包含独立的 `models` 表（名称、类型、创建和更新时间）。每次启动会自动建表，并幂等补充默认模型：OpenAI 的 `gpt-5.5`、`gpt-5.5-pro`、`gpt-5.6`、`gpt-5.6-sol`、`gpt-5.6-terra`、`gpt-5.6-luna`，以及 Anthropic 的 `claude-opus-4-8`、`claude-sonnet-4-8`、`claude-haiku-4-8`。
-
-在“模型维护”页可新增、编辑、删除模型。新增或编辑账号时，支持模型会随 OpenAI/Anthropic 类型切换为相应可多选列表；连接测试也会要求从同类型模型目录选择测试模型。批量测试需要选择相同类型的账号。
+设置包括端口、总尝试次数、首字超时、请求超时、监控开关和监控间隔、上游代理、本地令牌等。总尝试次数表示一次客户端请求最多向上游发送多少次请求，与账号数量无关；设置保存后下一次请求立即生效。
 
 ## 兼容接口
 
-OpenAI 兼容接口：`/v1/models`、`/v1/chat/completions`、`/v1/completions`、`/v1/responses`、`/v1/embeddings`、`/v1/moderations`、`/v1/images/generations`、`/v1/audio/speech`、`/v1/rerank`，以及 Responses 的 `cancel`、`compact` 操作。
+OpenAI 兼容接口包括 `/v1/models`、`/v1/chat/completions`、`/v1/completions`、`/v1/responses`、`/v1/embeddings`、`/v1/moderations`、`/v1/images/generations`、`/v1/audio/speech`、`/v1/rerank`，以及 Responses 的 `cancel`、`compact` 操作。
 
-Anthropic 兼容接口：`/v1/messages`、`/v1/messages/count_tokens`、`/v1/messages/batches`、旧版 `/v1/complete`，模型目录为 `/v1/anthropic/models`。账号中显式填写的支持模型会出现在模型目录中。
+Anthropic 兼容接口包括 `/v1/messages`、`/v1/messages/count_tokens`、`/v1/messages/batches`、旧版 `/v1/complete`，模型目录为 `/v1/anthropic/models`。
 
-兼容接口仅转发 JSON 请求体；不执行 OpenAI 与 Anthropic 之间的协议转换，也不模拟 multipart 文件上传。`OpenAI-Beta`、`Idempotency-Key`、`anthropic-beta` 等协议头会按类型受限透传，上游认证头始终由本地账号配置注入。
+兼容接口只转发协议允许的请求体和请求头，不执行 OpenAI 与 Anthropic 之间的协议转换，不修改提示词或消息内容。上游认证头由本地账号配置注入。流式响应按 SSE 原样传回，并在结束时收集 usage 数据。
 
-如果端口已被另一个 AIMux 实例占用，第二次启动会提示已有实例正在运行，不会再显示未处理异常。需要同时运行多个实例时，请先在设置中修改端口。
+## 数据目录和数据库
 
-数据目录由 `platformdirs` 获取：Windows 位于 `%APPDATA%\aimux`，macOS 位于 `~/Library/Application Support/aimux`。数据库和配置都在这个目录中；上游密钥以明文保存（仅本机使用，不加密）。
+Rust 版本始终使用当前用户数据目录中的 `aimux.db`，稳定网关、开发网关和桌面端共用同一套数据库：
 
-启动 API 时会由内置 Alembic runner 自动将 SQLite 数据库升级到当前 revision。全新数据库会创建完整结构；首次接管的无版本数据库只有在严格符合当前基线时才会备份并标记版本，不符合时会停止启动并保留原库。
+- Windows：`%APPDATA%\\quietforge\\AIMux\\data`
+- macOS：`~/Library/Application Support/quietforge/AIMux/data`
+
+日志位于数据目录的 `log` 子目录，按天记录应用、请求和错误日志。数据库业务表和已有数据保持兼容；Rust 首个版本使用 `src-tauri/migrations/0001_baseline.sql` 作为 SQLx 基线，后续数据库结构变化只新增 SQL migration，不修改已发布的基线文件。
 
 ## 测试与打包
 
+前端检查和构建：
+
 ```powershell
-.\.venv\Scripts\python.exe -m pytest
-.\.venv\Scripts\python.exe scripts\build.py
+npm run format:check
+npm run build
 ```
 
-### 一键打包
+Rust 检查和测试：
 
-项目在 `scripts/` 目录下提供了平台打包脚本，首次运行会自动创建虚拟环境、安装依赖（含 PyInstaller）并调用 `build.py` 打包为桌面应用：
+```powershell
+cd src-tauri
+cargo fmt -- --check
+cargo check
+cargo test --lib
+```
 
-| 脚本 | 平台 | 用法 | 产物 |
-|------|------|------|------|
-| `scripts/win_build.bat` | Windows | 双击运行，或终端执行 `.\scripts\win_build.bat` | `dist\AIMux\AIMux.exe` |
-| `scripts/win_build_clean.bat` | Windows | 双击运行全量构建 | `dist\AIMux\AIMux.exe` |
-| `scripts/win_release.bat` | Windows | 双击运行安装包发布 | `release\AIMux-Windows-<架构>.exe` |
-| `scripts/mac_build.sh` | macOS | 终端执行 `chmod +x scripts/mac_build.sh && ./scripts/mac_build.sh` | `dist/AIMux/AIMux.app` |
+Windows 打包：双击 `scripts/windows/build_windows.bat`。脚本使用 Tauri 增量构建，产物位于 `release/AIMux-Windows-<架构>.exe`。需要清理 Rust 构建缓存时，再按脚本说明执行全量清理。
 
-打包使用 PyInstaller 的 `--onedir` 模式。仅在 `assets/icons` 中缺少 PNG、ICO 或 ICNS 时自动生成图标，普通构建保留 PyInstaller 增量缓存；需要排查缓存问题时可双击 `win_build_clean.bat`，或执行 ` .\scripts\win_build.bat --clean`。Windows 打包前会检测 `dist\AIMux\AIMux.exe` 是否正在运行，若被占用会提示先从托盘退出。内置资源已通过 `sys._MEIPASS` 适配打包运行环境。用户数据（数据库、配置、明文上游密钥）仍存放在系统用户目录，与打包产物解耦。单独更新图标可运行 ` .\.venv\Scripts\python.exe scripts\generate_icon.py`。
+macOS 打包可使用 Tauri CLI：
 
-向其他 Windows 用户发布时，先安装 [Inno Setup 6](https://jrsoftware.org/isinfo.php)，或执行 `winget install --id JRSoftware.InnoSetup -e`，再双击 `scripts\win_release.bat`。脚本会执行全量 PyInstaller 构建，并根据本机架构输出 `release\AIMux-Windows-x64.exe` 或 `release\AIMux-Windows-arm64.exe`。安装器使用固定 AppId 覆盖升级，默认安装到当前用户的 `%LOCALAPPDATA%\Programs\AIMux`，不要求管理员权限；安装和卸载均不会删除 `%APPDATA%\aimux` 中的数据库与配置。
+```bash
+npm install
+npm run tauri build
+```
+
+GitHub Actions 在推送 `v*` tag 或手动运行 workflow 时构建 Windows x64/arm64 和 macOS x64/arm64 产物，并在 tag 构建成功后自动创建 GitHub Release。当前产物未配置 Apple 公证或 Windows 代码签名。
+
+## 项目文档
+
+- [功能清单](docs/功能清单.md)
+- [架构和技术细节说明](docs/架构和技术细节说明.md)
+- [账号管理功能](docs/账号管理功能.md)
+- [模型维护功能](docs/模型维护功能.md)
+- [使用记录功能](docs/使用记录功能.md)
+- [监控功能](docs/监控功能.md)
+- [设置功能](docs/设置功能.md)
+- [调度逻辑说明](docs/调度逻辑说明.md)
+- [QA](docs/QA.md)
+
+## License
+
+详见 [LICENSE](LICENSE)。

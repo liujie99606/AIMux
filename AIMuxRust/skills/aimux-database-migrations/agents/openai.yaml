@@ -1,4 +1,0 @@
-interface:
-  display_name: "AIMux 数据库迁移"
-  short_description: "规范维护 AIMux Alembic 数据库结构与数据迁移"
-  default_prompt: "Use $aimux-database-migrations to safely implement and test an AIMux database schema change."
