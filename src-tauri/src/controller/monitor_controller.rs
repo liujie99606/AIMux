@@ -28,7 +28,7 @@ async fn records(
     for r in rows {
         grouped.entry(r.account_id.clone()).or_default().push(serde_json::json!({"checked_at":r.checked_at,"model":r.model,"success":r.success,"duration_ms":r.duration_ms,"status_code":r.status_code,"error_code":r.error_code,"error_message":r.error_message}));
     }
-    let items=accounts.into_iter().map(|a|{let mut rs=grouped.remove(&a.id).unwrap_or_default();rs.reverse();serde_json::json!({"account_id":a.id,"account_name":a.name,"account_type":a.r#type,"multiplier":a.multiplier,"model":a.test_default_model,"records":rs})}).collect::<Vec<_>>();
+    let items=accounts.into_iter().map(|a|{let mut rs=grouped.remove(&a.id).unwrap_or_default();rs.reverse();serde_json::json!({"account_id":a.id,"account_name":a.name,"account_type":a.r#type,"multiplier":a.multiplier,"model":a.test_default_model,"monitor_average_duration_ms":a.monitor_average_duration_ms,"records":rs})}).collect::<Vec<_>>();
     let enabled = s.settings.read().await.monitoring_enabled;
     Ok(Json(
         serde_json::json!({"items":items,"monitoring_enabled":enabled}),

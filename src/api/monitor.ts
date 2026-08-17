@@ -13,6 +13,7 @@ export type MonitorItem = {
   account_name: string;
   account_type: string;
   multiplier: number;
+  monitor_average_duration_ms?: number;
   records: MonitorRecord[];
   model?: string;
 };

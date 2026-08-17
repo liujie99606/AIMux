@@ -68,6 +68,7 @@ pub struct AccountView {
     pub last_used_at: Option<String>,
     pub total_requests: i64,
     pub total_tokens: i64,
+    pub monitor_average_duration_ms: Option<i64>,
     pub created_at: String,
     pub updated_at: String,
 }

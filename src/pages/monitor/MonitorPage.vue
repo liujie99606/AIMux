@@ -26,8 +26,10 @@
       </el-table-column>
       <el-table-column label="平均耗时" width="105">
         <template #default="{ row }">
-          <span :class="avg(row.records) > SLOW_THRESHOLD ? 'warning-text' : ''">
-            {{ avgText(row.records) }}
+          <span
+            :class="(row.monitor_average_duration_ms ?? 0) > SLOW_THRESHOLD ? 'warning-text' : ''"
+          >
+            {{ avgText(row.monitor_average_duration_ms) }}
           </span>
         </template>
       </el-table-column>
@@ -90,17 +92,8 @@ const normalized = (records: MonitorRecord[]) => {
   return Array.from({ length: STATUS_COUNT }, (_, index) => recent[index - emptyCount] ?? null);
 };
 
-const avg = (records: MonitorRecord[]) => {
-  const durations = records
-    .map((record) => record.duration_ms)
-    .filter((duration): duration is number => duration != null);
-  return durations.length
-    ? durations.reduce((sum, duration) => sum + duration, 0) / durations.length
-    : 0;
-};
-
-const avgText = (records: MonitorRecord[]) =>
-  avg(records) ? `${(avg(records) / 1000).toFixed(2)} 秒` : '-';
+const avgText = (duration?: number) =>
+  duration == null ? '-' : `${(duration / 1000).toFixed(2)} 秒`;
 
 const formatTime = (value?: string) => {
   if (!value) return '-';

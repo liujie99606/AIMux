@@ -95,7 +95,7 @@ async fn round(state: &Arc<AppState>) -> Result<(), crate::error::AppError> {
         let result_account_id = account.id.clone();
         let result_account_type = account.r#type.clone();
         let result_model = model.clone();
-        monitor_dao::create(
+        monitor_dao::create_and_refresh_account_average(
             &state.pool,
             &MonitorRecord {
                 id: uuid::Uuid::new_v4().to_string(),

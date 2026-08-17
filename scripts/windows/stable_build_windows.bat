@@ -4,6 +4,11 @@ setlocal EnableExtensions
 title AIMux Rust Windows 打包
 cd /d "%~dp0..\.."
 
+rem Tauri 启动的 Cargo 子进程会继承这两个变量，复用 release 缓存并并行编译。
+set "CARGO_INCREMENTAL=1"
+set "CARGO_BUILD_JOBS=%NUMBER_OF_PROCESSORS%"
+if "%CARGO_BUILD_JOBS%"=="" set "CARGO_BUILD_JOBS=1"
+
 where npm >nul 2>&1
 if errorlevel 1 (
     echo [AIMux] 未找到 npm，请先安装 Node.js LTS。
@@ -31,6 +36,7 @@ if not exist "node_modules\@tauri-apps\cli\package.json" (
 )
 
 echo [%time:~0,8%] [AIMux] 阶段 2/3：正在构建 Vue、Rust 和 Windows 安装包...
+echo [%time:~0,8%] [AIMux] Rust 使用 %CARGO_BUILD_JOBS% 个并行编译任务，启用增量编译。
 call npm run tauri build -- --bundles nsis
 if errorlevel 1 (
     echo [AIMux] 打包失败，请查看上方日志。

@@ -34,7 +34,7 @@ pub async fn list(
         sql.push_str(" AND status = ?");
         count.push_str(" AND status = ?");
     }
-    sql.push_str(" ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, priority DESC, multiplier ASC, lower(name), id LIMIT ? OFFSET ?");
+    sql.push_str(" ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, priority DESC, multiplier ASC, monitor_average_duration_ms IS NULL ASC, monitor_average_duration_ms ASC, lower(name), id LIMIT ? OFFSET ?");
     let mut query = sqlx::query_as::<_, Account>(&sql);
     if let Some(value) = account_type {
         query = query.bind(value);
@@ -58,7 +58,7 @@ pub async fn pick_one(
     model: Option<&str>,
     account_type: &str,
 ) -> Result<Option<Account>, AppError> {
-    let accounts = sqlx::query_as::<_, Account>("SELECT * FROM accounts WHERE status='active' AND type=? ORDER BY priority DESC, multiplier ASC, lower(name), id").bind(account_type).fetch_all(pool).await?;
+    let accounts = sqlx::query_as::<_, Account>("SELECT * FROM accounts WHERE status='active' AND type=? ORDER BY priority DESC, multiplier ASC, monitor_average_duration_ms IS NULL ASC, monitor_average_duration_ms ASC, lower(name), id").bind(account_type).fetch_all(pool).await?;
     let mut eligible: Vec<Account> = accounts
         .into_iter()
         .filter(|a| supported(a.supported_models.as_deref(), model))
@@ -74,6 +74,11 @@ pub async fn pick_one(
             .cmp(&a_explicit)
             .then_with(|| b.priority.cmp(&a.priority))
             .then_with(|| a.multiplier.total_cmp(&b.multiplier))
+            .then_with(|| {
+                a.monitor_average_duration_ms
+                    .unwrap_or(i64::MAX)
+                    .cmp(&b.monitor_average_duration_ms.unwrap_or(i64::MAX))
+            })
             .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
             .then_with(|| a.id.cmp(&b.id))
     });
@@ -251,6 +256,7 @@ pub fn to_view(a: Account) -> AccountView {
         last_used_at: a.last_used_at,
         total_requests: a.total_requests,
         total_tokens: a.total_tokens,
+        monitor_average_duration_ms: a.monitor_average_duration_ms,
         created_at: a.created_at,
         updated_at: a.updated_at,
     }
@@ -289,7 +295,7 @@ fn now() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{create, get};
+    use super::{create, get, list, pick_one};
     use crate::{database::connect, schema::account_schema::AccountCreate};
 
     #[tokio::test]
@@ -324,6 +330,67 @@ mod tests {
                 .name,
             "test"
         );
+        pool.close().await;
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[tokio::test]
+    async fn sorts_same_multiplier_by_monitor_average_duration_with_unknown_last() {
+        let path =
+            std::env::temp_dir().join(format!("aimux-account-{}.sqlite3", uuid::Uuid::new_v4()));
+        let pool = connect(&path).await.expect("创建数据库失败");
+        let mut accounts = Vec::new();
+        for name in ["unknown", "slower", "faster"] {
+            accounts.push(
+                create(
+                    &pool,
+                    AccountCreate {
+                        name: name.into(),
+                        account_type: "openai".into(),
+                        base_url: format!("https://{name}.example.test"),
+                        api_key: "key".into(),
+                        status: "active".into(),
+                        priority: 5,
+                        multiplier: 0.10,
+                        test_default_model: None,
+                        model_mappings: None,
+                        supported_models: None,
+                        tags: None,
+                        notes: None,
+                    },
+                )
+                .await
+                .expect("创建账号失败"),
+            );
+        }
+        for (account, duration_ms) in [(&accounts[1], 2_000_i64), (&accounts[2], 1_000_i64)] {
+            sqlx::query("UPDATE accounts SET monitor_average_duration_ms=? WHERE id=?")
+                .bind(duration_ms)
+                .bind(&account.id)
+                .execute(&pool)
+                .await
+                .expect("写入平均耗时失败");
+        }
+
+        let (listed, _) = list(&pool, 0, 20, None, None)
+            .await
+            .expect("查询账号列表失败");
+        assert_eq!(
+            listed
+                .iter()
+                .map(|account| account.name.as_str())
+                .collect::<Vec<_>>(),
+            ["faster", "slower", "unknown"]
+        );
+        assert_eq!(
+            pick_one(&pool, None, "openai")
+                .await
+                .expect("选择账号失败")
+                .expect("未选择到账号")
+                .name,
+            "faster"
+        );
+
         pool.close().await;
         let _ = std::fs::remove_file(path);
     }
