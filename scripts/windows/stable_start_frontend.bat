@@ -21,7 +21,7 @@ set "AIMUX_RUNTIME_MODE=stable"
 set "VITE_API_BASE=http://127.0.0.1:%STABLE_BACKEND_PORT%"
 echo 正在启动稳定 Vite 前端，端口 %STABLE_FRONTEND_PORT%...
 echo 当前连接 Rust 稳定后端，端口 %STABLE_BACKEND_PORT%...
-echo 请先启动 scripts\windows\start_rust_7789.bat 或稳定版网关。
+echo 请先启动 scripts\windows\stable_start_rust_7789.bat 或稳定版网关。
 call npm run dev
 
 echo.

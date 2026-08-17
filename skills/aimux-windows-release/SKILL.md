@@ -20,7 +20,7 @@ description: AIMux Windows/Tauri 打包和发版规范。用户要求构建 Wind
 4. 提醒用户执行：
 
    ```text
-   请双击 scripts\windows\build_windows.bat
+   请双击 scripts\windows\stable_build_windows.bat
    ```
 
    产物通常位于 `release\AIMux-Windows-x64.exe` 或 `release\AIMux-Windows-arm64.exe`。

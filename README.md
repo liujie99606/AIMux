@@ -41,7 +41,7 @@ AIMux 的核心是多账号路由：把多个上游 Key（官方直连或中转�
 
 ## 启动
 
-端口和启动方式集中说明在：[开发启动与端口说明](开发启动与端口说明.md)。
+端口和启动方式集中说明在：[开发启动与端口说明](docs/开发启动与端口说明.md)。
 
 | 模式 | 后端 | 前端 | 说明 |
 | --- | ---: | ---: | --- |
@@ -54,13 +54,13 @@ AIMux 的核心是多账号路由：把多个上游 Key（官方直连或中转�
 
 | 脚本 | 用途 |
 | --- | --- |
-| `scripts/windows/start_rust_7789.bat` | 启动已编译的稳定网关 `7789` |
-| `scripts/windows/build_start_rust_7789.bat` | 编译最新 Rust 网关后启动 `7789` |
-| `scripts/windows/start_rust.bat` | 启动开发网关 `7790` |
-| `scripts/windows/start_frontend_stable.bat` | 启动稳定前端 `1420`，连接 `7789` |
-| `scripts/windows/start_frontend.bat` | 启动开发前端 `1421`，连接 `7790` |
-| `scripts/windows/start_desktop.bat` | 启动 Tauri 桌面开发端，使用 `1421`/`7790` |
-| `scripts/windows/build_windows.bat` | 构建 Windows Tauri 安装包 |
+| `scripts/windows/stable_start_rust_7789.bat` | 启动已编译的稳定网关 `7789` |
+| `scripts/windows/stable_build_start_rust_7789.bat` | 编译最新 Rust 网关后启动 `7789` |
+| `scripts/windows/dev_start_rust.bat` | 启动开发网关 `7790` |
+| `scripts/windows/stable_start_frontend.bat` | 启动稳定前端 `1420`，连接 `7789` |
+| `scripts/windows/dev_start_frontend.bat` | 启动开发前端 `1421`，连接 `7790` |
+| `scripts/windows/dev_start_desktop.bat` | 启动 Tauri 桌面开发端，使用 `1421`/`7790` |
+| `scripts/windows/stable_build_windows.bat` | 构建 Windows Tauri 安装包 |
 
 日常前端开发只需要：
 
@@ -148,7 +148,7 @@ cargo check
 cargo test --lib
 ```
 
-Windows 打包：双击 `scripts/windows/build_windows.bat`。脚本使用 Tauri 增量构建，产物位于 `release/AIMux-Windows-<架构>.exe`。需要清理 Rust 构建缓存时，再按脚本说明执行全量清理。
+Windows 打包：双击 `scripts/windows/stable_build_windows.bat`。脚本使用 Tauri 增量构建，产物位于 `release/AIMux-Windows-<架构>.exe`。需要清理 Rust 构建缓存时，再按脚本说明执行全量清理。
 
 macOS 打包可使用 Tauri CLI：
 
@@ -163,6 +163,8 @@ GitHub Actions 在推送 `v*` tag 或手动运行 workflow 时构建 Windows x64
 
 - [功能清单](docs/功能清单.md)
 - [架构和技术细节说明](docs/架构和技术细节说明.md)
+- [开发启动与端口说明](docs/开发启动与端口说明.md)
+- [技术栈说明](docs/重构技术栈分析.md)
 - [账号管理功能](docs/账号管理功能.md)
 - [模型维护功能](docs/模型维护功能.md)
 - [使用记录功能](docs/使用记录功能.md)
