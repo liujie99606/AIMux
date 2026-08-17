@@ -46,7 +46,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::open_data_directory,
             commands::open_external_url,
-            commands::app_version
+            commands::app_version,
+            commands::gateway_url,
+            commands::open_devtools
         ])
         .setup(|app| {
             if let Some(window) = app.get_webview_window("main") {

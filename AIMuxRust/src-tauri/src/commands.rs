@@ -54,3 +54,22 @@ pub fn open_external_url(url: String) -> Result<(), String> {
 pub fn app_version(_state: State<'_, std::sync::Arc<AppState>>) -> String {
     env!("CARGO_PKG_VERSION").to_owned()
 }
+
+#[tauri::command]
+pub async fn gateway_url(
+    state: State<'_, std::sync::Arc<AppState>>,
+) -> Result<String, String> {
+    let app_state = state.inner().clone();
+    let settings = app_state.settings.read().await;
+    let host = match settings.host.trim() {
+        "" | "0.0.0.0" | "::" => "127.0.0.1",
+        value => value,
+    };
+    Ok(format!("http://{host}:{}", settings.port))
+}
+
+#[tauri::command]
+pub fn open_devtools(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.open_devtools();
+    Ok(())
+}

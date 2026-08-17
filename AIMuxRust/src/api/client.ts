@@ -1,4 +1,9 @@
-const base = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:7789';
+let base = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:7789';
+
+export const setApiBase = (value: string) => {
+  const normalized = value.trim().replace(/\/+$/, '');
+  if (normalized) base = normalized;
+};
 
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${base}${path}`, {
