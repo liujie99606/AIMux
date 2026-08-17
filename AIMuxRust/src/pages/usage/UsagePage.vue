@@ -23,6 +23,10 @@
         <div class="metric-label">最近10次平均耗时</div>
         <div class="metric-value">{{ formatMs(pageAverageDurationMs) }}</div>
       </div>
+      <div class="metric">
+        <div class="metric-label">最近10次平均缓存率</div>
+        <div class="metric-value">{{ formatPercentage(pageAverageCacheRate) }}</div>
+      </div>
     </div>
 
     <el-table :data="items" v-loading="loading" border stripe class="compact-table">
@@ -139,6 +143,21 @@ const pageAverageDurationMs = computed(() => {
   return Math.round(durations.reduce((sum, duration) => sum + duration, 0) / durations.length);
 });
 
+const cacheRate = (record: UsageRecord): number | undefined => {
+  if (record.input_tokens == null || record.input_tokens <= 0 || record.cached_tokens == null) {
+    return undefined;
+  }
+  return record.cached_tokens / record.input_tokens;
+};
+
+const pageAverageCacheRate = computed(() => {
+  const rates = items.value
+    .map(cacheRate)
+    .filter((rate): rate is number => rate != null);
+  if (!rates.length) return undefined;
+  return rates.reduce((sum, rate) => sum + rate, 0) / rates.length;
+});
+
 const query = () => {
   const params = new URLSearchParams({
     offset: String((page.value - 1) * PAGE_SIZE),
@@ -208,6 +227,7 @@ const formatTime = (value?: string) => {
 
 const formatMs = (value?: number) => (value == null ? '-' : `${(value / 1000).toFixed(2)} 秒`);
 const formatSeconds = (value?: number) => (value == null ? '-' : `${(value / 1000).toFixed(2)}s`);
+const formatPercentage = (value?: number) => (value == null ? '-' : `${(value * 100).toFixed(2)}%`);
 const resultText = (record: UsageRecord) =>
   record.ended_at ? (record.success ? '成功' : '失败') : '进行中';
 const resultClass = (record: UsageRecord) =>
@@ -224,12 +244,7 @@ const failureReason = (record: UsageRecord) => {
   return details.join(' / ') || '未记录失败原因';
 };
 const formatToken = (value?: number) => (value == null ? '-' : String(value));
-const formatCacheRate = (record: UsageRecord) => {
-  if (record.input_tokens == null || record.input_tokens <= 0 || record.cached_tokens == null) {
-    return '-';
-  }
-  return `${((record.cached_tokens / record.input_tokens) * 100).toFixed(2)}%`;
-};
+const formatCacheRate = (record: UsageRecord) => formatPercentage(cacheRate(record));
 
 let refreshTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -248,7 +263,7 @@ onUnmounted(() => {
 <style scoped>
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 14px;
 }

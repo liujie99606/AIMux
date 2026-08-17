@@ -1,4 +1,11 @@
 import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const runtimeConfig = JSON.parse(
+  readFileSync(resolve(process.cwd(), 'config', 'runtime-ports.json'), 'utf8'),
+);
+const developmentPorts = runtimeConfig.development;
 
 const projectRoot = process.cwd();
 
@@ -9,9 +16,10 @@ const child = spawn(command, args, {
   cwd: projectRoot,
   env: {
     ...process.env,
-    AIMUX_PORT: '7790',
+    AIMUX_RUNTIME_MODE: 'development',
+    AIMUX_PORT: String(developmentPorts.backend),
     AIMUX_MONITORING_ENABLED: 'false',
-    VITE_API_BASE: 'http://127.0.0.1:7790',
+    VITE_API_BASE: `http://127.0.0.1:${developmentPorts.backend}`,
   },
   stdio: 'inherit',
 });

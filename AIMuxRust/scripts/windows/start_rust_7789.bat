@@ -4,7 +4,13 @@ setlocal
 title AIMux 稳定 Rust 网关
 cd /d "%~dp0..\..\src-tauri"
 
-set "AIMUX_PORT=7789"
+for /f %%P in ('node ..\scripts\runtime-ports.mjs stable backend') do set "STABLE_BACKEND_PORT=%%P"
+if not defined STABLE_BACKEND_PORT (
+    echo 无法读取稳定后端端口配置。
+    pause
+    exit /b 1
+)
+set "AIMUX_PORT=%STABLE_BACKEND_PORT%"
 set "AIMUX_MONITORING_ENABLED="
 
 if not exist "target\debug\aimux-gateway.exe" (
@@ -15,7 +21,7 @@ if not exist "target\debug\aimux-gateway.exe" (
     exit /b 1
 )
 
-echo 正在启动稳定 Rust 网关，端口 7789...
+echo 正在启动稳定 Rust 网关，端口 %STABLE_BACKEND_PORT%...
 target\debug\aimux-gateway.exe
 
 echo.

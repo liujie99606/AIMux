@@ -22,12 +22,36 @@ use config::Settings;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Emitter, Manager, WindowEvent,
+    Manager, WindowEvent,
 };
+
+#[cfg(not(debug_assertions))]
+const STABLE_GATEWAY_PORT: u16 = 7789;
+#[cfg(not(debug_assertions))]
+const DEVELOPMENT_DESKTOP_PORT: u16 = 7790;
+
+#[cfg(debug_assertions)]
+fn load_runtime_settings() -> Settings {
+    Settings::load().unwrap_or_default()
+}
+
+#[cfg(not(debug_assertions))]
+fn load_runtime_settings() -> Settings {
+    let mut settings = Settings::load().unwrap_or_default();
+    if settings.port == DEVELOPMENT_DESKTOP_PORT {
+        settings.port = STABLE_GATEWAY_PORT;
+        if let Err(error) = settings.save() {
+            tracing::warn!(%error, "无法保存恢复后的稳定网关端口");
+        } else {
+            tracing::info!(port = STABLE_GATEWAY_PORT, "正式版已恢复稳定网关端口");
+        }
+    }
+    settings
+}
 
 pub fn run() {
     logging::init();
-    let settings = Settings::load().unwrap_or_default();
+    let settings = load_runtime_settings();
     let runtime = tokio::runtime::Runtime::new().expect("创建 Tokio runtime 失败");
     let state = runtime.block_on(async {
         AppState::initialize(settings)
@@ -63,7 +87,11 @@ pub fn run() {
                 window.on_window_event(move |event| {
                     if let WindowEvent::CloseRequested { api, .. } = event {
                         api.prevent_close();
-                        let _ = close_window.emit("aimux://close-requested", ());
+                        if let Err(error) = close_window.eval(
+                            "window.dispatchEvent(new CustomEvent('aimux-close-requested'));",
+                        ) {
+                            tracing::error!(%error, "无法通知前端显示关闭确认框");
+                        }
                     }
                 });
             }

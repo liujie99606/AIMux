@@ -6,12 +6,18 @@
 
 ## 本地开发
 
-稳定网关使用 `7789`。日常页面开发只启动 Vite，热更新不会编译或重启 Rust 网关：
+端口配置集中在 `config/runtime-ports.json`：稳定模式是后端 `7789`、浏览器前端 `1420`；开发模式是后端 `7790`、浏览器前端 `1421`。
+
+正式 Tauri 安装版的前端嵌入应用，不启动 Vite，因此没有实际的 `1420` 或 `1421` 监听端口；正式版内置网关使用 `7789`。
+
+日常页面开发只启动 Vite，热更新不会编译或重启 Rust 网关：
 
 ```powershell
 npm install
 npm run dev
 ```
+
+不设置模式时，`npm run dev` 使用稳定前端端口 `1420`。也可以双击 `scripts/windows/start_frontend_stable.bat`，它会读取配置并连接稳定网关 `7789`。
 
 后端改动需编译，但使用独立的 `7790` 开发网关和同一个 `aimux.db`（默认关闭监控），不会中断稳定网关或 Codex：
 
@@ -21,12 +27,15 @@ npm run dev:gateway
 
 Rust 始终使用系统数据目录下的 `aimux.db`，稳定网关和开发网关不区分数据库；设置页不再提供数据库路径切换。旧配置文件中遗留的 `db_path` 不会生效。
 
-另开一个 PowerShell 窗口，让前端连接开发网关：
+另开一个 PowerShell 窗口，让前端连接开发网关（端口 `1421`）：
 
 ```powershell
 $env:VITE_API_BASE = 'http://127.0.0.1:7790'
+$env:AIMUX_RUNTIME_MODE = 'development'
 npm run dev
 ```
+
+也可以直接双击 `scripts/windows/start_frontend.bat`，它会读取配置并连接开发网关 `7790`。
 
 Rust 检查和数据库兼容测试：
 
