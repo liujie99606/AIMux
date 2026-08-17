@@ -4,13 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "vite --config vite.config.ts --host 127.0.0.1",
     "dev:desktop": "node scripts/tauri-dev.mjs",
     "dev:gateway": "powershell -ExecutionPolicy Bypass -File scripts/dev-gateway.ps1",
-    "build": "vue-tsc -b && vite build",
+    "build": "vue-tsc -b && vite build --config vite.config.ts",
     "format": "prettier --write \"src/**/*.{ts,vue,scss}\" \"*.{json,ts}\"",
     "format:check": "prettier --check \"src/**/*.{ts,vue,scss}\" \"*.{json,ts}\"",
-    "preview": "vite preview --host 127.0.0.1",
+    "preview": "vite preview --config vite.config.ts --host 127.0.0.1",
     "tauri": "tauri"
   },
   "dependencies": {
