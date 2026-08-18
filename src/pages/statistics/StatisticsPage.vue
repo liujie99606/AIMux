@@ -6,10 +6,10 @@
     </div>
 
     <div class="summary-cards">
-      <section v-for="group in groups" :key="group.key" class="summary-card">
+      <section v-for="group in groups" :key="group.key" class="summary-line">
         <h3 class="summary-card-title">{{ group.label }}</h3>
-        <div v-for="metric in metrics" :key="metric.key" class="summary-row">
-          <span class="summary-label">{{ metric.label }}:</span>
+        <div v-for="metric in metrics" :key="metric.key" class="summary-card">
+          <span class="summary-label">{{ metric.label }}</span>
           <strong class="summary-value">
             {{
               metric.key === 'cache_rate'
@@ -96,35 +96,34 @@ onMounted(load);
 <style scoped>
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 14px;
+  gap: 10px;
   margin-bottom: 18px;
 }
 
+.summary-line {
+  display: grid;
+  grid-template-columns: 64px repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
 .summary-card {
-  min-width: 0;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 16px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
 }
 
 .summary-card-title {
-  margin: 0 0 10px;
-  font-size: 16px;
-}
-
-.summary-row {
+  margin: 0;
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 6px 0;
-  border-bottom: 1px solid #f0f2f5;
-}
-
-.summary-row:last-child {
-  border-bottom: 0;
+  align-items: center;
+  font-size: 16px;
 }
 
 .summary-label,
@@ -138,11 +137,18 @@ onMounted(load);
 
 .summary-value {
   color: #1f2937;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .page > h3 {
   margin: 0 0 10px;
   font-size: 16px;
+}
+
+@media (max-width: 1280px) {
+  .summary-line {
+    grid-template-columns: 56px repeat(5, minmax(130px, 1fr));
+    overflow-x: auto;
+  }
 }
 </style>
