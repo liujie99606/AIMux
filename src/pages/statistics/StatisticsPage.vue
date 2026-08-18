@@ -96,12 +96,13 @@ onMounted(load);
 <style scoped>
 .summary-cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 14px;
   margin-bottom: 18px;
 }
 
 .summary-card {
+  min-width: 0;
   background: #fff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
@@ -143,11 +144,5 @@ onMounted(load);
 .page > h3 {
   margin: 0 0 10px;
   font-size: 16px;
-}
-
-@media (max-width: 1280px) {
-  .summary-cards {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

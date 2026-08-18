@@ -3,10 +3,12 @@ import { accountsApi, type Account } from '../api/accounts';
 export const useAccountsStore = defineStore('accounts', {
   state: () => ({ items: [] as Account[], total: 0, loading: false }),
   actions: {
-    async load() {
+    async load(status?: Account['status']) {
       this.loading = true;
       try {
-        const data = await accountsApi.list('?limit=200');
+        const params = new URLSearchParams({ limit: '200' });
+        if (status) params.set('status', status);
+        const data = await accountsApi.list(`?${params.toString()}`);
         this.items = data.items;
         this.total = data.total;
       } finally {

@@ -8,6 +8,12 @@
       </div>
     </div>
 
+    <el-tabs v-model="statusFilter" class="account-status-tabs" @tab-change="() => load()">
+      <el-tab-pane label="全部" name="all" />
+      <el-tab-pane label="启用" name="active" />
+      <el-tab-pane label="禁用" name="disabled" />
+    </el-tabs>
+
     <el-table :data="store.items" v-loading="store.loading" class="compact-table" border stripe>
       <el-table-column prop="name" label="名称" min-width="170" />
       <el-table-column prop="multiplier" label="倍率" width="90">
@@ -88,6 +94,7 @@ const dialog = ref(false);
 const editingAccount = ref<Account>();
 const testDialog = ref(false);
 const testAccount = ref<Account>();
+const statusFilter = ref<'all' | Account['status']>('active');
 const testModels = computed(() => {
   const account = testAccount.value;
   if (!account) return [];
@@ -97,7 +104,8 @@ const testModels = computed(() => {
 const SLOW_DURATION_MS = 20_000;
 
 const load = async () => {
-  await Promise.all([store.load(), models.load()]);
+  const status = statusFilter.value === 'all' ? undefined : statusFilter.value;
+  await Promise.all([store.load(status), models.load()]);
 };
 
 const open = async (row?: Account) => {
@@ -151,3 +159,9 @@ const formatDuration = (duration?: number | null) =>
 
 onMounted(load);
 </script>
+
+<style scoped>
+.account-status-tabs {
+  margin-bottom: 12px;
+}
+</style>
