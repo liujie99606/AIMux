@@ -52,7 +52,7 @@
   />
 </template>
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { invoke } from '@tauri-apps/api/core';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -63,13 +63,11 @@ import AppUpdateDialog from '../components/app/AppUpdateDialog.vue';
 import { useAppUpdater } from '../composables/useAppUpdater';
 const route = useRoute();
 const app = useAppStore();
-onMounted(() => {
-  app.startClock();
-  void app.loadVersion();
-});
 const clock = computed(() => app.now.toLocaleTimeString('zh-CN', { hour12: false }));
 
 const GITHUB_URL = 'https://github.com/quietforge-dev/AIMux';
+const AUTO_UPDATE_INITIAL_DELAY_MS = 5_000;
+const AUTO_UPDATE_INTERVAL_MS = 6 * 60 * 60 * 1_000;
 const updater = useAppUpdater();
 const {
   installing: updateInstalling,
@@ -105,6 +103,35 @@ const checkForUpdates = async () => {
     ElMessage.error(`检查更新失败：${error instanceof Error ? error.message : String(error)}`);
   }
 };
+
+const checkForUpdatesSilently = async () => {
+  try {
+    await updater.checkForUpdates();
+  } catch {
+    // 自动检查失败时静默处理，避免网络波动打扰正常使用。
+  }
+};
+
+let initialUpdateTimer: number | undefined;
+let periodicUpdateTimer: number | undefined;
+
+onMounted(() => {
+  app.startClock();
+  void app.loadVersion();
+  initialUpdateTimer = window.setTimeout(
+    () => void checkForUpdatesSilently(),
+    AUTO_UPDATE_INITIAL_DELAY_MS,
+  );
+  periodicUpdateTimer = window.setInterval(
+    () => void checkForUpdatesSilently(),
+    AUTO_UPDATE_INTERVAL_MS,
+  );
+});
+
+onUnmounted(() => {
+  if (initialUpdateTimer !== undefined) window.clearTimeout(initialUpdateTimer);
+  if (periodicUpdateTimer !== undefined) window.clearInterval(periodicUpdateTimer);
+});
 
 const installUpdate = async () => {
   try {

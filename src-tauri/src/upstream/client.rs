@@ -6,9 +6,13 @@ use crate::{
 };
 use reqwest::{Client, Response, Url};
 use serde_json::Value;
+use std::time::Duration;
 
-pub fn client(settings: &Settings) -> Result<Client, AppError> {
-    let mut builder = Client::builder().timeout(timeout::request_timeout(settings));
+pub fn client_with_timeout(
+    settings: &Settings,
+    request_timeout: Duration,
+) -> Result<Client, AppError> {
+    let mut builder = Client::builder().timeout(request_timeout);
     if let Some(p) = proxy::proxy(settings).map_err(|e| AppError::Internal(e.to_string()))? {
         builder = builder.proxy(p);
     }
@@ -23,6 +27,25 @@ pub async fn post(
     settings: &Settings,
     headers: &[(String, String)],
 ) -> Result<Response, AppError> {
+    post_with_timeout(
+        account,
+        endpoint,
+        body,
+        settings,
+        headers,
+        timeout::request_timeout(settings),
+    )
+    .await
+}
+
+pub async fn post_with_timeout(
+    account: &Account,
+    endpoint: &str,
+    body: &Value,
+    settings: &Settings,
+    headers: &[(String, String)],
+    request_timeout: Duration,
+) -> Result<Response, AppError> {
     let url = upstream_url(&account.base_url, endpoint)?;
     tracing::info!(
         account_id = %account.id,
@@ -32,7 +55,7 @@ pub async fn post(
         upstream_url = %url,
         "发送上游请求"
     );
-    let client = client(settings)?;
+    let client = client_with_timeout(settings, request_timeout)?;
     let mut req = client
         .post(url.clone())
         .bearer_auth(&account.api_key_encrypted)
