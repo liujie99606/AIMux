@@ -44,9 +44,12 @@
         </template>
       </el-table-column>
       <el-table-column prop="test_default_model" label="测试默认模型" min-width="150" />
-      <el-table-column label="操作" width="190" fixed="right">
+      <el-table-column label="操作" width="245" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="open(row)">编辑</el-button>
+          <el-button link type="primary" title="复制账号" @click="copy(row)">
+            <el-icon><CopyDocument /></el-icon>复制
+          </el-button>
           <el-button link type="warning" @click="test(row)">测试</el-button>
           <el-button link type="danger" @click="remove(row)">删除</el-button>
         </template>
@@ -72,6 +75,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import { CopyDocument } from '@element-plus/icons-vue';
 import { accountsApi, type Account } from '../../api/accounts';
 import { useAccountsStore } from '../../stores/accounts';
 import { useModelsStore } from '../../stores/models';
@@ -97,9 +101,15 @@ const open = async (row?: Account) => {
   dialog.value = true;
 };
 
+const copy = async (row: Account) => {
+  if (!models.items.length) await models.load();
+  editingAccount.value = { ...row, id: '' };
+  dialog.value = true;
+};
+
 const save = async (payload: Record<string, unknown>) => {
   try {
-    if (editingAccount.value) await accountsApi.update(editingAccount.value.id, payload);
+    if (editingAccount.value?.id) await accountsApi.update(editingAccount.value.id, payload);
     else await accountsApi.create(payload);
     dialog.value = false;
     await store.load();

@@ -44,6 +44,18 @@
       </el-form-item>
       <el-form-item label="支持模型" prop="supported_models" required>
         <div class="model-picker">
+          <div class="model-picker-toolbar">
+            <el-checkbox
+              :model-value="allModelsSelected"
+              :indeterminate="someModelsSelected"
+              :disabled="!availableModels.length"
+              @change="toggleAllModels"
+              >全选</el-checkbox
+            >
+            <span class="model-count"
+              >已选 {{ selectedModelCount }}/{{ availableModels.length }}</span
+            >
+          </div>
           <el-checkbox-group v-model="form.supported_models">
             <el-checkbox v-for="model in availableModels" :key="model.id" :label="model.name">
               {{ model.name }}
@@ -195,6 +207,14 @@ const createForm = (): AccountForm => ({
 const form = reactive<AccountForm>(createForm());
 const editing = computed(() => Boolean(props.account?.id));
 const availableModels = computed(() => props.models.filter((model) => model.type === form.type));
+const selectedModelCount = computed(
+  () => availableModels.value.filter((model) => form.supported_models.includes(model.name)).length,
+);
+const allModelsSelected = computed(
+  () =>
+    availableModels.value.length > 0 && selectedModelCount.value === availableModels.value.length,
+);
+const someModelsSelected = computed(() => selectedModelCount.value > 0 && !allModelsSelected.value);
 const upstreamModelOptions = computed(() => {
   const names = availableModels.value.map((model) => model.name);
   for (const row of mappingRows.value) {
@@ -202,6 +222,10 @@ const upstreamModelOptions = computed(() => {
   }
   return names;
 });
+
+const toggleAllModels = (checked: boolean) => {
+  form.supported_models = checked ? availableModels.value.map((model) => model.name) : [];
+};
 
 const rules: FormRules = {
   name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
@@ -348,6 +372,24 @@ watch(
 .model-picker :deep(.el-checkbox) {
   margin-right: 18px;
   margin-bottom: 6px;
+}
+
+.model-picker-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+.model-picker-toolbar :deep(.el-checkbox) {
+  margin-bottom: 0;
+}
+
+.model-count {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
 }
 
 .mapping-section {
