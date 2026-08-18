@@ -23,7 +23,11 @@ async fn records(
 ) -> Result<Json<serde_json::Value>, AppError> {
     let (accounts, _) = account_dao::list(&s.pool, 0, 10000, None, Some("active")).await?;
     let ids = accounts.iter().map(|a| a.id.clone()).collect::<Vec<_>>();
-    let rows = monitor_dao::list_grouped(&s.pool, &ids, q.limit.unwrap_or(30).clamp(1, 30)).await?;
+    let since = (chrono::Utc::now() - chrono::Duration::hours(1))
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string();
+    let rows = monitor_dao::list_grouped(&s.pool, &ids, q.limit.unwrap_or(30).clamp(1, 30), &since)
+        .await?;
     let mut grouped: HashMap<String, Vec<_>> = HashMap::new();
     for r in rows {
         grouped.entry(r.account_id.clone()).or_default().push(serde_json::json!({"checked_at":r.checked_at,"model":r.model,"success":r.success,"duration_ms":r.duration_ms,"status_code":r.status_code,"error_code":r.error_code,"error_message":r.error_message}));

@@ -5,6 +5,7 @@ pub async fn list_grouped(
     pool: &SqlitePool,
     ids: &[String],
     limit: i64,
+    since: &str,
 ) -> Result<Vec<MonitorRecord>, AppError> {
     if ids.is_empty() {
         return Ok(Vec::new());
@@ -19,7 +20,7 @@ pub async fn list_grouped(
                 SELECT id,account_id,account_name,account_type,model,checked_at,duration_ms,success,status_code,error_code,error_message,
                        ROW_NUMBER() OVER (PARTITION BY account_id ORDER BY checked_at DESC,id DESC) AS row_number
                 FROM monitor_records
-                WHERE account_id IN ({})
+                WHERE account_id IN ({}) AND checked_at >= ?
             )
             SELECT id,account_id,account_name,account_type,model,checked_at,duration_ms,success,status_code,error_code,error_message
             FROM ranked
@@ -32,7 +33,7 @@ pub async fn list_grouped(
     for id in ids {
         query = query.bind(id);
     }
-    Ok(query.bind(limit.max(1)).fetch_all(pool).await?)
+    Ok(query.bind(since).bind(limit.max(1)).fetch_all(pool).await?)
 }
 #[cfg(test)]
 pub async fn create(pool: &SqlitePool, r: &MonitorRecord) -> Result<(), AppError> {
@@ -122,7 +123,7 @@ mod tests {
             }
         }
         let ids = vec!["account-a".to_owned(), "account-b".to_owned()];
-        let records = list_grouped(&pool, &ids, 2)
+        let records = list_grouped(&pool, &ids, 2, "2026-08-17T00:00:02Z")
             .await
             .expect("读取监控记录失败");
         assert_eq!(records.len(), 4);

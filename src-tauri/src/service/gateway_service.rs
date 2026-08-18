@@ -1,11 +1,11 @@
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use axum::{
-    body::Body,
+    body::{Body, Bytes},
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
-use futures_util::StreamExt;
+use futures_util::{Stream, StreamExt};
 use serde_json::{json, Value};
 use sqlx::SqlitePool;
 use uuid::Uuid;
@@ -29,7 +29,6 @@ pub async fn forward(
 ) -> Result<Response, AppError> {
     let requested = dto::model(&body).map(str::to_owned);
     let reasoning_effort = dto::reasoning_effort(&body);
-    let request_started = Instant::now();
     let max_attempts = settings.request_retry_attempts.clamp(1, 20) as i64;
     let trace_id = Uuid::new_v4().to_string();
     let mut last = (
@@ -93,6 +92,7 @@ pub async fn forward(
                     requested.as_deref(),
                     endpoint,
                     false,
+                    false,
                     Some(502),
                     Some(&last.1),
                     Some(&last.2),
@@ -138,6 +138,7 @@ pub async fn forward(
                 requested.as_deref(),
                 endpoint,
                 false,
+                false,
                 Some(status.as_u16() as i64),
                 Some("upstream_error"),
                 Some(&message),
@@ -163,13 +164,61 @@ pub async fn forward(
             .unwrap_or(false)
         {
             let mut upstream = response.bytes_stream();
+            let first_chunk_timeout =
+                Duration::from_secs(settings.first_token_timeout_seconds.max(1));
+            let first_chunk = match wait_for_first_chunk(&mut upstream, first_chunk_timeout).await {
+                Ok(chunk) => chunk,
+                Err(error) => {
+                    let error_code = error.error_code();
+                    let status_code = error.status_code();
+                    let message = error.message();
+                    tracing::error!(
+                        trace_id = %trace_id,
+                        account_id = %account.id,
+                        account_name = %account.name,
+                        attempt,
+                        error_code,
+                        %message,
+                        "网关上游首字读取失败"
+                    );
+                    last = (status_code, error_code.into(), message.clone());
+                    record(
+                        pool,
+                        &trace_id,
+                        &account,
+                        requested.as_deref(),
+                        endpoint,
+                        true,
+                        false,
+                        Some(status_code.as_u16() as i64),
+                        Some(error_code),
+                        Some(&message),
+                        attempt,
+                        started,
+                        None,
+                        reasoning_effort.as_deref(),
+                        None,
+                    )
+                    .await?;
+                    account_service::record_failure(
+                        pool,
+                        &account.id,
+                        Some(error_code),
+                        Some(&message),
+                    )
+                    .await?;
+                    continue;
+                }
+            };
+            // 每条使用记录对应一次上游尝试，首字耗时必须从该次尝试开始计算。
+            let first_token_ms = Some(started.elapsed().as_millis() as i64);
             let stream_record = UsageRecord {
                 id: Uuid::new_v4().to_string(),
                 trace_id: trace_id.clone(),
                 started_at: started_at(started),
                 ended_at: None,
                 duration_ms: None,
-                first_token_ms: None,
+                first_token_ms,
                 account_id: Some(account.id.clone()),
                 account_name: Some(account.name.clone()),
                 account_type: Some(account.r#type.clone()),
@@ -207,7 +256,6 @@ pub async fn forward(
             let model_for_stream = requested.clone();
             let endpoint_for_stream = endpoint.to_owned();
             let started_for_stream = started;
-            let request_started_for_stream = request_started;
             let status_for_stream = status.as_u16() as i64;
             let reasoning_for_stream = reasoning_effort.clone();
             let stream_timeout =
@@ -215,18 +263,27 @@ pub async fn forward(
             let (tx, mut rx) =
                 tokio::sync::mpsc::channel::<Result<axum::body::Bytes, std::io::Error>>(16);
             tokio::spawn(async move {
-                let mut captured = Vec::new();
-                let mut first_token_ms = None;
-                let mut stream_error: Option<String> = None;
-                loop {
+                let mut captured = first_chunk.to_vec();
+                let mut stream_error = None;
+                let mut stream_complete = false;
+                let sent = tokio::time::timeout(stream_timeout, tx.send(Ok(first_chunk))).await;
+                if !matches!(sent, Ok(Ok(()))) {
+                    stream_error = Some("下游客户端已断开或读取超时".to_owned());
+                }
+                if stream_error.is_none() {
+                    if let Some(outcome) = dto::stream_outcome(&captured) {
+                        if outcome {
+                            stream_complete = true;
+                        } else {
+                            stream_error = Some("上游返回流式失败事件".to_owned());
+                        }
+                    }
+                }
+                while stream_error.is_none() && !stream_complete {
                     let next = tokio::time::timeout(stream_timeout, upstream.next()).await;
                     match next {
                         Ok(Some(Ok(chunk))) => {
                             captured.extend_from_slice(&chunk);
-                            if !chunk.is_empty() && first_token_ms.is_none() {
-                                first_token_ms =
-                                    Some(request_started_for_stream.elapsed().as_millis() as i64);
-                            }
                             let sent =
                                 tokio::time::timeout(stream_timeout, tx.send(Ok(chunk))).await;
                             if !matches!(sent, Ok(Ok(()))) {
@@ -313,6 +370,7 @@ pub async fn forward(
                     &account_for_stream,
                     model_for_stream.as_deref(),
                     &endpoint_for_stream,
+                    true,
                     success,
                     Some(status_for_stream),
                     error_code,
@@ -371,6 +429,7 @@ pub async fn forward(
             &account,
             requested.as_deref(),
             endpoint,
+            false,
             true,
             Some(status.as_u16() as i64),
             None,
@@ -402,6 +461,7 @@ async fn record(
     account: &crate::model::account::Account,
     model: Option<&str>,
     endpoint: &str,
+    stream: bool,
     success: bool,
     status: Option<i64>,
     code: Option<&str>,
@@ -429,7 +489,7 @@ async fn record(
         model: model.map(str::to_owned),
         reasoning_effort: reasoning_effort.map(str::to_owned),
         endpoint: Some(endpoint.into()),
-        stream: false,
+        stream,
         success,
         status_code: status,
         error_code: code.map(str::to_owned),
@@ -456,6 +516,100 @@ fn started_at(started: Instant) -> String {
         .unwrap_or_else(chrono::Utc::now)
         .format("%Y-%m-%dT%H:%M:%SZ")
         .to_string()
+}
+
+#[derive(Debug)]
+enum FirstChunkError {
+    Timeout,
+    Upstream(String),
+    Ended,
+}
+
+impl FirstChunkError {
+    fn error_code(&self) -> &'static str {
+        match self {
+            Self::Timeout => "first_token_timeout",
+            Self::Upstream(_) => "first_token_upstream_error",
+            Self::Ended => "stream_ended_before_first_token",
+        }
+    }
+
+    fn status_code(&self) -> StatusCode {
+        match self {
+            Self::Timeout => StatusCode::GATEWAY_TIMEOUT,
+            Self::Upstream(_) | Self::Ended => StatusCode::BAD_GATEWAY,
+        }
+    }
+
+    fn message(&self) -> String {
+        match self {
+            Self::Timeout => "等待上游首字超时".to_owned(),
+            Self::Upstream(error) => format!("上游首字读取失败：{error}"),
+            Self::Ended => "上游流在首字前结束".to_owned(),
+        }
+    }
+}
+
+async fn wait_for_first_chunk<S, E>(
+    upstream: &mut S,
+    timeout: Duration,
+) -> Result<Bytes, FirstChunkError>
+where
+    S: Stream<Item = Result<Bytes, E>> + Unpin,
+    E: std::fmt::Display,
+{
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+        if remaining.is_zero() {
+            return Err(FirstChunkError::Timeout);
+        }
+        match tokio::time::timeout(remaining, upstream.next()).await {
+            Ok(Some(Ok(chunk))) if chunk.is_empty() => continue,
+            Ok(Some(Ok(chunk))) => return Ok(chunk),
+            Ok(Some(Err(error))) => return Err(FirstChunkError::Upstream(error.to_string())),
+            Ok(None) => return Err(FirstChunkError::Ended),
+            Err(_) => return Err(FirstChunkError::Timeout),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{io, time::Duration};
+
+    use axum::{body::Bytes, http::StatusCode};
+    use futures_util::stream;
+
+    use super::{wait_for_first_chunk, FirstChunkError};
+
+    #[tokio::test]
+    async fn waits_past_empty_chunks_for_the_first_nonempty_chunk() {
+        let expected = Bytes::from_static(b"data: first");
+        let mut upstream = stream::iter(vec![
+            Ok::<Bytes, io::Error>(Bytes::new()),
+            Ok(expected.clone()),
+        ]);
+
+        let first = wait_for_first_chunk(&mut upstream, Duration::from_secs(1))
+            .await
+            .expect("应读取到首个非空数据块");
+
+        assert_eq!(first, expected);
+    }
+
+    #[tokio::test]
+    async fn reports_a_timeout_before_the_first_chunk() {
+        let mut upstream = stream::pending::<Result<Bytes, io::Error>>();
+
+        let error = wait_for_first_chunk(&mut upstream, Duration::from_millis(10))
+            .await
+            .expect_err("首字超时应失败");
+
+        assert!(matches!(error, FirstChunkError::Timeout));
+        assert_eq!(error.error_code(), "first_token_timeout");
+        assert_eq!(error.status_code(), StatusCode::GATEWAY_TIMEOUT);
+    }
 }
 
 pub async fn models(pool: &SqlitePool, kind: &str) -> Result<Value, AppError> {

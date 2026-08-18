@@ -18,6 +18,24 @@ AIMux 是一个本地运行的 OpenAI/Anthropic 中转聚合网关。它把多�
 
 ![CC 中配置 AIMux](images/cc中配置.png)
 
+## 界面截图
+
+### 账号管理
+
+![账号管理](images/账号管理.png)
+
+### 监控管理
+
+![监控管理](images/监控管理.png)
+
+### 使用记录
+
+![使用记录](images/使用记录管理.png)
+
+### 数据统计
+
+![数据统计](images/数据统计.png)
+
 ## 为什么会有这个项目
 
 市面上的中转站数量很多，但稳定性和倍率经常变化。使用单个中转站时，遇到限流、超时或故障，通常需要在 CC Switch 等工具中手动切换配置并重启客户端，工作流会被打断。
@@ -156,6 +174,14 @@ macOS 打包可使用 Tauri CLI：
 npm install
 npm run tauri build
 ```
+
+macOS 首次打开从 GitHub 下载的未签名应用时，如果系统提示“应用已损坏”，确认安装包来源可信后，在终端移除隔离标记：
+
+```bash
+xattr -cr /Applications/AIMux.app
+```
+
+如果应用仍在下载目录，将路径替换为 `~/Downloads/AIMux.app`。
 
 GitHub Actions 在推送 `v*` tag 或手动运行 workflow 时构建 Windows x64/arm64 和 macOS x64/arm64 产物，并在 tag 构建成功后自动创建 GitHub Release。当前产物未配置 Apple 公证或 Windows 代码签名。
 
