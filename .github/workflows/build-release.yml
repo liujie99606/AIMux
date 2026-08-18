@@ -206,6 +206,9 @@ jobs:
       - build-macos
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout release notes
+        uses: actions/checkout@v5
+
       - name: Download release artifacts
         uses: actions/download-artifact@v5
         with:
@@ -244,10 +247,18 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          notes_file="docs/releases/${RELEASE_TAG}.md"
+          if [ ! -f "$notes_file" ]; then
+            echo "缺少发布说明文件：$notes_file" >&2
+            exit 1
+          fi
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release edit "$RELEASE_TAG" \
+              --title "AIMux $RELEASE_TAG" \
+              --notes-file "$notes_file"
             gh release upload "$RELEASE_TAG" release-assets/* --clobber
           else
             gh release create "$RELEASE_TAG" release-assets/* \
               --title "AIMux $RELEASE_TAG" \
-              --generate-notes
+              --notes-file "$notes_file"
           fi

@@ -25,7 +25,38 @@ description: AIMux Windows/Tauri 打包和发版规范。用户要求构建 Wind
 
    `src/stores/app.ts` 不需要手工改版本号：正式桌面端通过 Rust 的 `app_version` command 读取 Tauri 版本，浏览器开发模式由 Vite 注入 `package.json` 版本。升级后使用 `rg` 搜索旧版本，确认没有遗漏的硬编码发布版本。
 
-3. 版本升级后的最小核对顺序：
+3. 在提交和创建 tag 前，必须根据真实代码差异生成版本发布说明。发布说明文件路径固定为：
+
+   ```text
+   docs/releases/v<版本号>.md
+   ```
+
+   先找到上一个正式版本，并同时检查已提交、已暂存和未暂存的改动：
+
+   ```powershell
+   $previousTag = git tag --sort=-v:refname 'v*' | Select-Object -First 1
+   git log --oneline "$previousTag..HEAD"
+   git diff --stat "$previousTag..HEAD"
+   git diff --stat HEAD
+   git diff --cached --stat
+   ```
+
+   根据这些差异创建 notes 文件，只记录实际完成且用户可感知的内容，不凭空补充功能。建议按以下结构编写：
+
+   ```markdown
+   ## 新功能
+   - ...
+
+   ## 优化与修复
+   - ...
+
+   ## 升级说明
+   - ...
+   ```
+
+   发布说明文件必须和本次版本修改一起提交。`.github/workflows/build-release.yml` 会读取该文件作为 GitHub Release 正文；缺少文件时发布阶段必须失败，不能退回空白正文或只使用 `--generate-notes`。
+
+4. 版本升级后的最小核对顺序：
 
    ```powershell
    npm install --package-lock-only
@@ -38,7 +69,7 @@ description: AIMux Windows/Tauri 打包和发版规范。用户要求构建 Wind
 
    如果 `Cargo.lock` 没有随项目版本更新，先运行一次 `cargo check` 再检查；不要为了版本升级执行全量清理。
 
-4. 发布前确认版本和 Git 状态：
+5. 发布前确认版本和 Git 状态：
 
    ```powershell
    git status --short
@@ -49,8 +80,8 @@ description: AIMux Windows/Tauri 打包和发版规范。用户要求构建 Wind
 
    版本号应替换为本次实际发布版本。确认提交后，将 `main` 推送，并创建与推送同名 tag（例如 `v0.2.4`）；GitHub Actions 以 `v*` tag 触发正式构建和 Release。除非用户明确要求，不自动执行 commit、push 或创建 tag。
 
-5. 打包前确认 `dist`、`src-tauri/target` 和正在运行的 AIMux 进程状态。普通构建保留增量缓存；只有用户明确要求或增量缓存损坏时才全量清理。
-6. 提醒用户执行：
+6. 打包前确认 `dist`、`src-tauri/target` 和正在运行的 AIMux 进程状态。普通构建保留增量缓存；只有用户明确要求或增量缓存损坏时才全量清理。
+7. 提醒用户执行：
 
    ```text
    请双击 scripts\windows\stable_build_windows.bat

@@ -16,6 +16,7 @@ Windows x64 构建会在上传前将 NSIS 安装包静默安装到 runner 临时
 - 推送 `v*` tag 自动构建，并在全部平台成功后创建同名 GitHub Release。
 - `workflow_dispatch` 只构建并上传 Actions Artifact，不自动创建正式 Release。
 - 通过浏览器操作 GitHub Actions 前，确认当前浏览器已登录；遇到登录页时停止并提醒用户登录。
+- GitHub Release 正文来自 `docs/releases/v<版本号>.md`，每次发版必须根据上一个 `v*` tag 与当前代码差异创建对应文件；缺少文件时发布 job 必须失败。
 
 ## 产物
 
