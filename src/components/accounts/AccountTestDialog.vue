@@ -14,12 +14,7 @@
         <el-form-item label="选择测试模型">
           <el-select v-model="selectedModel" :disabled="testing" style="width: 240px">
             <el-option v-if="account.test_default_model" label="使用账号默认模型" value="" />
-            <el-option
-              v-for="model in models"
-              :key="model.id"
-              :label="model.name"
-              :value="model.name"
-            />
+            <el-option v-for="model in models" :key="model" :label="model" :value="model" />
           </el-select>
         </el-form-item>
         <el-form-item label="测试请求形态">
@@ -52,7 +47,6 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { accountsApi, type Account } from '../../api/accounts';
-import type { CatalogModel } from '../../api/models';
 
 type LogEntry = {
   label: string;
@@ -63,7 +57,7 @@ type LogEntry = {
 
 const props = defineProps<{
   account: Account;
-  models: CatalogModel[];
+  models: string[];
 }>();
 const emit = defineEmits<{
   finished: [];
@@ -92,7 +86,7 @@ const requestBody = computed(() => {
 });
 
 const reset = () => {
-  selectedModel.value = props.account.test_default_model ? '' : (props.models[0]?.name ?? '');
+  selectedModel.value = props.account.test_default_model ? '' : (props.models[0] ?? '');
   logs.value = [];
   progress.value = 0;
   progressLabel.value = '等待测试';

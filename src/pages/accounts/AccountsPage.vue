@@ -88,7 +88,12 @@ const dialog = ref(false);
 const editingAccount = ref<Account>();
 const testDialog = ref(false);
 const testAccount = ref<Account>();
-const testModels = computed(() => models.byType(testAccount.value?.type ?? 'openai'));
+const testModels = computed(() => {
+  const account = testAccount.value;
+  if (!account) return [];
+  const supported = [...new Set(account.supported_models?.filter(Boolean) ?? [])];
+  return supported.length ? supported : models.byType(account.type).map((model) => model.name);
+});
 const SLOW_DURATION_MS = 20_000;
 
 const load = async () => {
