@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - "v*"
+      - 'v*'
 
 permissions:
   contents: write
@@ -51,8 +51,16 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build Tauri Windows installer
-        run: npm run tauri build -- --bundles nsis
+      - name: Build Tauri Windows installer and updater package
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY)) {
+            throw '缺少 GitHub Actions Secret：TAURI_SIGNING_PRIVATE_KEY。请按 docs/应用内更新发布说明.md 完成一次配置。'
+          }
+          npm run tauri build -- --bundles nsis --config '{"bundle":{"createUpdaterArtifacts":true}}'
 
       - name: Smoke test installed AIMux
         if: matrix.arch == 'x64'
@@ -87,14 +95,25 @@ jobs:
         run: |
           $installer = Get-ChildItem 'src-tauri/target/release/bundle/nsis/*.exe' | Select-Object -First 1
           if (-not $installer) { throw '未找到 Tauri NSIS 安装包' }
+          $signature = "$($installer.FullName).sig"
+          if (-not (Test-Path $signature)) { throw "未找到 Tauri Windows 更新包签名：$signature" }
           New-Item -ItemType Directory -Force -Path release | Out-Null
           Copy-Item $installer.FullName "release/AIMux-Windows-${{ matrix.arch }}.exe"
+          Copy-Item $signature "release/AIMux-Windows-${{ matrix.arch }}.exe.sig"
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v5
         with:
           name: AIMux-Windows-${{ matrix.arch }}
           path: release/AIMux-Windows-${{ matrix.arch }}.exe
+          if-no-files-found: error
+
+      - name: Upload Windows updater package
+        uses: actions/upload-artifact@v5
+        with:
+          name: AIMux-updater-Windows-${{ matrix.arch }}
+          path: |
+            release/AIMux-Windows-${{ matrix.arch }}.exe.sig
           if-no-files-found: error
 
   build-macos:
@@ -134,8 +153,16 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      - name: Build Tauri macOS app
-        run: npm run tauri build -- --bundles app
+      - name: Build Tauri macOS app and updater package
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo '缺少 GitHub Actions Secret：TAURI_SIGNING_PRIVATE_KEY。请按 docs/应用内更新发布说明.md 完成一次配置。' >&2
+            exit 1
+          fi
+          npm run tauri build -- --bundles app --config '{"bundle":{"createUpdaterArtifacts":true}}'
 
       - name: Package macOS app
         run: |
@@ -143,12 +170,32 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent \
             src-tauri/target/release/bundle/macos/AIMux.app \
             release/AIMux-macOS-${{ matrix.arch }}.zip
+          updater=$(find src-tauri/target/release/bundle/macos -name '*.app.tar.gz' -type f | head -n 1)
+          if [ -z "$updater" ]; then
+            echo '未找到 Tauri macOS 更新包' >&2
+            exit 1
+          fi
+          if [ ! -f "$updater.sig" ]; then
+            echo "未找到 Tauri macOS 更新包签名：$updater.sig" >&2
+            exit 1
+          fi
+          cp "$updater" "release/AIMux-macOS-${{ matrix.arch }}.app.tar.gz"
+          cp "$updater.sig" "release/AIMux-macOS-${{ matrix.arch }}.app.tar.gz.sig"
 
       - name: Upload macOS app
         uses: actions/upload-artifact@v5
         with:
           name: AIMux-macOS-${{ matrix.arch }}
           path: release/AIMux-macOS-${{ matrix.arch }}.zip
+          if-no-files-found: error
+
+      - name: Upload macOS updater package
+        uses: actions/upload-artifact@v5
+        with:
+          name: AIMux-updater-macOS-${{ matrix.arch }}
+          path: |
+            release/AIMux-macOS-${{ matrix.arch }}.app.tar.gz
+            release/AIMux-macOS-${{ matrix.arch }}.app.tar.gz.sig
           if-no-files-found: error
 
   publish-release:
@@ -165,6 +212,31 @@ jobs:
           pattern: AIMux-*
           path: release-assets
           merge-multiple: true
+
+      - name: Create updater manifest
+        env:
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          base_url="https://github.com/${GH_REPO}/releases/download/${RELEASE_TAG}"
+          windows_x64_sig=$(tr -d '\r\n' < release-assets/AIMux-Windows-x64.exe.sig)
+          windows_arm64_sig=$(tr -d '\r\n' < release-assets/AIMux-Windows-arm64.exe.sig)
+          macos_x64_sig=$(tr -d '\r\n' < release-assets/AIMux-macOS-x64.app.tar.gz.sig)
+          macos_arm64_sig=$(tr -d '\r\n' < release-assets/AIMux-macOS-arm64.app.tar.gz.sig)
+          cat > release-assets/latest.json <<EOF
+          {
+            "version": "${version}",
+            "notes": "AIMux ${RELEASE_TAG}，请查看 GitHub Release 了解本次更新内容。",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "windows-x86_64": { "signature": "${windows_x64_sig}", "url": "${base_url}/AIMux-Windows-x64.exe" },
+              "windows-aarch64": { "signature": "${windows_arm64_sig}", "url": "${base_url}/AIMux-Windows-arm64.exe" },
+              "darwin-x86_64": { "signature": "${macos_x64_sig}", "url": "${base_url}/AIMux-macOS-x64.app.tar.gz" },
+              "darwin-aarch64": { "signature": "${macos_arm64_sig}", "url": "${base_url}/AIMux-macOS-arm64.app.tar.gz" }
+            }
+          }
+          EOF
 
       - name: Create or update GitHub Release
         env:

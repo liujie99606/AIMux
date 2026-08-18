@@ -47,12 +47,19 @@ if errorlevel 1 (
 set "ARCH=x64"
 if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=arm64"
 set "BUNDLE_DIR=src-tauri\target\release\bundle\nsis"
-set "INSTALLER="
-if exist "%BUNDLE_DIR%\*.exe" (
-    for %%F in ("%BUNDLE_DIR%\*.exe") do set "INSTALLER=%%~fF"
+set "APP_VERSION="
+for /f "tokens=2 delims=:, " %%V in ('findstr /R /C:"\"version\"[ ]*:" "src-tauri\tauri.conf.json"') do set "APP_VERSION=%%~V"
+if not defined APP_VERSION (
+    echo [AIMux] 无法读取 src-tauri\tauri.conf.json 中的应用版本。
+    pause
+    exit /b 1
 )
-if not defined INSTALLER (
-    echo [AIMux] 打包完成，但未找到 NSIS 安装包：%BUNDLE_DIR%
+
+set "INSTALLER=%BUNDLE_DIR%\AIMux_%APP_VERSION%_%ARCH%-setup.exe"
+if not exist "%INSTALLER%" (
+    echo [AIMux] 打包完成，但未找到当前版本安装包：%INSTALLER%
+    echo [AIMux] 当前目录中的安装包：
+    dir /b "%BUNDLE_DIR%\*.exe" 2>nul
     pause
     exit /b 1
 )

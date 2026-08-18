@@ -24,7 +24,14 @@ Windows x64 构建会在上传前将 NSIS 安装包静默安装到 runner 临时
 - `AIMux-macOS-x64.zip`
 - `AIMux-macOS-arm64.zip`
 
-workflow 不读取或上传用户数据目录中的数据库、配置和密钥。当前没有 Apple 公证、Windows 代码签名或自动更新服务，构建成功不等于获得系统信任。
+workflow 不读取或上传用户数据目录中的数据库、配置和密钥。当前没有 Apple 公证或 Windows 代码签名，构建成功不等于获得系统信任。
+
+## 应用内更新
+
+- Tauri updater 使用 GitHub Actions Secret `TAURI_SIGNING_PRIVATE_KEY` 签名更新包。私钥只能保存在安全位置，绝不提交到仓库或 Release。
+- tag 发布会额外上传 Windows 安装程序的 `.exe.sig`、macOS 的 `.app.tar.gz` 与 `.sig` 以及 `latest.json`。客户端从 `releases/latest/download/latest.json` 读取清单，不调用 GitHub Releases REST API。
+- 正式发布构建缺少 `TAURI_SIGNING_PRIVATE_KEY` 必须失败，避免生成不可验证的更新。
+- 更换签名密钥会导致旧客户端无法验证新包；除非放弃已有自动更新链路，否则不可随意重建密钥。
 
 ## 排查顺序
 

@@ -39,6 +39,17 @@
     </el-aside>
     <el-main class="main"><router-view /></el-main>
   </el-container>
+  <AppUpdateDialog
+    v-model:visible="updateVisible"
+    :current-version="app.version"
+    :version="updateVersion"
+    :notes="updateNotes"
+    :installing="updateInstalling"
+    :progress-percentage="updateProgressPercentage"
+    :progress-label="updateProgressLabel"
+    @install="installUpdate"
+    @manual-download="openReleasePage"
+  />
 </template>
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
@@ -48,6 +59,8 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { DataAnalysis, Grid, Monitor, Setting, Tickets, User } from '@element-plus/icons-vue';
 import { Github, RefreshCw } from 'lucide-vue-next';
 import { useAppStore } from '../stores/app';
+import AppUpdateDialog from '../components/app/AppUpdateDialog.vue';
+import { useAppUpdater } from '../composables/useAppUpdater';
 const route = useRoute();
 const app = useAppStore();
 onMounted(() => {
@@ -57,7 +70,15 @@ onMounted(() => {
 const clock = computed(() => app.now.toLocaleTimeString('zh-CN', { hour12: false }));
 
 const GITHUB_URL = 'https://github.com/quietforge-dev/AIMux';
-const RELEASE_API = 'https://api.github.com/repos/quietforge-dev/AIMux/releases/latest';
+const updater = useAppUpdater();
+const {
+  installing: updateInstalling,
+  notes: updateNotes,
+  progressLabel: updateProgressLabel,
+  progressPercentage: updateProgressPercentage,
+  version: updateVersion,
+  visible: updateVisible,
+} = updater;
 
 const openExternal = async (url: string) => {
   try {
@@ -74,47 +95,27 @@ const openGithub = async () => {
   await openExternal(GITHUB_URL);
 };
 
-const versionKey = (value: string) =>
-  value
-    .replace(/^v/i, '')
-    .split('.')
-    .slice(0, 3)
-    .map((part) => Number.parseInt(part, 10) || 0);
-
-const isNewer = (latest: string, current: string) => {
-  const left = versionKey(latest);
-  const right = versionKey(current);
-  for (const index of [0, 1, 2]) {
-    if (left[index] !== right[index]) return left[index] > right[index];
-  }
-  return false;
-};
-
 const checkForUpdates = async () => {
   try {
-    const response = await fetch(RELEASE_API, {
-      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'AIMux' },
-    });
-    if (!response.ok) {
-      if (response.status === 403) throw new Error('GitHub API 请求过于频繁，请稍后再试');
-      throw new Error(`GitHub 返回 HTTP ${response.status}`);
-    }
-    const release = (await response.json()) as { tag_name?: string; html_url?: string };
-    const latest = release.tag_name ?? '';
-    if (!latest || !isNewer(latest, app.version)) {
+    const result = await updater.checkForUpdates();
+    if (result && !result.available) {
       ElMessage.success(`当前已是最新版本：v${app.version}`);
-      return;
     }
-    await ElMessageBox.confirm(`发现新版本 ${latest}，是否打开发布页面？`, '发现新版本', {
-      confirmButtonText: '打开发布页',
-      cancelButtonText: '稍后',
-    });
-    await openExternal(release.html_url ?? `${GITHUB_URL}/releases`);
   } catch (error) {
-    const message = String(error);
-    if (message === 'cancel' || message === 'close') return;
-    ElMessage.error(`检查更新失败：${message}`);
+    ElMessage.error(`检查更新失败：${error instanceof Error ? error.message : String(error)}`);
   }
+};
+
+const installUpdate = async () => {
+  try {
+    await updater.installAndRelaunch();
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : String(error));
+  }
+};
+
+const openReleasePage = async () => {
+  await openExternal(updater.releasePageUrl());
 };
 </script>
 <style scoped lang="scss">

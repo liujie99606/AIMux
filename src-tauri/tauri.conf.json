@@ -28,5 +28,11 @@
     "active": true,
     "targets": "all",
     "icon": ["icons/aimux.png", "icons/aimux.ico", "icons/aimux.icns"]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDg1OEZGREQ2NzQxRENGMkMKUldRc3p4MTAxdjJQaFo4a0ZyV3JHWTFYYVJTN00rYnF4aFlCYzB1UnQ0RjhLT2l3cFFBTnNGMGIK",
+      "endpoints": ["https://github.com/quietforge-dev/AIMux/releases/latest/download/latest.json"]
+    }
   }
 }
