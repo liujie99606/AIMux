@@ -25,6 +25,23 @@ AIMux 的核心是多账号路由：把多个上游 Key（官方直连或中转�
 
 ## 新手教程
 
+### 下载说明
+
+请根据电脑系统和处理器架构选择安装包：
+
+| 系统 | Intel / x64 | ARM |
+| --- | --- | --- |
+| Windows | `AIMux-Windows-x64.exe` | `AIMux-Windows-arm64.exe` |
+| macOS | `AIMux-macOS-x64.zip` | `AIMux-macOS-arm64.zip` |
+
+macOS：Intel 芯片选择 x64，Apple 芯片（M1/M2/M3/M4 等）选择 arm64。解压后，**建议先将 AIMux.app 从“下载”目录拖到“应用程序（Applications）”目录，再打开应用**。首次打开从 GitHub 下载的未签名应用，如果提示“应用已损坏”，确认安装包来源可信后，在终端执行：
+
+```bash
+xattr -cr /Applications/AIMux.app
+```
+
+如果应用还在下载目录，请将路径替换为 `~/Downloads/AIMux.app`。
+
 第一次使用建议先阅读：[新手第一次使用教程](docs/新手第一次使用教程.md)
 
 #### 可以直接让 AI 启动或打包
