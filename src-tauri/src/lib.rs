@@ -1,19 +1,19 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app_state;
-mod background;
+pub mod background;
 mod commands;
-mod config;
+pub mod config;
 mod controller;
-mod dao;
-mod database;
+pub mod dao;
+pub mod database;
 mod error;
-mod gateway;
+pub mod gateway;
 mod logging;
-mod model;
-mod schema;
-mod service;
-mod upstream;
+pub mod model;
+pub mod schema;
+pub mod service;
+pub mod upstream;
 
 use std::sync::Arc;
 

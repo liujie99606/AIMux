@@ -519,14 +519,14 @@ fn started_at(started: Instant) -> String {
 }
 
 #[derive(Debug)]
-enum FirstChunkError {
+pub enum FirstChunkError {
     Timeout,
     Upstream(String),
     Ended,
 }
 
 impl FirstChunkError {
-    fn error_code(&self) -> &'static str {
+    pub fn error_code(&self) -> &'static str {
         match self {
             Self::Timeout => "first_token_timeout",
             Self::Upstream(_) => "first_token_upstream_error",
@@ -534,14 +534,14 @@ impl FirstChunkError {
         }
     }
 
-    fn status_code(&self) -> StatusCode {
+    pub fn status_code(&self) -> StatusCode {
         match self {
             Self::Timeout => StatusCode::GATEWAY_TIMEOUT,
             Self::Upstream(_) | Self::Ended => StatusCode::BAD_GATEWAY,
         }
     }
 
-    fn message(&self) -> String {
+    pub fn message(&self) -> String {
         match self {
             Self::Timeout => "等待上游首字超时".to_owned(),
             Self::Upstream(error) => format!("上游首字读取失败：{error}"),
@@ -550,7 +550,7 @@ impl FirstChunkError {
     }
 }
 
-async fn wait_for_first_chunk<S, E>(
+pub async fn wait_for_first_chunk<S, E>(
     upstream: &mut S,
     timeout: Duration,
 ) -> Result<Bytes, FirstChunkError>
@@ -571,44 +571,6 @@ where
             Ok(None) => return Err(FirstChunkError::Ended),
             Err(_) => return Err(FirstChunkError::Timeout),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::{io, time::Duration};
-
-    use axum::{body::Bytes, http::StatusCode};
-    use futures_util::stream;
-
-    use super::{wait_for_first_chunk, FirstChunkError};
-
-    #[tokio::test]
-    async fn waits_past_empty_chunks_for_the_first_nonempty_chunk() {
-        let expected = Bytes::from_static(b"data: first");
-        let mut upstream = stream::iter(vec![
-            Ok::<Bytes, io::Error>(Bytes::new()),
-            Ok(expected.clone()),
-        ]);
-
-        let first = wait_for_first_chunk(&mut upstream, Duration::from_secs(1))
-            .await
-            .expect("应读取到首个非空数据块");
-
-        assert_eq!(first, expected);
-    }
-
-    #[tokio::test]
-    async fn reports_a_timeout_before_the_first_chunk() {
-        let mut upstream = stream::pending::<Result<Bytes, io::Error>>();
-
-        let error = wait_for_first_chunk(&mut upstream, Duration::from_millis(10))
-            .await
-            .expect_err("首字超时应失败");
-
-        assert!(matches!(error, FirstChunkError::Timeout));
-        assert_eq!(error.error_code(), "first_token_timeout");
-        assert_eq!(error.status_code(), StatusCode::GATEWAY_TIMEOUT);
     }
 }
 

@@ -83,7 +83,7 @@ pub async fn post_with_timeout(
     Ok(response)
 }
 
-fn upstream_url(base_url: &str, endpoint: &str) -> Result<Url, AppError> {
+pub fn upstream_url(base_url: &str, endpoint: &str) -> Result<Url, AppError> {
     let mut url = Url::parse(base_url.trim())
         .map_err(|error| AppError::BadRequest(format!("上游地址无效: {error}")))?;
     if !matches!(url.scheme(), "http" | "https") {
@@ -111,27 +111,4 @@ fn upstream_url(base_url: &str, endpoint: &str) -> Result<Url, AppError> {
     };
     url.set_path(&path);
     Ok(url)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::upstream_url;
-
-    #[test]
-    fn preserves_existing_v1_prefix() {
-        let url = upstream_url("https://example.com/v1", "/v1/chat/completions").unwrap();
-        assert_eq!(url.as_str(), "https://example.com/v1/chat/completions");
-    }
-
-    #[test]
-    fn adds_v1_prefix_when_base_url_has_no_path() {
-        let url = upstream_url("https://example.com", "/v1/chat/completions").unwrap();
-        assert_eq!(url.as_str(), "https://example.com/v1/chat/completions");
-    }
-
-    #[test]
-    fn preserves_path_prefix_for_anthropic_endpoint() {
-        let url = upstream_url("https://example.com/proxy/v1/", "/v1/messages").unwrap();
-        assert_eq!(url.as_str(), "https://example.com/proxy/v1/messages");
-    }
 }

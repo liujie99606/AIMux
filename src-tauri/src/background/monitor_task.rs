@@ -203,7 +203,7 @@ async fn rebalance(
     Ok(())
 }
 
-fn candidate_order(
+pub fn candidate_order(
     left_multiplier: f64,
     left_average_duration_ms: Option<i64>,
     right_multiplier: f64,
@@ -216,7 +216,7 @@ fn candidate_order(
     })
 }
 
-fn should_promote(
+pub fn should_promote(
     candidate_multiplier: f64,
     candidate_average_duration_ms: Option<i64>,
     current_multiplier: f64,
@@ -229,47 +229,5 @@ fn should_promote(
             candidate_average_duration_ms.unwrap_or(i64::MAX)
                 < current_average_duration_ms.unwrap_or(i64::MAX)
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::cmp::Ordering;
-
-    use super::{candidate_order, should_promote};
-
-    #[test]
-    fn chooses_the_lowest_multiplier_then_the_fastest_average_duration() {
-        assert_eq!(
-            candidate_order(0.04, Some(900), 0.10, Some(100)),
-            Ordering::Less
-        );
-        assert_eq!(
-            candidate_order(0.10, Some(500), 0.10, Some(800)),
-            Ordering::Less
-        );
-        assert_eq!(candidate_order(0.10, Some(500), 0.10, None), Ordering::Less);
-        assert_eq!(
-            candidate_order(0.10, None, 0.10, Some(500)),
-            Ordering::Greater
-        );
-    }
-
-    #[test]
-    fn promotes_a_successful_lower_multiplier_account() {
-        assert!(should_promote(0.04, None, 0.10, Some(500)));
-    }
-
-    #[test]
-    fn promotes_a_faster_account_when_multipliers_match() {
-        assert!(should_promote(0.10, Some(500), 0.10, Some(800)));
-        assert!(should_promote(0.10, Some(500), 0.10, None));
-    }
-
-    #[test]
-    fn does_not_promote_an_unknown_or_slower_account_when_multipliers_match() {
-        assert!(!should_promote(0.10, None, 0.10, Some(800)));
-        assert!(!should_promote(0.10, None, 0.10, None));
-        assert!(!should_promote(0.10, Some(800), 0.10, Some(500)));
     }
 }
