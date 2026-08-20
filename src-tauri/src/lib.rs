@@ -72,6 +72,11 @@ pub fn run() {
         }
     });
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_autostart::Builder::new()
+                .args(["--autostart"])
+                .build(),
+        )
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(shared)
@@ -85,8 +90,13 @@ pub fn run() {
             commands::exit_app
         ])
         .setup(|app| {
+            let launched_from_autostart = std::env::args().any(|arg| arg == "--autostart");
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.set_title("AIMux");
+                if launched_from_autostart {
+                    let _ = window.hide();
+                    tracing::info!("AIMux 已通过开机自启动，当前窗口已隐藏到托盘");
+                }
                 let close_window = window.clone();
                 window.on_window_event(move |event| {
                     if let WindowEvent::CloseRequested { api, .. } = event {

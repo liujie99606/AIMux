@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"AIMux 主窗口所需的 Tauri 能力。","local":true,"windows":["main"],"permissions":["core:default","updater:default","process:default"]}}
+{"default":{"identifier":"default","description":"AIMux 主窗口所需的 Tauri 能力。","local":true,"windows":["main"],"permissions":["core:default","updater:default","process:default","autostart:default"]}}

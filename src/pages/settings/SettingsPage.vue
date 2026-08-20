@@ -25,6 +25,9 @@
           <el-form-item label="账号监控">
             <el-switch v-model="form.monitoring_enabled" />
           </el-form-item>
+          <el-form-item label="开机自启">
+            <el-switch v-model="form.launch_at_login" />
+          </el-form-item>
           <el-form-item label="启用上游代理">
             <el-switch v-model="form.upstream_proxy_enabled" />
           </el-form-item>
@@ -33,7 +36,7 @@
           </el-form-item>
 
           <el-divider content-position="left">API 请求地址</el-divider>
-          <el-form-item label="OpenAI 请求地址">
+          <el-form-item label="OpenAI 请求地址" label-width="150px">
             <div class="address-field">
               <el-input :model-value="openaiAddress" readonly>
                 <template #append>
@@ -47,7 +50,7 @@
               </el-input>
             </div>
           </el-form-item>
-          <el-form-item label="Anthropic 请求地址">
+          <el-form-item label="Anthropic 请求地址" label-width="150px">
             <div class="address-field">
               <el-input :model-value="anthropicAddress" readonly>
                 <template #append>
@@ -77,7 +80,8 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { CopyDocument } from '@element-plus/icons-vue';
 import { settingsApi, type Settings } from '../../api/settings';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
+import { disable, enable, isEnabled } from '@tauri-apps/plugin-autostart';
 const form = reactive<Settings>({
   host: '127.0.0.1',
   port: 7789,
@@ -99,12 +103,32 @@ const gatewayOrigin = computed(() => `http://${gatewayHost.value}:${form.port}`)
 const openaiAddress = computed(() => `${gatewayOrigin.value}/v1`);
 const anthropicAddress = computed(() => gatewayOrigin.value);
 
-onMounted(async () => Object.assign(form, await settingsApi.get()));
+onMounted(async () => {
+  Object.assign(form, await settingsApi.get());
+  if (isTauri()) {
+    try {
+      form.launch_at_login = await isEnabled();
+    } catch (error) {
+      ElMessage.warning(`读取开机自启状态失败：${String(error)}`);
+    }
+  }
+});
+const syncAutostart = async (desired: boolean) => {
+  if (!isTauri()) return;
+  const current = await isEnabled();
+  if (current === desired) return;
+  if (desired) await enable();
+  else await disable();
+};
+
 const save = async () => {
   saving.value = true;
   try {
+    await syncAutostart(form.launch_at_login);
     await settingsApi.update(form);
     ElMessage.success('设置已保存');
+  } catch (error) {
+    ElMessage.error(`保存设置失败：${String(error)}`);
   } finally {
     saving.value = false;
   }
