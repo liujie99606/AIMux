@@ -16,7 +16,9 @@
         <el-descriptions-item label="首 Token 用时">{{
           formatMsRaw(record.first_token_ms)
         }}</el-descriptions-item>
-        <el-descriptions-item label="尝试次数">{{ text(record.attempts) }}</el-descriptions-item>
+        <el-descriptions-item label="重试次数">{{
+          displayRetryCount(record.attempts)
+        }}</el-descriptions-item>
         <el-descriptions-item label="账号名称">{{
           text(record.account_name)
         }}</el-descriptions-item>
@@ -70,6 +72,7 @@ const formatTime = (value?: string) => {
 };
 
 const formatMsRaw = (value?: number) => (value == null ? '-' : `${value} ms`);
+const displayRetryCount = (attempts?: number) => Math.max((attempts ?? 1) - 1, 0);
 const text = (value: unknown) => (value == null || value === '' ? '-' : String(value));
 const resultText = (usage: UsageRecord) =>
   usage.ended_at ? (usage.success ? '成功' : '失败') : '进行中';

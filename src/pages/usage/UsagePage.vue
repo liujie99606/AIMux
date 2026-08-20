@@ -64,7 +64,9 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="attempts" label="重试次数" width="80" />
+      <el-table-column label="重试次数" width="80">
+        <template #default="{ row }">{{ displayRetryCount(row.attempts) }}</template>
+      </el-table-column>
       <el-table-column label="Token用量" min-width="180">
         <template #default="{ row }">
           <div class="token-usage-cell">
@@ -227,6 +229,7 @@ const formatTime = (value?: string) => {
 const formatMs = (value?: number) => (value == null ? '-' : `${(value / 1000).toFixed(2)} 秒`);
 const formatSeconds = (value?: number) => (value == null ? '-' : `${(value / 1000).toFixed(2)}s`);
 const formatPercentage = (value?: number) => (value == null ? '-' : `${(value * 100).toFixed(2)}%`);
+const displayRetryCount = (attempts?: number) => Math.max((attempts ?? 1) - 1, 0);
 const resultText = (record: UsageRecord) =>
   record.ended_at ? (record.success ? '成功' : '失败') : '进行中';
 const resultClass = (record: UsageRecord) =>
