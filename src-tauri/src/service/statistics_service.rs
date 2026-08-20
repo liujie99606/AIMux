@@ -31,7 +31,7 @@ pub async fn tokens(pool: &SqlitePool) -> Result<serde_json::Value, AppError> {
         let s = account_summaries
             .remove(&account.id)
             .unwrap_or_else(|| summary(0, 0, 0, 0));
-        account_today.push(serde_json::json!({"account_id":account.id,"account_name":account.name,"account_type":account.r#type,"priority":account.priority,"input_tokens":s.input_tokens,"output_tokens":s.output_tokens,"cached_tokens":s.cached_tokens,"total_tokens":s.total_tokens,"cache_rate":s.cache_rate}));
+        account_today.push(serde_json::json!({"account_id":account.id,"account_name":account.name,"account_type":account.r#type,"multiplier":account.multiplier,"priority":account.priority,"input_tokens":s.input_tokens,"output_tokens":s.output_tokens,"cached_tokens":s.cached_tokens,"total_tokens":s.total_tokens,"cache_rate":s.cache_rate}));
     }
     Ok(
         serde_json::json!({"total":total,"yesterday":yesterday,"today":today_summary,"accounts_today":account_today}),

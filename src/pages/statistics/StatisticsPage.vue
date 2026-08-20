@@ -26,6 +26,9 @@
     <el-table :data="accounts" border class="compact-table">
       <el-table-column prop="account_name" label="账号" min-width="180" />
       <el-table-column prop="account_type" label="类型" width="90" />
+      <el-table-column prop="multiplier" label="倍率" width="80">
+        <template #default="{ row }">{{ Number(row.multiplier).toFixed(2) }}</template>
+      </el-table-column>
       <el-table-column prop="priority" label="优先级" width="80" />
       <el-table-column label="总Token" min-width="110">
         <template #default="{ row }">{{ formatToken(row.total_tokens) }}</template>

@@ -64,6 +64,7 @@ export type Statistics = {
       account_id: string;
       account_name: string;
       account_type: string;
+      multiplier: number;
       priority: number;
     }
   >;

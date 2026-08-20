@@ -125,7 +125,7 @@ const save = async (payload: Record<string, unknown>) => {
     if (editingAccount.value?.id) await accountsApi.update(editingAccount.value.id, payload);
     else await accountsApi.create(payload);
     dialog.value = false;
-    await store.load();
+    await load();
     ElMessage.success('保存成功');
   } catch (error) {
     ElMessage.error(String(error));
@@ -134,18 +134,18 @@ const save = async (payload: Record<string, unknown>) => {
 
 const toggle = async (row: Account) => {
   await accountsApi.toggle(row.id);
-  await store.load();
+  await load();
 };
 
 const priority = async (row: Account) => {
   await accountsApi.priority(row.id, row.priority);
-  await store.load();
+  await load();
 };
 
 const remove = async (row: Account) => {
   await ElMessageBox.confirm(`确认删除 ${row.name}？`, '提示');
   await accountsApi.remove(row.id);
-  await store.load();
+  await load();
 };
 
 const test = async (row: Account) => {
