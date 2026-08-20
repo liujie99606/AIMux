@@ -12,6 +12,7 @@
           ><el-option label="OpenAI" value="openai" /><el-option
             label="Anthropic"
             value="anthropic" /></el-select
+        ><el-button :loading="loading" @click="load">刷新</el-button
         ><el-button type="primary" @click="open()">新增模型</el-button>
       </div>
     </div>

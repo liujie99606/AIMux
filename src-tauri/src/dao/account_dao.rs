@@ -214,7 +214,7 @@ pub async fn adjust(
 ) -> Result<(), AppError> {
     let delta = if success {
         if kind == "monitor" {
-            "CASE WHEN priority < 6 THEN priority + 1 ELSE priority END"
+            "CASE WHEN priority < 8 THEN priority + 1 ELSE priority END"
         } else {
             "priority + 1"
         }
