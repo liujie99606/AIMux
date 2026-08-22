@@ -193,6 +193,41 @@ pub async fn token_totals_by_account(
     .fetch_all(pool)
     .await?)
 }
+pub async fn recent_cache_rates_by_account(
+    pool: &SqlitePool,
+    started_after: &str,
+    limit_per_account: i64,
+) -> Result<Vec<(String, i64, i64, i64)>, AppError> {
+    Ok(sqlx::query_as::<_, (String, i64, i64, i64)>(
+        r#"
+            WITH ranked AS (
+                SELECT account_id,
+                       input_tokens,
+                       cached_tokens,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY account_id
+                           ORDER BY started_at DESC, id DESC
+                       ) AS row_number
+                FROM usage_records
+                WHERE account_id IS NOT NULL
+                  AND started_at >= ?
+                  AND input_tokens > 0
+                  AND cached_tokens IS NOT NULL
+            )
+            SELECT account_id,
+                   COALESCE(SUM(input_tokens), 0),
+                   COALESCE(SUM(cached_tokens), 0),
+                   COUNT(*)
+            FROM ranked
+            WHERE row_number <= ?
+            GROUP BY account_id
+        "#,
+    )
+    .bind(started_after)
+    .bind(limit_per_account)
+    .fetch_all(pool)
+    .await?)
+}
 pub async fn cleanup(pool: &SqlitePool, cutoff: &str) -> Result<i64, AppError> {
     let r = sqlx::query("DELETE FROM usage_records WHERE started_at < ?")
         .bind(cutoff)

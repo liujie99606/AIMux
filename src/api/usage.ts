@@ -45,7 +45,7 @@ export const usageApi = {
       };
     }>(`/api/usage/records${query}`),
   detail: (id: string) => get<UsageRecord>(`/api/usage/records/${id}`),
-  cleanup: () => del<{ deleted: number }>('/api/usage/records/expired'),
+  cleanup: (days: number) => del<{ deleted: number }>(`/api/usage/records/expired?days=${days}`),
   statistics: () => get<Statistics>('/api/usage/statistics'),
 };
 export type TokenSummary = {
@@ -66,6 +66,8 @@ export type Statistics = {
       account_type: string;
       multiplier: number;
       priority: number;
+      recent_cache_rate: number | null;
+      recent_cache_count: number;
     }
   >;
 };

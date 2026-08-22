@@ -79,10 +79,13 @@ async fn summary(
 pub async fn detail(pool: &SqlitePool, id: &str) -> Result<Option<UsageRecord>, AppError> {
     usage_dao::get(pool, id).await
 }
-pub async fn cleanup(pool: &SqlitePool) -> Result<i64, AppError> {
+pub async fn cleanup(pool: &SqlitePool, days: i64) -> Result<i64, AppError> {
+    if !matches!(days, 7 | 30 | 90) {
+        return Err(AppError::BadRequest("清理天数只支持 7、30 或 90 天".into()));
+    }
     usage_dao::cleanup(
         pool,
-        &(Utc::now() - Duration::days(3))
+        &(Utc::now() - Duration::days(days))
             .format("%Y-%m-%dT%H:%M:%SZ")
             .to_string(),
     )

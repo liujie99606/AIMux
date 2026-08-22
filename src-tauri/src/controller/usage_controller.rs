@@ -18,6 +18,10 @@ struct Q {
     pub started_after: Option<String>,
     pub started_before: Option<String>,
 }
+#[derive(Deserialize, Default)]
+struct CleanupQuery {
+    days: Option<i64>,
+}
 pub fn routes() -> Router<Arc<AppState>> {
     Router::new()
         .route("/api/usage/records", get(list))
@@ -55,8 +59,11 @@ async fn detail(
         .ok_or_else(|| AppError::NotFound("使用记录不存在".into()))?;
     Ok(Json(serde_json::to_value(row).unwrap()))
 }
-async fn cleanup(State(s): State<Arc<AppState>>) -> Result<Json<serde_json::Value>, AppError> {
+async fn cleanup(
+    State(s): State<Arc<AppState>>,
+    Query(q): Query<CleanupQuery>,
+) -> Result<Json<serde_json::Value>, AppError> {
     Ok(Json(
-        serde_json::json!({"deleted":usage_service::cleanup(&s.pool).await?}),
+        serde_json::json!({"deleted":usage_service::cleanup(&s.pool, q.days.unwrap_or(7)).await?}),
     ))
 }

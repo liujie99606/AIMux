@@ -4,7 +4,7 @@
       <h2 class="page-title">使用记录</h2>
       <div>
         <el-button @click="reset">重置</el-button>
-        <el-button @click="cleanup">清除3天前数据</el-button>
+        <el-button @click="cleanupVisible = true">清除历史记录</el-button>
       </div>
     </div>
 
@@ -99,13 +99,15 @@
     />
 
     <UsageDetailDialog v-model="detailVisible" :record="selected" />
+    <UsageCleanupDialog v-model="cleanupVisible" :loading="cleanupLoading" @confirm="cleanup" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import { usageApi, type UsageFilterState, type UsageRecord } from '../../api/usage';
+import UsageCleanupDialog from '../../components/usage/UsageCleanupDialog.vue';
 import UsageDetailDialog from '../../components/usage/UsageDetailDialog.vue';
 import UsageFilter from '../../components/usage/UsageFilter.vue';
 import { formatToken } from '../../utils/token';
@@ -131,6 +133,8 @@ const summary = reactive({
 });
 const detailVisible = ref(false);
 const selected = ref<UsageRecord>();
+const cleanupVisible = ref(false);
+const cleanupLoading = ref(false);
 
 const pageSuccessRate = computed(() => {
   if (!items.value.length) return 0;
@@ -213,11 +217,18 @@ const showDetail = async (id: string) => {
   detailVisible.value = true;
 };
 
-const cleanup = async () => {
-  await ElMessageBox.confirm('清除三天以前的使用记录？', '确认');
-  const result = await usageApi.cleanup();
-  ElMessage.success(`已清除 ${result.deleted} 条`);
-  queryFromFirstPage();
+const cleanup = async (days: number) => {
+  cleanupLoading.value = true;
+  try {
+    const result = await usageApi.cleanup(days);
+    cleanupVisible.value = false;
+    ElMessage.success(`已清除 ${result.deleted} 条`);
+    queryFromFirstPage();
+  } catch (error) {
+    ElMessage.error(`清除历史记录失败：${String(error)}`);
+  } finally {
+    cleanupLoading.value = false;
+  }
 };
 
 const formatTime = (value?: string) => {

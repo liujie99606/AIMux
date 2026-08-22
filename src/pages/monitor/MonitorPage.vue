@@ -13,18 +13,19 @@
     <el-table :data="items" v-loading="loading" border class="compact-table">
       <el-table-column prop="account_name" label="账号" min-width="140" fixed="left" />
       <el-table-column prop="account_type" label="类型" width="90" />
-      <el-table-column prop="multiplier" label="倍率" width="70">
+      <el-table-column prop="multiplier" label="倍率" width="60">
         <template #default="{ row }">{{ Number(row.multiplier).toFixed(2) }}</template>
       </el-table-column>
+      <el-table-column prop="priority" label="优先级" width="70" />
       <el-table-column label="测试模型" min-width="120">
         <template #default="{ row }">
           {{ row.model || latest(row.records)?.model || '-' }}
         </template>
       </el-table-column>
-      <el-table-column label="最近检查" width="170">
+      <el-table-column label="最近检查" width="160">
         <template #default="{ row }">{{ formatTime(latest(row.records)?.checked_at) }}</template>
       </el-table-column>
-      <el-table-column label="平均耗时" width="105">
+      <el-table-column label="平均耗时" width="90">
         <template #default="{ row }">
           <span
             :class="(row.monitor_average_duration_ms ?? 0) > SLOW_THRESHOLD ? 'warning-text' : ''"
